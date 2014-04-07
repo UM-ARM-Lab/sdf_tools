@@ -4,10 +4,10 @@ project(sdf_tools)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS rospy std_msgs sensor_msgs image_transport cv_bridge pcl_conversions message_generation)
-find_package(OpenCV REQUIRED)
-find_package(PCL REQUIRED)
+find_package(catkin REQUIRED COMPONENTS rospy std_msgs sensor_msgs moveit_msgs octomap_msgs image_transport cv_bridge message_generation)
+find_package(Eigen REQUIRED)
 find_package(octomap REQUIRED)
+find_package(OpenCV REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -22,6 +22,15 @@ find_package(octomap REQUIRED)
 ## Declare ROS messages and services ##
 #######################################
 
+## Generate messages in the 'msg' folder
+add_message_files(DIRECTORY msg FILES SDF.msg)
+
+## Generate services in the 'srv' folder
+add_service_files(DIRECTORY srv FILES ComputeSDF.srv)
+
+## Generate added messages and services with any dependencies listed here
+generate_messages(DEPENDENCIES geometry_msgs std_msgs)
+
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -30,7 +39,7 @@ find_package(octomap REQUIRED)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs image_transport cv_bridge pcl_conversions message_runtime DEPENDS system_lib z OpenCV PCL octomap)
+catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_msgs octomap_msgs image_transport cv_bridge message_runtime DEPENDS system_lib z Eigen OpenCV octomap)
 
 ###########
 ## Build ##
@@ -38,7 +47,7 @@ catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS ros
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(include ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${OCTOMAP_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OCTOMAP_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
 set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3")
 
@@ -46,6 +55,11 @@ set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3")
 add_library(${PROJECT_NAME} src/sdf_tools.cpp)
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+
+# SDF generation node
+add_executable(sdf_generation_node src/sdf_generation_node.cpp)
+add_dependencies(sdf_generation_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(sdf_generation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 # Image to SDF node
 add_executable(image_2d_sdf_node src/image_2d_sdf_node.cpp)
