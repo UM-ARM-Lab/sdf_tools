@@ -10,8 +10,6 @@
 #ifndef VOXEL_GRID_HPP
 #define VOXEL_GRID_HPP
 
-#define snap(x) ((x)>=0?(long)((x)+0.5):(long)((x)-0.5))
-
 typedef Eigen::Transform<double, 3, Eigen::Affine> Transformation;
 
 namespace VOXEL_GRID
@@ -37,7 +35,7 @@ namespace VOXEL_GRID
 
         inline u_int64_t GetDataIndex(u_int32_t x_index, u_int32_t y_index, u_int32_t z_index)
         {
-            return (x_index * stride1_) + (y_index + stride2_) + z_index;
+            return (x_index * stride1_) + (y_index * stride2_) + z_index;
         }
 
     public:
@@ -142,7 +140,7 @@ namespace VOXEL_GRID
             }
         }
 
-        inline bool Set(u_int32_t x_index, u_int32_t y_index, u_int32_t z_index, T &value)
+        inline bool Set(u_int32_t x_index, u_int32_t y_index, u_int32_t z_index, T& value)
         {
             if (x_index >= num_x_cells_ || y_index >= num_y_cells_ || z_index >= num_z_cells_)
             {
@@ -168,6 +166,16 @@ namespace VOXEL_GRID
         inline double GetZSize()
         {
             return z_size_;
+        }
+
+        inline double GetCellSize()
+        {
+            return cell_size_;
+        }
+
+        inline T GetDefaultValue()
+        {
+            return default_value_;
         }
 
         inline u_int32_t GetNumXCells()
@@ -201,6 +209,10 @@ namespace VOXEL_GRID
             {
                 return std::vector<u_int32_t>();
             }
+            else if (x_cell >= num_x_cells_ || y_cell >= num_y_cells_ || z_cell >= num_z_cells_)
+            {
+                return std::vector<u_int32_t>();
+            }
             else
             {
                 std::vector<u_int32_t> indices(3);
@@ -222,9 +234,28 @@ namespace VOXEL_GRID
             return location;
         }
 
-        std::vector<T>& GetRawData()
+        const std::vector<T>& GetRawData()
         {
             return data_;
+        }
+
+        std::vector<T> CopyRawData()
+        {
+            return data_;
+        }
+
+        bool SetRawData(std::vector<T>& data)
+        {
+            u_int64_t expected_length = x_size_ * y_size_ * z_size_;
+            if (data.size() != expected_length)
+            {
+                return false;
+            }
+            else
+            {
+                data_ = data;
+                return true;
+            }
         }
     };
 }
