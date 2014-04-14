@@ -125,24 +125,23 @@ int main(int argc, char** argv)
     ///// Display! /////
     ////////////////////
     ros::Publisher viz_pub = nh.advertise<visualization_msgs::Marker>("sdf_markers", 1, true);
-    ros::Rate spin_rate(0.1);
+    ros::Rate spin_rate(10);
     while (ros::ok())
     {
         /* Collision map visualization message publish */
-        //std::cout << "Generating a new Collision Map..." << std::endl;
-        //VOXEL_GRID::VoxelGrid<u_int8_t> coll_map = sdf_builder.UpdateCollisionMap(sdf_tools::USE_FULL_PLANNING_SCENE);
-        //std::cout << "...Collision Map with " << (coll_map.GetNumXCells() * coll_map.GetNumYCells() * coll_map.GetNumZCells()) << " cells generated - sending to RVIZ" << std::endl;
-        //viz_pub.publish(ExportCollisionMapForDisplay(coll_map, "base", 1.0));
-        ///* SDF visualization message publish
+        std::cout << "Generating a new Collision Map..." << std::endl;
+        VOXEL_GRID::VoxelGrid<u_int8_t> coll_map = sdf_builder.UpdateCollisionMap(sdf_tools::USE_FULL_PLANNING_SCENE);
+        std::cout << "...Collision Map with " << (coll_map.GetNumXCells() * coll_map.GetNumYCells() * coll_map.GetNumZCells()) << " cells generated - sending to RVIZ" << std::endl;
+        viz_pub.publish(ExportCollisionMapForDisplay(coll_map, "base", 1.0));
+        /* SDF visualization message publish */
         clock_t st, et;
         st = std::clock();
-        sdf_tools::SignedDistanceField sdf = sdf_builder.UpdateSDF(sdf_tools::USE_FULL_PLANNING_SCENE);
+        sdf_tools::SignedDistanceField sdf = sdf_builder.UpdateSDF(sdf_tools::USE_CACHED);
         et = std::clock();
         std::cout << "SDF with " << (sdf.GetNumXCells() * sdf.GetNumYCells() * sdf.GetNumZCells()) << " cells generated - took " << (((float)(et - st)) / CLOCKS_PER_SEC) << " seconds to compute" << std::endl;
         viz_pub.publish(sdf.ExportForDisplay(0.1));
-        //*/
         ros::spinOnce();
-        //spin_rate.sleep();
+        spin_rate.sleep();
     }
     return 0;
 }
