@@ -382,8 +382,8 @@ SignedDistanceField SDF_Builder::UpdateSDFFromPlanningScene()
         {
             for (u_int32_t z_index = 0; z_index < filled_distance_field.GetNumZCells(); z_index++)
             {
-                double distance1 = sqrt(filled_distance_field.Get(x_index, y_index, z_index).first.distance_square);
-                double distance2 = sqrt(free_distance_field.Get(x_index, y_index, z_index).first.distance_square);
+                double distance1 = sqrt(filled_distance_field.Get(x_index, y_index, z_index).first.distance_square) * resolution_;
+                double distance2 = sqrt(free_distance_field.Get(x_index, y_index, z_index).first.distance_square) * resolution_;
                 new_sdf.Set(x_index, y_index, z_index, (distance1 - distance2));
             }
         }
