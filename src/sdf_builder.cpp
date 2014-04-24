@@ -290,11 +290,11 @@ VOXEL_GRID::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMapFromPlanningScene
     collision_detection::CollisionRequest col_req;
     collision_detection::CollisionResult col_res;
     robot_state::RobotState& sdf_compute_bot_state = planning_scene_ptr_->getCurrentStateNonConst();
-    for (u_int32_t x_index = 0; x_index < collision_field.GetNumXCells(); x_index++)
+    for (int64_t x_index = 0; x_index < collision_field.GetNumXCells(); x_index++)
     {
-        for (u_int32_t y_index = 0; y_index < collision_field.GetNumYCells(); y_index++)
+        for (int64_t y_index = 0; y_index < collision_field.GetNumYCells(); y_index++)
         {
-            for (u_int32_t z_index = 0; z_index < collision_field.GetNumZCells(); z_index++)
+            for (int64_t z_index = 0; z_index < collision_field.GetNumZCells(); z_index++)
             {
                 // Convert SDF indices into a real-world location
                 std::vector<double> location = collision_field.GridIndexToLocation(x_index, y_index, z_index);
@@ -376,11 +376,11 @@ SignedDistanceField SDF_Builder::UpdateSDFFromPlanningScene()
     DistanceField filled_distance_field = BuildDistanceField(filled);
     DistanceField free_distance_field = BuildDistanceField(free);
     // Generate the SDF
-    for (u_int32_t x_index = 0; x_index < filled_distance_field.GetNumXCells(); x_index++)
+    for (int64_t x_index = 0; x_index < filled_distance_field.GetNumXCells(); x_index++)
     {
-        for (u_int32_t y_index = 0; y_index < filled_distance_field.GetNumYCells(); y_index++)
+        for (int64_t y_index = 0; y_index < filled_distance_field.GetNumYCells(); y_index++)
         {
-            for (u_int32_t z_index = 0; z_index < filled_distance_field.GetNumZCells(); z_index++)
+            for (int64_t z_index = 0; z_index < filled_distance_field.GetNumZCells(); z_index++)
             {
                 double distance1 = sqrt(filled_distance_field.Get(x_index, y_index, z_index).first.distance_square) * resolution_;
                 double distance2 = sqrt(free_distance_field.Get(x_index, y_index, z_index).first.distance_square) * resolution_;
@@ -463,7 +463,7 @@ DistanceField SDF_Builder::BuildDistanceField(std::vector<Eigen::Vector3i>& poin
     // Mark all points with distance zero and add to the bucket queue
     for (size_t index = 0; index < points.size(); index++)
     {
-        std::pair<bucket_cell&, bool> query = distance_field.Get((u_int32_t)points[index].x(), (u_int32_t)points[index].y(), (u_int32_t)points[index].z());
+        std::pair<bucket_cell&, bool> query = distance_field.Get((int64_t)points[index].x(), (int64_t)points[index].y(), (int64_t)points[index].z());
         if (query.second)
         {
             query.first.location[0] = points[index].x();
@@ -518,7 +518,7 @@ DistanceField SDF_Builder::BuildDistanceField(std::vector<Eigen::Vector3i>& poin
                 int nx = x + dx;
                 int ny = y + dy;
                 int nz = z + dz;
-                std::pair<bucket_cell&, bool> neighbor_query = distance_field.Get((u_int32_t)nx, (u_int32_t)ny, (u_int32_t)nz);
+                std::pair<bucket_cell&, bool> neighbor_query = distance_field.Get((int64_t)nx, (int64_t)ny, (int64_t)nz);
                 if (!neighbor_query.second)
                 {
                     // "Neighbor" is outside the bounds of the SDF

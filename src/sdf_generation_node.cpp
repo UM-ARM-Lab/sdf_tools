@@ -3,49 +3,6 @@
 #include "sdf_tools/sdf_builder.hpp"
 #include <time.h>
 
-void test_voxel_grid()
-{
-    VOXEL_GRID::VoxelGrid<int> test_grid(0.5, 1.0, 1.0, 1.0, 0);
-    // Load with special values
-    int check_val = 1;
-    std::vector<int> check_vals;
-    for (u_int32_t x_index = 0; x_index < test_grid.GetNumXCells(); x_index++)
-    {
-        for (u_int32_t y_index = 0; y_index < test_grid.GetNumYCells(); y_index++)
-        {
-            for (u_int32_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
-            {
-                test_grid.Set(x_index, y_index, z_index, check_val);
-                check_vals.push_back(check_val);
-                check_val++;
-            }
-        }
-    }
-    // Check the values
-    int check_index = 0;
-    // Load with special values
-    for (u_int32_t x_index = 0; x_index < test_grid.GetNumXCells(); x_index++)
-    {
-        for (u_int32_t y_index = 0; y_index < test_grid.GetNumYCells(); y_index++)
-        {
-            for (u_int32_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
-            {
-                int ref_val = test_grid.Get(x_index, y_index, z_index).first;
-                std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
-                if (ref_val == check_vals[check_index])
-                {
-                    std::cout << "Check pass" << std::endl;
-                }
-                else
-                {
-                    std::cout << "Check fail" << std::endl;
-                }
-                check_index++;
-            }
-        }
-    }
-}
-
 visualization_msgs::Marker ExportCollisionMapForDisplay(VOXEL_GRID::VoxelGrid<u_int8_t>& collision_map, std::string frame, float alpha)
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
@@ -63,11 +20,11 @@ visualization_msgs::Marker ExportCollisionMapForDisplay(VOXEL_GRID::VoxelGrid<u_
     display_rep.scale.y = collision_map.GetCellSize();
     display_rep.scale.z = collision_map.GetCellSize();
     // Add all cells in collision
-    for (u_int32_t x_index = 0; x_index < collision_map.GetNumXCells(); x_index++)
+    for (int64_t x_index = 0; x_index < collision_map.GetNumXCells(); x_index++)
     {
-        for (u_int32_t y_index = 0; y_index < collision_map.GetNumYCells(); y_index++)
+        for (int64_t y_index = 0; y_index < collision_map.GetNumYCells(); y_index++)
         {
-            for (u_int32_t z_index = 0; z_index < collision_map.GetNumZCells(); z_index++)
+            for (int64_t z_index = 0; z_index < collision_map.GetNumZCells(); z_index++)
             {
                 // Check if the current cell is in collision
                 u_int8_t status = collision_map.Get(x_index, y_index, z_index).first;

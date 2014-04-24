@@ -297,11 +297,11 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha)
     // Add all the cells of the SDF to the message
     double min_distance = 0.0;
     double max_distance = 0.0;
-    for (u_int32_t x_index = 0; x_index < distance_field_.GetNumXCells(); x_index++)
+    for (int64_t x_index = 0; x_index < distance_field_.GetNumXCells(); x_index++)
     {
-        for (u_int32_t y_index = 0; y_index < distance_field_.GetNumYCells(); y_index++)
+        for (int64_t y_index = 0; y_index < distance_field_.GetNumYCells(); y_index++)
         {
-            for (u_int32_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
+            for (int64_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
             {
                 // Update minimum/maximum distance variables
                 float distance = distance_field_.Get(x_index, y_index, z_index).first;
@@ -324,11 +324,11 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha)
         }
     }
     // Add colors for all the cells of the SDF to the message
-    for (u_int32_t x_index = 0; x_index < distance_field_.GetNumXCells(); x_index++)
+    for (int64_t x_index = 0; x_index < distance_field_.GetNumXCells(); x_index++)
     {
-        for (u_int32_t y_index = 0; y_index < distance_field_.GetNumYCells(); y_index++)
+        for (int64_t y_index = 0; y_index < distance_field_.GetNumYCells(); y_index++)
         {
-            for (u_int32_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
+            for (int64_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
             {
                 // Update minimum/maximum distance variables
                 float distance = distance_field_.Get(x_index, y_index, z_index).first;
@@ -376,11 +376,11 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(fl
     display_rep.scale.y = distance_field_.GetCellSize();
     display_rep.scale.z = distance_field_.GetCellSize();
     // Add all the cells of the SDF to the message
-    for (u_int32_t x_index = 0; x_index < distance_field_.GetNumXCells(); x_index++)
+    for (int64_t x_index = 0; x_index < distance_field_.GetNumXCells(); x_index++)
     {
-        for (u_int32_t y_index = 0; y_index < distance_field_.GetNumYCells(); y_index++)
+        for (int64_t y_index = 0; y_index < distance_field_.GetNumYCells(); y_index++)
         {
-            for (u_int32_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
+            for (int64_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
             {
                 // Update minimum/maximum distance variables
                 float distance = distance_field_.Get(x_index, y_index, z_index).first;
@@ -424,11 +424,11 @@ visualization_msgs::Marker SignedDistanceField::ExportForDebug(float alpha)
     display_rep.scale.y = distance_field_.GetCellSize();
     display_rep.scale.z = distance_field_.GetCellSize();
     // Add all the cells of the SDF to the message
-    for (u_int32_t x_index = 0; x_index < distance_field_.GetNumXCells(); x_index++)
+    for (int64_t x_index = 0; x_index < distance_field_.GetNumXCells(); x_index++)
     {
-        for (u_int32_t y_index = 0; y_index < distance_field_.GetNumYCells(); y_index++)
+        for (int64_t y_index = 0; y_index < distance_field_.GetNumYCells(); y_index++)
         {
-            for (u_int32_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
+            for (int64_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
             {
                 // Convert SDF indices into a real-world location
                 std::vector<double> location = distance_field_.GridIndexToLocation(x_index, y_index, z_index);

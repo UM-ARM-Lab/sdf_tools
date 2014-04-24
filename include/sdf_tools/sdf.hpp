@@ -52,7 +52,7 @@ namespace sdf_tools
             return distance_field_.Get(x, y, z).first;
         }
 
-        inline float Get(u_int32_t x_index, u_int32_t y_index, u_int32_t z_index)
+        inline float Get(int64_t x_index, int64_t y_index, int64_t z_index)
         {
             return distance_field_.Get(x_index, y_index, z_index).first;
         }
@@ -62,7 +62,7 @@ namespace sdf_tools
             return distance_field_.Set(x, y, z, value);
         }
 
-        inline bool Set(u_int32_t x_index, u_int32_t y_index, u_int32_t z_index, float value)
+        inline bool Set(int64_t x_index, int64_t y_index, int64_t z_index, float value)
         {
             return distance_field_.Set(x_index, y_index, z_index, value);
         }
@@ -72,7 +72,7 @@ namespace sdf_tools
             return distance_field_.Get(x, y, z).second;
         }
 
-        inline bool CheckInBounds(u_int32_t x_index, u_int32_t y_index, u_int32_t z_index)
+        inline bool CheckInBounds(int64_t x_index, int64_t y_index, int64_t z_index)
         {
             return distance_field_.Get(x_index, y_index, z_index).second;
         }
@@ -102,25 +102,25 @@ namespace sdf_tools
             return distance_field_.GetDefaultValue();
         }
 
-        inline u_int32_t GetNumXCells()
+        inline int64_t GetNumXCells()
         {
             return distance_field_.GetNumXCells();
         }
 
-        inline u_int32_t GetNumYCells()
+        inline int64_t GetNumYCells()
         {
             return distance_field_.GetNumYCells();
         }
 
-        inline u_int32_t GetNumZCells()
+        inline int64_t GetNumZCells()
         {
             return distance_field_.GetNumZCells();
         }
 
         inline std::vector<double> GetGradient(double x, double y, double z)
         {
-            std::vector<u_int32_t> indices = LocationToGridIndex(x, y, z);
-            if (indices.empty())
+            std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
+            if (indices.size() != 3)
             {
                 return std::vector<double>();
             }
@@ -130,10 +130,10 @@ namespace sdf_tools
             }
         }
 
-        inline std::vector<double> GetGradient(u_int32_t x_index, u_int32_t y_index, u_int32_t z_index)
+        inline std::vector<double> GetGradient(int64_t x_index, int64_t y_index, int64_t z_index)
         {
             // Make sure the index is inside bounds
-            if ((x_index < GetNumXCells()) && (y_index < GetNumYCells()) && (z_index < GetNumZCells()))
+            if ((x_index >= 0) && (y_index >= 0) && (z_index >= 0) && (x_index < GetNumXCells()) && (y_index < GetNumYCells()) && (z_index < GetNumZCells()))
             {
                 // Make sure the index we're trying to query is one cell in from the edge
                 if ((x_index > 0) && (y_index > 0) && (z_index > 0) && (x_index < (GetNumXCells() - 1)) && (y_index < (GetNumYCells() - 1)) && (z_index < (GetNumZCells() - 1)))
@@ -144,12 +144,13 @@ namespace sdf_tools
                     double gz = (Get(x_index, y_index, z_index + 1) - Get(x_index, y_index, z_index - 1)) * inv_twice_resolution;
                     return std::vector<double>{gx, gy, gz};
                 }
-                // If we're on the edge, return zero gradient
+                // If we're on the edge, return no gradient
                 else
                 {
-                    return std::vector<double>{0.0, 0.0, 0.0};
+                    return std::vector<double>();
                 }
             }
+            // If we're out of bounds, return no gradient
             else
             {
                 return std::vector<double>();
@@ -161,12 +162,12 @@ namespace sdf_tools
             return distance_field_.GetOriginTransform();
         }
 
-        inline std::vector<u_int32_t> LocationToGridIndex(double x, double y, double z)
+        inline std::vector<int64_t> LocationToGridIndex(double x, double y, double z)
         {
             return distance_field_.LocationToGridIndex(x, y, z);
         }
 
-        inline std::vector<double> GridIndexToLocation(u_int32_t x_index, u_int32_t y_index, u_int32_t z_index)
+        inline std::vector<double> GridIndexToLocation(int64_t x_index, int64_t y_index, int64_t z_index)
         {
             return distance_field_.GridIndexToLocation(x_index, y_index, z_index);
         }
