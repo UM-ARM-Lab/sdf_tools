@@ -1,4 +1,5 @@
 #include "sdf_tools/voxel_grid.hpp"
+#include "sdf_tools/sdf.hpp"
 
 void test_voxel_grid()
 {
@@ -52,8 +53,17 @@ void test_voxel_grid()
     }
 }
 
+void test_float_binary_conversion(float test_val)
+{
+    std::cout << "Initial value " << test_val << std::endl;
+    std::vector<u_int8_t> binary_value = FloatToBinary(test_val);
+    float final_val = FloatFromBinary(binary_value);
+    std::cout << "Final value " << final_val << std::endl;
+}
+
 int main(int argc, char** argv)
 {
     test_voxel_grid();
+    test_float_binary_conversion(5280.0);
     return 0;
 }

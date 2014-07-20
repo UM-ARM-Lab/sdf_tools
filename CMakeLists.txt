@@ -23,7 +23,7 @@ find_package(OpenCV REQUIRED)
 #######################################
 
 ## Generate messages in the 'msg' folder
-add_message_files(DIRECTORY msg FILES SDF.msg)
+add_message_files(DIRECTORY msg FILES SDF.msg CollisionMap.msg)
 
 ## Generate services in the 'srv' folder
 add_service_files(DIRECTORY srv FILES ComputeSDF.srv)
@@ -52,7 +52,7 @@ include_directories(include ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OCTOM
 set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3")
 
 # SDF library
-add_library(${PROJECT_NAME} src/sdf.cpp src/sdf_builder.cpp)
+add_library(${PROJECT_NAME} src/collision_map.cpp src/sdf.cpp src/sdf_builder.cpp)
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 

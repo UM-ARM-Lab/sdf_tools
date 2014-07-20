@@ -133,18 +133,11 @@ std::vector<u_int8_t> SignedDistanceField::GetInternalBinaryRepresentation(const
     {
         // Convert the float at the current index into 4 bytes and store them
         float field_value = field_data[field_index];
-        u_int32_t binary_value = *(u_int32_t*)&field_value;
-        // Copy byte 1, least-significant byte
-        raw_binary_data[binary_index + 3] = binary_value & 0x000000ff;
-        // Copy byte 2
-        binary_value = binary_value >> 8;
-        raw_binary_data[binary_index + 2] = binary_value & 0x000000ff;
-        // Copy byte 3
-        binary_value = binary_value >> 8;
-        raw_binary_data[binary_index + 1] = binary_value & 0x000000ff;
-        // Copy byte 4, most-significant byte
-        binary_value = binary_value >> 8;
-        raw_binary_data[binary_index] = binary_value & 0x000000ff;
+        std::vector<u_int8_t> binary_value = FloatToBinary(field_value);
+        raw_binary_data[binary_index] = binary_value[0];
+        raw_binary_data[binary_index + 1] = binary_value[1];
+        raw_binary_data[binary_index + 2] = binary_value[2];
+        raw_binary_data[binary_index + 3] = binary_value[3];
     }
     return raw_binary_data;
 }
@@ -160,22 +153,8 @@ std::vector<float> SignedDistanceField::UnpackFieldFromBinaryRepresentation(std:
     std::vector<float> field_data(data_size);
     for (size_t field_index = 0, binary_index = 0; field_index < field_data.size(); field_index++, binary_index+=4)
     {
-        u_int32_t binary_value = 0;
-        // Copy in byte 4, most-significant byte
-        binary_value  = binary_value | binary[binary_index];
-        binary_value = binary_value << 8;
-        // Copy in byte 3
-        binary_value  = binary_value | binary[binary_index + 1];
-        binary_value = binary_value << 8;
-        // Copy in byte 2
-        binary_value  = binary_value | binary[binary_index + 2];
-        binary_value = binary_value << 8;
-        // Copy in byte 1, least-significant byte
-        binary_value  = binary_value | binary[binary_index + 3];
-        binary_value = binary_value << 8;
-        // Convert binary to float and store
-        float field_value = *(float*)&binary_value;
-        field_data[field_index] = field_value;
+        std::vector<u_int8_t> binary_block{binary[binary_index], binary[binary_index + 1], binary[binary_index + 2], binary[binary_index + 3]};
+        field_data[field_index] = FloatFromBinary(binary_block);
     }
     return field_data;
 }
@@ -265,11 +244,13 @@ bool SignedDistanceField::LoadFromMessageRepresentation(sdf_tools::SDF& message)
     std::vector<float> unpacked = UnpackFieldFromBinaryRepresentation(binary_data);
     if (unpacked.empty())
     {
+        std::cerr << "Unpack returned an empty SDF" << std::endl;
         return false;
     }
     bool success = new_field.SetRawData(unpacked);
     if (!success)
     {
+        std::cerr << "Unable to set internal representation of the SDF" << std::endl;
         return false;
     }
     // Set it

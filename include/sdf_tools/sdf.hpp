@@ -15,6 +15,51 @@
 
 typedef Eigen::Transform<double, 3, Eigen::Affine> Transformation;
 
+inline std::vector<u_int8_t> FloatToBinary(float value)
+{
+    u_int32_t binary_value = *(u_int32_t*) &value;
+    std::vector<u_int8_t> binary(4);
+    // Copy byte 1, least-significant byte
+    binary[3] = binary_value & 0x000000ff;
+    // Copy byte 2
+    binary_value = binary_value >> 8;
+    binary[2] = binary_value & 0x000000ff;
+    // Copy byte 3
+    binary_value = binary_value >> 8;
+    binary[1] = binary_value & 0x000000ff;
+    // Copy byte 4, most-significant byte
+    binary_value = binary_value >> 8;
+    binary[0] = binary_value & 0x000000ff;
+    return binary;
+}
+
+inline float FloatFromBinary(std::vector<u_int8_t>& binary)
+{
+    if (binary.size() != 4)
+    {
+        std::cerr << "Binary value is not 4 bytes" << std::endl;
+        return NAN;
+    }
+    else
+    {
+        u_int32_t binary_value = 0;
+        // Copy in byte 4, most-significant byte
+        binary_value  = binary_value | binary[0];
+        binary_value = binary_value << 8;
+        // Copy in byte 3
+        binary_value  = binary_value | binary[1];
+        binary_value = binary_value << 8;
+        // Copy in byte 2
+        binary_value  = binary_value | binary[2];
+        binary_value = binary_value << 8;
+        // Copy in byte 1, least-significant byte
+        binary_value  = binary_value | binary[3];
+        // Convert binary to float and store
+        float field_value = *(float*) &binary_value;
+        return field_value;
+    }
+}
+
 namespace sdf_tools
 {
 

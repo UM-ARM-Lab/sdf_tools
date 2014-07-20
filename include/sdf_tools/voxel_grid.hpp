@@ -242,9 +242,10 @@ namespace VOXEL_GRID
 
         bool SetRawData(std::vector<T>& data)
         {
-            int64_t expected_length = x_size_ * y_size_ * z_size_;
+            int64_t expected_length = num_x_cells_ * num_y_cells_ * num_z_cells_;
             if (data.size() != expected_length)
             {
+                std::cerr << "Failed to load internal data - expected " << expected_length << " got " << data.size() << std::endl;
                 return false;
             }
             else
