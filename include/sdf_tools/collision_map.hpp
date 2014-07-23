@@ -23,17 +23,21 @@ namespace sdf_tools
     protected:
 
         std::string frame_;
-        VOXEL_GRID::VoxelGrid<u_int8_t> collision_field_;
+        VOXEL_GRID::VoxelGrid<int8_t> collision_field_;
 
         std::vector<u_int8_t> decompress_bytes(std::vector<u_int8_t>& compressed);
 
         std::vector<u_int8_t> compress_bytes(std::vector<u_int8_t>& uncompressed);
 
+        std::vector<u_int8_t> PackBinaryRepresentation(std::vector<int8_t>& raw);
+
+        std::vector<int8_t> UnpackBinaryRepresentation(std::vector<u_int8_t>& packed);
+
     public:
 
-        CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, u_int8_t OOB_value);
+        CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, int8_t OOB_value);
 
-        CollisionMapGrid(Transformation origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, u_int8_t OOB_value);
+        CollisionMapGrid(Transformation origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, int8_t OOB_value);
 
         CollisionMapGrid()
         {
@@ -43,22 +47,22 @@ namespace sdf_tools
         {
         }
 
-        inline u_int8_t Get(double x, double y, double z)
+        inline int8_t Get(double x, double y, double z)
         {
             return collision_field_.Get(x, y, z).first;
         }
 
-        inline u_int8_t Get(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline int8_t Get(int64_t x_index, int64_t y_index, int64_t z_index)
         {
             return collision_field_.Get(x_index, y_index, z_index).first;
         }
 
-        inline bool Set(double x, double y, double z, u_int8_t value)
+        inline bool Set(double x, double y, double z, int8_t value)
         {
             return collision_field_.Set(x, y, z, value);
         }
 
-        inline bool Set(int64_t x_index, int64_t y_index, int64_t z_index, u_int8_t value)
+        inline bool Set(int64_t x_index, int64_t y_index, int64_t z_index, int8_t value)
         {
             return collision_field_.Set(x_index, y_index, z_index, value);
         }
@@ -136,7 +140,7 @@ namespace sdf_tools
 
         bool LoadFromMessageRepresentation(sdf_tools::CollisionMap& message);
 
-        visualization_msgs::Marker ExportForDisplay(std_msgs::ColorRGBA color);
+        visualization_msgs::Marker ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color);
     };
 }
 

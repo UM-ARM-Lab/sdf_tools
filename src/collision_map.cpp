@@ -112,17 +112,17 @@ std::vector<u_int8_t> CollisionMapGrid::compress_bytes(std::vector<u_int8_t>& un
     return compressed;
 }
 
-CollisionMapGrid::CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, u_int8_t OOB_value)
+CollisionMapGrid::CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, int8_t OOB_value)
 {
     frame_ = frame;
-    VOXEL_GRID::VoxelGrid<u_int8_t> new_field(resolution, x_size, y_size, z_size, OOB_value);
+    VOXEL_GRID::VoxelGrid<int8_t> new_field(resolution, x_size, y_size, z_size, OOB_value);
     collision_field_ = new_field;
 }
 
-CollisionMapGrid::CollisionMapGrid(Transformation origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, u_int8_t OOB_value)
+CollisionMapGrid::CollisionMapGrid(Transformation origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, int8_t OOB_value)
 {
     frame_ = frame;
-    VOXEL_GRID::VoxelGrid<u_int8_t> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
+    VOXEL_GRID::VoxelGrid<int8_t> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
     collision_field_ = new_field;
 }
 
@@ -174,6 +174,30 @@ bool CollisionMapGrid::LoadFromFile(std::string& filepath)
     }
 }
 
+std::vector<u_int8_t> CollisionMapGrid::PackBinaryRepresentation(std::vector<int8_t>& raw)
+{
+    std::vector<u_int8_t> packed(raw.size());
+    for (size_t idx = 0; idx < raw.size(); idx++)
+    {
+        int8_t raw_cell = raw[idx];
+        u_int8_t packed_cell = *(u_int8_t*) &raw_cell;
+        packed[idx] = packed_cell;
+    }
+    return packed;
+}
+
+std::vector<int8_t> CollisionMapGrid::UnpackBinaryRepresentation(std::vector<u_int8_t>& packed)
+{
+    std::vector<int8_t> unpacked(packed.size());
+    for (size_t idx = 0; idx < packed.size(); idx++)
+    {
+        u_int8_t packed_cell = packed[idx];
+        int8_t unpacked_cell = *(int8_t*) &packed_cell;
+        unpacked[idx] = unpacked_cell;
+    }
+    return unpacked;
+}
+
 sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
 {
     sdf_tools::CollisionMap message_rep;
@@ -193,7 +217,8 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
     message_rep.dimensions.z = collision_field_.GetZSize();
     message_rep.cell_size = collision_field_.GetCellSize();
     message_rep.OOB_value = collision_field_.GetDefaultValue();
-    std::vector<u_int8_t> binary_data = collision_field_.GetRawData();
+    std::vector<int8_t> raw_data = collision_field_.GetRawData();
+    std::vector<u_int8_t> binary_data = PackBinaryRepresentation(raw_data);
     message_rep.data = compress_bytes(binary_data);
     return message_rep;
 }
@@ -204,9 +229,10 @@ bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& me
     Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
     Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
     Transformation origin_transform = origin_translation * origin_rotation;
-    VOXEL_GRID::VoxelGrid<u_int8_t> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, message.OOB_value);
+    VOXEL_GRID::VoxelGrid<int8_t> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, message.OOB_value);
     // Unpack the binary data
-    std::vector<u_int8_t> unpacked = decompress_bytes(message.data);
+    std::vector<u_int8_t> binary_representation = decompress_bytes(message.data);
+    std::vector<int8_t> unpacked = UnpackBinaryRepresentation(binary_representation);
     if (unpacked.empty())
     {
         std::cerr << "Unpack returned an empty SDF" << std::endl;
@@ -224,7 +250,7 @@ bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& me
     return true;
 }
 
-visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(std_msgs::ColorRGBA color)
+visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color)
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -254,7 +280,18 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(std_msgs::ColorRGB
                 new_point.y = location[1];
                 new_point.z = location[2];
                 display_rep.points.push_back(new_point);
-                display_rep.colors.push_back(color);
+                if (collision_field_.Get(x_index, y_index, z_index).first > 0)
+                {
+                    display_rep.colors.push_back(collision_color);
+                }
+                else if (collision_field_.Get(x_index, y_index, z_index).first == 0)
+                {
+                    display_rep.colors.push_back(free_color);
+                }
+                else
+                {
+                    display_rep.colors.push_back(unknown_color);
+                }
             }
         }
     }
