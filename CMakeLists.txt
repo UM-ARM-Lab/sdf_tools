@@ -5,6 +5,7 @@ project(sdf_tools)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs octomap_msgs image_transport cv_bridge message_generation)
+find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
 find_package(octomap REQUIRED)
 find_package(OpenCV REQUIRED)
