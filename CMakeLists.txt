@@ -59,12 +59,12 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 # Simple test node for voxel_grid
 add_executable(text_voxel_grid src/test_voxel_grid.cpp)
-add_dependencies(text_voxel_grid ${catkin_EXPORTED_TARGETS})
+add_dependencies(text_voxel_grid ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
 target_link_libraries(text_voxel_grid ${catkin_LIBRARIES})
 
 # SDF generation node
 add_executable(sdf_generation_node src/sdf_generation_node.cpp)
-add_dependencies(sdf_generation_node ${catkin_EXPORTED_TARGETS})
+add_dependencies(sdf_generation_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
 target_link_libraries(sdf_generation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 # Image to SDF node
