@@ -456,7 +456,6 @@ std_msgs::ColorRGBA CollisionMapGrid::GenerateComponentColor(u_int32_t component
     }
     else
     {
-        std::cerr << "More than 20 connected components - attempting to procedurally generate a color" << std::endl;
         std_msgs::ColorRGBA generated_color;
         generated_color.a = 1.0;
         generated_color.r = 0.0;
@@ -525,8 +524,23 @@ visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay
     return display_rep;
 }
 
-void CollisionMapGrid::UpdateConnectedComponents()
+void CollisionMapGrid::UpdateConnectedComponents(bool reset_connected_components_first)
 {
+    if (reset_connected_components_first)
+    {
+        for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
+        {
+            for (int64_t y_index = 0; y_index < collision_field_.GetNumYCells(); y_index++)
+            {
+                for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
+                {
+                    collision_cell current = collision_field_.Get(x_index, y_index, z_index).first;
+                    current.component = 0;
+                    collision_field_.Set(x_index, y_index, z_index, current);
+                }
+            }
+        }
+    }
     int64_t total_cells = collision_field_.GetNumXCells() * collision_field_.GetNumYCells() * collision_field_.GetNumZCells();
     int64_t marked_cells = 0;
     u_int32_t connected_components = 0;

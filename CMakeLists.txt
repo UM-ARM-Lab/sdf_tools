@@ -48,12 +48,19 @@ catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS ros
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(include ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OCTOMAP_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+include_directories(include SYSTEM ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OCTOMAP_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
-set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3")
+set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Werror")
 
 # SDF library
-add_library(${PROJECT_NAME} src/collision_map.cpp src/sdf.cpp src/sdf_builder.cpp)
+add_library(${PROJECT_NAME}
+    include/${PROJECT_NAME}/voxel_grid.hpp
+    include/${PROJECT_NAME}/collision_map.hpp
+    include/${PROJECT_NAME}/sdf.hpp
+    include/${PROJECT_NAME}/sdf_builder.hpp
+    src/${PROJECT_NAME}/collision_map.cpp
+    src/${PROJECT_NAME}/sdf.cpp
+    src/${PROJECT_NAME}/sdf_builder.cpp)
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 

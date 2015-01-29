@@ -61,7 +61,7 @@ void test_float_binary_conversion(float test_val)
     std::cout << "Final value " << final_val << std::endl;
 }
 
-int main(int argc, char** argv)
+int main()
 {
     test_voxel_grid();
     test_float_binary_conversion(5280.0);

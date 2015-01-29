@@ -39,10 +39,6 @@ public:
         ROS_INFO("Subscribed using %s for transport", transport_in.c_str());
     }
 
-    ~ImageSDF()
-    {
-    }
-
     void loop()
     {
         while (ros::ok())
@@ -62,7 +58,7 @@ public:
         empty_cells.resize(height);
         filled_cells.resize(height);
         distance_field_.resize(height);
-        for (size_t i = 0; i < height; i++)
+        for (int i = 0; i < height; i++)
         {
             empty_cells[i].resize(width);
             filled_cells[i].resize(width);
@@ -76,9 +72,9 @@ public:
         sdf_cell_t filled_cell;
         filled_cell.dx = 0.0;
         filled_cell.dy = 0.0;
-        for (size_t i = 0; i < height; i++)
+        for (int i = 0; i < height; i++)
         {
-            for (size_t j = 0; j < width; j++)
+            for (int j = 0; j < width; j++)
             {
                 uint8_t pixel = image.at<uint8_t>(i,j);
                 if (pixel != 0)
@@ -101,9 +97,9 @@ public:
         // Combine the partial fields to form the SDF
         max_distance_ = 0.0;
         min_distance_ = 0.0;
-        for (size_t i = 0; i < height; i++)
+        for (int i = 0; i < height; i++)
         {
-            for (size_t j = 0; j < width; j++)
+            for (int j = 0; j < width; j++)
             {
                 double filled_distance = sqrt(pow(filled_cells[i][j].dx, 2) + pow(filled_cells[i][j].dy, 2));
                 double empty_distance = sqrt(pow(empty_cells[i][j].dx, 2) + pow(empty_cells[i][j].dy, 2));
@@ -126,10 +122,10 @@ public:
         if (partial_field.size() > 0)
         {
             // Pass 1.1.0
-            for (int y = 0; y < partial_field[0].size(); y++)
+            for (size_t y = 0; y < partial_field[0].size(); y++)
             {
                 // Pass 1.1.1
-                for (int x = 0; x < partial_field.size(); x++)
+                for (size_t x = 0; x < partial_field.size(); x++)
                 {
                     // Get value from grid
                     sdf_cell_t cell = get(partial_field, x, y);
@@ -169,7 +165,7 @@ public:
                     put(partial_field, cell, x, y);
                 }
                 // Pass 1.1.2
-                for (int x = 0; x < partial_field.size(); x++)
+                for (size_t x = 0; x < partial_field.size(); x++)
                 {
                     // Get value from grid
                     sdf_cell_t cell = get(partial_field, x, y);
@@ -187,11 +183,11 @@ public:
         }
     }
 
-    inline sdf_cell_t get(std::vector< std::vector<sdf_cell_t> >& partial_field, int x, int y)
+    inline sdf_cell_t get(std::vector< std::vector<sdf_cell_t> >& partial_field, size_t x, size_t y)
     {
-        if (x >= 0 && partial_field.size() > x)
+        if (x < partial_field.size())
         {
-            if (y >= 0 && partial_field[x].size() > y)
+            if (y < partial_field[x].size())
             {
                 return partial_field[x][y];
             }
@@ -202,11 +198,11 @@ public:
         return empty;
     }
 
-    inline void put(std::vector< std::vector<sdf_cell_t> >& partial_field, sdf_cell_t& cell, int x, int y)
+    inline void put(std::vector< std::vector<sdf_cell_t> >& partial_field, sdf_cell_t& cell, size_t x, size_t y)
     {
-        if (x >= 0 && partial_field.size() > x)
+        if (x < partial_field.size())
         {
-            if (y >= 0 && partial_field[x].size() > y)
+            if (y < partial_field[x].size())
             {
                 partial_field[x][y] = cell;
             }
@@ -252,9 +248,9 @@ public:
         ROS_DEBUG("...SDF compute finished");
         // Publish the raw SDF
         cv::Mat raw_sdf_image(cv::Size(binary.cols, binary.rows), CV_32FC2);
-        for (size_t i = 0; i < binary.rows; i++)
+        for (int i = 0; i < binary.rows; i++)
         {
-            for (size_t j = 0; j < binary.cols; j++)
+            for (int j = 0; j < binary.cols; j++)
             {
                 double current_distance = distance_field_[i][j];
                 if (current_distance >= 0.0)
@@ -277,9 +273,9 @@ public:
         sdf_raw_pub_.publish(sdf_raw_image);
         // Convert SDF to false-color image
         cv::Mat false_color_sdf(cv::Size(binary.cols, binary.rows), CV_8UC3);
-        for (size_t i = 0; i < binary.rows; i++)
+        for (int i = 0; i < binary.rows; i++)
         {
-            for (size_t j = 0; j < binary.cols; j++)
+            for (int j = 0; j < binary.cols; j++)
             {
                 double current_distance = distance_field_[i][j];
                 uint8_t blue_channel = 0x00;

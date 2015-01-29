@@ -17,7 +17,8 @@ typedef Eigen::Transform<double, 3, Eigen::Affine> Transformation;
 
 inline std::vector<u_int8_t> FloatToBinary(float value)
 {
-    u_int32_t binary_value = *(u_int32_t*) &value;
+    u_int32_t binary_value = 0;
+    memcpy(&binary_value, &value, sizeof(u_int32_t));
     std::vector<u_int8_t> binary(4);
     // Copy byte 1, least-significant byte
     binary[3] = binary_value & 0x000000ff;
@@ -55,7 +56,8 @@ inline float FloatFromBinary(std::vector<u_int8_t>& binary)
         // Copy in byte 1, least-significant byte
         binary_value  = binary_value | binary[3];
         // Convert binary to float and store
-        float field_value = *(float*) &binary_value;
+        float field_value = 0.0;
+        memcpy(&field_value, &binary_value, sizeof(float));
         return field_value;
     }
 }
@@ -88,10 +90,6 @@ namespace sdf_tools
         {
         }
 
-        ~SignedDistanceField()
-        {
-        }
-
         inline float Get(double x, double y, double z)
         {
             return distance_field_.Get(x, y, z).first;
@@ -100,6 +98,16 @@ namespace sdf_tools
         inline float Get(int64_t x_index, int64_t y_index, int64_t z_index)
         {
             return distance_field_.Get(x_index, y_index, z_index).first;
+        }
+
+        inline std::pair<float, bool> GetSafe(double x, double y, double z)
+        {
+            return distance_field_.Get(x, y, z);
+        }
+
+        inline std::pair<float, bool> GetSafe(int64_t x_index, int64_t y_index, int64_t z_index)
+        {
+            return distance_field_.Get(x_index, y_index, z_index);
         }
 
         inline bool Set(double x, double y, double z, float value)

@@ -26,7 +26,8 @@ namespace sdf_tools
     std::vector<u_int8_t> CollisionCellToBinary(collision_cell value)
     {
         std::vector<u_int8_t> binary(8);
-        u_int32_t occupancy_binary_value = *(u_int32_t*) &value.occupancy;
+        u_int32_t occupancy_binary_value = 0;
+        memcpy(&occupancy_binary_value, &value.occupancy, sizeof(u_int32_t));
         // Copy byte 1, least-significant byte
         binary[3] = occupancy_binary_value & 0x000000ff;
         // Copy byte 2
@@ -79,7 +80,7 @@ namespace sdf_tools
             // Copy in byte 1, least-significant byte
             occupancy_binary_value  = occupancy_binary_value | binary[3];
             // Convert binary to float and store
-            loaded.occupancy = *(float*) &occupancy_binary_value;
+            memcpy(&loaded.occupancy, &occupancy_binary_value, sizeof(float));
             u_int32_t component_binary_value = 0;
             // Copy in byte 4, most-significant byte
             component_binary_value  = component_binary_value | binary[4];
@@ -147,18 +148,14 @@ namespace sdf_tools
         {
         }
 
-        ~CollisionMapGrid()
+        inline std::pair<collision_cell, bool> Get(double x, double y, double z)
         {
+            return collision_field_.Get(x, y, z);
         }
 
-        inline collision_cell Get(double x, double y, double z)
+        inline std::pair<collision_cell, bool> Get(int64_t x_index, int64_t y_index, int64_t z_index)
         {
-            return collision_field_.Get(x, y, z).first;
-        }
-
-        inline collision_cell Get(int64_t x_index, int64_t y_index, int64_t z_index)
-        {
-            return collision_field_.Get(x_index, y_index, z_index).first;
+            return collision_field_.Get(x_index, y_index, z_index);
         }
 
         inline bool Set(double x, double y, double z, collision_cell value)
@@ -244,7 +241,7 @@ namespace sdf_tools
 
         bool LoadFromMessageRepresentation(sdf_tools::CollisionMap& message);
 
-        void UpdateConnectedComponents();
+        void UpdateConnectedComponents(bool reset_connected_components_first=false);
 
         visualization_msgs::Marker ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color);
 

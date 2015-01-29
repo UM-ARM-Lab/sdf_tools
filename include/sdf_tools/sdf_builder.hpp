@@ -75,7 +75,7 @@ namespace sdf_tools
 
         std::vector<std::vector<std::vector<std::vector<int>>>> MakeNeighborhoods();
 
-        inline const int GetDirectionNumber(int dx, int dy, int dz)
+        inline int GetDirectionNumber(int dx, int dy, int dz)
         {
             return ((dx + 1) * 9) + ((dy + 1) * 3) + (dz + 1);
         }
@@ -96,10 +96,6 @@ namespace sdf_tools
             has_cached_sdf_ = false;
             has_cached_collmap_ = false;
             has_planning_scene_ = false;
-        }
-
-        ~SDF_Builder()
-        {
         }
 
         void UpdatePlanningSceneFromMessage(moveit_msgs::PlanningScene& planning_scene);

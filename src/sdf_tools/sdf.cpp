@@ -285,7 +285,7 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha)
             for (int64_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
             {
                 // Update minimum/maximum distance variables
-                float distance = distance_field_.Get(x_index, y_index, z_index).first;
+                float distance = Get(x_index, y_index, z_index);
                 if (distance < min_distance)
                 {
                     min_distance = distance;
@@ -312,20 +312,20 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha)
             for (int64_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
             {
                 // Update minimum/maximum distance variables
-                float distance = distance_field_.Get(x_index, y_index, z_index).first;
+                float distance = Get(x_index, y_index, z_index);
                 std_msgs::ColorRGBA new_color;
                 new_color.a = alpha;
                 if (distance > 0.0)
                 {
                     new_color.b = 0.0;
-                    new_color.g = fabs(distance / max_distance);
+                    new_color.g = (fabs(distance / max_distance) * 0.8) + 0.2;
                     new_color.r = 0.0;
                 }
                 else if (distance < 0.0)
                 {
                     new_color.b = 0.0;
-                    new_color.r = fabs(distance / min_distance);
                     new_color.g = 0.0;
+                    new_color.r = (fabs(distance / min_distance) * 0.8) + 0.2;
                 }
                 else
                 {
@@ -364,7 +364,7 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(fl
             for (int64_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
             {
                 // Update minimum/maximum distance variables
-                float distance = distance_field_.Get(x_index, y_index, z_index).first;
+                float distance = Get(x_index, y_index, z_index);
                 if (distance <= 0.0)
                 {
                     // Convert SDF indices into a real-world location
