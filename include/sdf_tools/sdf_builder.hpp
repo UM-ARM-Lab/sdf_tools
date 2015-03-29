@@ -17,8 +17,6 @@
 #ifndef SDF_BUILDER_HPP
 #define SDF_BUILDER_HPP
 
-typedef Eigen::Transform<double, 3, Eigen::Affine> Transformation;
-
 namespace sdf_tools
 {
     static const u_int8_t USE_CACHED = 0x00;
@@ -52,7 +50,7 @@ namespace sdf_tools
         bool has_cached_sdf_;
         bool has_cached_collmap_;
         bool has_planning_scene_;
-        Transformation origin_transform_;
+        Eigen::Affine3d origin_transform_;
         std::string frame_;
         double x_size_;
         double y_size_;
@@ -86,7 +84,7 @@ namespace sdf_tools
 
     public:
 
-        SDF_Builder(ros::NodeHandle& nh, Transformation origin_transform, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service);
+        SDF_Builder(ros::NodeHandle& nh, Eigen::Affine3d origin_transform, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service);
 
         SDF_Builder(ros::NodeHandle& nh, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service);
 

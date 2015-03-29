@@ -13,8 +13,6 @@
 #ifndef SDF_HPP
 #define SDF_HPP
 
-typedef Eigen::Transform<double, 3, Eigen::Affine> Transformation;
-
 inline std::vector<u_int8_t> FloatToBinary(float value)
 {
     u_int32_t binary_value = 0;
@@ -45,16 +43,16 @@ inline float FloatFromBinary(std::vector<u_int8_t>& binary)
     {
         u_int32_t binary_value = 0;
         // Copy in byte 4, most-significant byte
-        binary_value  = binary_value | binary[0];
+        binary_value = binary_value | binary[0];
         binary_value = binary_value << 8;
         // Copy in byte 3
-        binary_value  = binary_value | binary[1];
+        binary_value = binary_value | binary[1];
         binary_value = binary_value << 8;
         // Copy in byte 2
-        binary_value  = binary_value | binary[2];
+        binary_value = binary_value | binary[2];
         binary_value = binary_value << 8;
         // Copy in byte 1, least-significant byte
-        binary_value  = binary_value | binary[3];
+        binary_value = binary_value | binary[3];
         // Convert binary to float and store
         float field_value = 0.0;
         memcpy(&field_value, &binary_value, sizeof(float));
@@ -76,101 +74,95 @@ namespace sdf_tools
 
         std::vector<float> UnpackFieldFromBinaryRepresentation(std::vector<u_int8_t>& binary);
 
-        std::vector<u_int8_t> decompress_bytes(std::vector<u_int8_t>& compressed);
-
-        std::vector<u_int8_t> compress_bytes(std::vector<u_int8_t>& uncompressed);
-
     public:
 
         SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value);
 
-        SignedDistanceField(Transformation origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value);
+        SignedDistanceField(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value);
 
-        SignedDistanceField()
+        SignedDistanceField() {}
+
+        inline float Get(const double x, const double y, const double z) const
         {
+            return distance_field_.GetImmutable(x, y, z).first;
         }
 
-        inline float Get(double x, double y, double z)
+        inline float Get(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
-            return distance_field_.Get(x, y, z).first;
+            return distance_field_.GetImmutable(x_index, y_index, z_index).first;
         }
 
-        inline float Get(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline std::pair<float, bool> GetSafe(const double x, const double y, const double z) const
         {
-            return distance_field_.Get(x_index, y_index, z_index).first;
+            return distance_field_.GetImmutable(x, y, z);
         }
 
-        inline std::pair<float, bool> GetSafe(double x, double y, double z)
+        inline std::pair<float, bool> GetSafe(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
-            return distance_field_.Get(x, y, z);
+            return distance_field_.GetImmutable(x_index, y_index, z_index);
         }
 
-        inline std::pair<float, bool> GetSafe(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline bool Set(const double x, const double y, const double z, float value)
         {
-            return distance_field_.Get(x_index, y_index, z_index);
-        }
-
-        inline bool Set(double x, double y, double z, float value)
-        {
-            return distance_field_.Set(x, y, z, value);
+            return distance_field_.SetWithValue(x, y, z, value);
         }
 
         inline bool Set(int64_t x_index, int64_t y_index, int64_t z_index, float value)
         {
-            return distance_field_.Set(x_index, y_index, z_index, value);
+            return distance_field_.SetWithValue(x_index, y_index, z_index, value);
         }
 
-        inline bool CheckInBounds(double x, double y, double z)
+        inline bool CheckInBounds(const double x, const double y, const double z) const
         {
-            return distance_field_.Get(x, y, z).second;
+            return distance_field_.GetImmutable(x, y, z).second;
         }
 
-        inline bool CheckInBounds(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline bool CheckInBounds(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
-            return distance_field_.Get(x_index, y_index, z_index).second;
+            return distance_field_.GetImmutable(x_index, y_index, z_index).second;
         }
 
-        inline double GetXSize()
+        inline double GetXSize() const
         {
             return distance_field_.GetXSize();
         }
 
-        inline double GetYSize()
+        inline double GetYSize() const
         {
             return distance_field_.GetYSize();
         }
 
-        inline double GetZSize()
+        inline double GetZSize() const
         {
             return distance_field_.GetZSize();
         }
 
-        inline double GetResolution()
+        inline double GetResolution() const
         {
             return distance_field_.GetCellSize();
         }
 
-        inline float GetOOBValue()
+        inline float GetOOBValue() const
         {
             return distance_field_.GetDefaultValue();
         }
 
-        inline int64_t GetNumXCells()
+        inline int64_t GetNumXCells() const
         {
             return distance_field_.GetNumXCells();
         }
 
-        inline int64_t GetNumYCells()
+        inline int64_t GetNumYCells() const
         {
             return distance_field_.GetNumYCells();
         }
 
-        inline int64_t GetNumZCells()
+        inline int64_t GetNumZCells() const
         {
             return distance_field_.GetNumZCells();
         }
 
-        inline std::vector<double> GetGradient(double x, double y, double z, bool enable_edge_gradients=false)
+        inline std::vector<double> GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients=false) const
         {
             std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
             if (indices.size() != 3)
@@ -183,7 +175,7 @@ namespace sdf_tools
             }
         }
 
-        inline std::vector<double> GetGradient(int64_t x_index, int64_t y_index, int64_t z_index, bool enable_edge_gradients=false)
+        inline std::vector<double> GetGradient(const int64_t x_index, const int64_t y_index, const int64_t z_index, const bool enable_edge_gradients=false) const
         {
             // Make sure the index is inside bounds
             if ((x_index >= 0) && (y_index >= 0) && (z_index >= 0) && (x_index < GetNumXCells()) && (y_index < GetNumYCells()) && (z_index < GetNumZCells()))
@@ -256,17 +248,17 @@ namespace sdf_tools
             }
         }
 
-        inline Transformation GetOriginTransform()
+        inline Eigen::Affine3d GetOriginTransform() const
         {
             return distance_field_.GetOriginTransform();
         }
 
-        inline std::vector<int64_t> LocationToGridIndex(double x, double y, double z)
+        inline std::vector<int64_t> LocationToGridIndex(const double x, const double y, const double z) const
         {
             return distance_field_.LocationToGridIndex(x, y, z);
         }
 
-        inline std::vector<double> GridIndexToLocation(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline std::vector<double> GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             return distance_field_.GridIndexToLocation(x_index, y_index, z_index);
         }

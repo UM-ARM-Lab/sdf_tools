@@ -10,8 +10,6 @@
 #ifndef VOXEL_GRID_HPP
 #define VOXEL_GRID_HPP
 
-typedef Eigen::Transform<double, 3, Eigen::Affine> Transformation;
-
 namespace VOXEL_GRID
 {
     template <typename T>
@@ -19,8 +17,9 @@ namespace VOXEL_GRID
     {
     protected:
 
-        Transformation origin_transform_;
-        Transformation inverse_origin_transform_;
+        bool initialized_;
+        Eigen::Affine3d origin_transform_;
+        Eigen::Affine3d inverse_origin_transform_;
         std::vector<T> data_;
         double cell_size_;
         double x_size_;
@@ -32,15 +31,22 @@ namespace VOXEL_GRID
         int64_t num_y_cells_;
         int64_t num_z_cells_;
         T default_value_;
+        T oob_value_;
 
-        inline int64_t GetDataIndex(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline int64_t GetDataIndex(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             return (x_index * stride1_) + (y_index * stride2_) + z_index;
         }
 
+        void SetContents(T value)
+        {
+            data_.clear();
+            data_.resize(num_x_cells_ * num_y_cells_ * num_z_cells_, value);
+        }
+
     public:
 
-        VoxelGrid(Transformation origin_transform, double cell_size, double x_size, double y_size, double z_size, T default_value)
+        VoxelGrid(Eigen::Affine3d origin_transform, double cell_size, double x_size, double y_size, double z_size, T default_value)
         {
             origin_transform_ = origin_transform;
             inverse_origin_transform_ = origin_transform_.inverse();
@@ -49,12 +55,33 @@ namespace VOXEL_GRID
             y_size_ = fabs(y_size);
             z_size_ = fabs(z_size);
             default_value_ = default_value;
+            oob_value_ = default_value;
             num_x_cells_ = int64_t(ceil(x_size_ / cell_size_));
             num_y_cells_ = int64_t(ceil(y_size_ / cell_size_));
             num_z_cells_ = int64_t(ceil(z_size_ / cell_size_));
             stride1_ = num_y_cells_ * num_z_cells_;
             stride2_ = num_z_cells_;
-            Reset(default_value_);
+            SetContents(default_value_);
+            initialized_ = true;
+        }
+
+        VoxelGrid(Eigen::Affine3d origin_transform, double cell_size, double x_size, double y_size, double z_size, T default_value, T oob_value)
+        {
+            origin_transform_ = origin_transform;
+            inverse_origin_transform_ = origin_transform_.inverse();
+            cell_size_ = fabs(cell_size);
+            x_size_ = fabs(x_size);
+            y_size_ = fabs(y_size);
+            z_size_ = fabs(z_size);
+            default_value_ = default_value;
+            oob_value_ = oob_value;
+            num_x_cells_ = int64_t(ceil(x_size_ / cell_size_));
+            num_y_cells_ = int64_t(ceil(y_size_ / cell_size_));
+            num_z_cells_ = int64_t(ceil(z_size_ / cell_size_));
+            stride1_ = num_y_cells_ * num_z_cells_;
+            stride2_ = num_z_cells_;
+            SetContents(default_value_);
+            initialized_ = true;
         }
 
         VoxelGrid(double cell_size, double x_size, double y_size, double z_size, T default_value)
@@ -69,65 +96,118 @@ namespace VOXEL_GRID
             y_size_ = fabs(y_size);
             z_size_ = fabs(z_size);
             default_value_ = default_value;
+            oob_value_ = default_value;
             num_x_cells_ = int64_t(ceil(x_size_ / cell_size_));
             num_y_cells_ = int64_t(ceil(y_size_ / cell_size_));
             num_z_cells_ = int64_t(ceil(z_size_ / cell_size_));
             stride1_ = num_y_cells_ * num_z_cells_;
             stride2_ = num_z_cells_;
-            Reset(default_value_);
+            SetContents(default_value_);
+            initialized_ = true;
         }
 
-        VoxelGrid() {}
-
-        void Reset(T new_value)
+        VoxelGrid(double cell_size, double x_size, double y_size, double z_size, T default_value, T oob_value)
         {
-            data_.clear();
-            data_.resize(num_x_cells_ * num_y_cells_ * num_z_cells_, new_value);
+            Eigen::Translation3d origin_translation(-x_size * 0.5, -y_size * 0.5, -z_size * 0.5);
+            Eigen::Quaterniond origin_rotation;
+            origin_rotation.setIdentity();
+            origin_transform_ = origin_translation * origin_rotation;
+            inverse_origin_transform_ = origin_transform_.inverse();
+            cell_size_ = fabs(cell_size);
+            x_size_ = fabs(x_size);
+            y_size_ = fabs(y_size);
+            z_size_ = fabs(z_size);
+            default_value_ = default_value;
+            oob_value_ = oob_value;
+            num_x_cells_ = int64_t(ceil(x_size_ / cell_size_));
+            num_y_cells_ = int64_t(ceil(y_size_ / cell_size_));
+            num_z_cells_ = int64_t(ceil(z_size_ / cell_size_));
+            stride1_ = num_y_cells_ * num_z_cells_;
+            stride2_ = num_z_cells_;
+            SetContents(default_value_);
+            initialized_ = true;
         }
 
-        inline const std::pair<T&, bool> Get(double x, double y, double z)
+        VoxelGrid()
+        {
+            origin_transform_ = Eigen::Affine3d::Identity();
+            inverse_origin_transform_ = origin_transform_.inverse();
+            cell_size_ = 0.0;
+            x_size_ = 0.0;
+            y_size_ = 0.0;
+            z_size_ = 0.0;
+            num_x_cells_ = 0;
+            num_y_cells_ = 0;
+            num_z_cells_ = 0;
+            stride1_ = num_y_cells_ * num_z_cells_;
+            stride2_ = num_z_cells_;
+            initialized_ = false;
+        }
+
+        inline bool IsInitialized() const
+        {
+            return initialized_;
+        }
+
+        void ResetWithDefault()
+        {
+            SetContents(default_value_);
+        }
+
+        void ResetWithNewValue(T new_value)
+        {
+            SetContents(new_value);
+        }
+
+        void ResetWithNewDefault(T new_default)
+        {
+            default_value_ = new_default;
+            SetContents(default_value_);
+        }
+
+        inline std::pair<const T&, bool> GetImmutable(const double x, const double y, const double z) const
         {
             std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
             if (indices.size() != 3)
             {
-                return std::pair<T&, bool>(default_value_, false);
+                return std::pair<const T&, bool>(oob_value_, false);
             }
             else
             {
-                return Get(indices[0], indices[1], indices[2]);
+                return GetImmutable(indices[0], indices[1], indices[2]);
             }
         }
 
-        inline const std::pair<T&, bool> Get(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline std::pair<const T&, bool> GetImmutable(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             if (x_index < 0 || y_index < 0 || z_index < 0 || x_index >= num_x_cells_ || y_index >= num_y_cells_ || z_index >= num_z_cells_)
             {
-                return std::pair<T&, bool>(default_value_, false);
+                return std::pair<const T&, bool>(oob_value_, false);
             }
             else
             {
-                return std::pair<T&, bool>(data_[GetDataIndex(x_index, y_index, z_index)], true);
+                return std::pair<const T&, bool>(data_[GetDataIndex(x_index, y_index, z_index)], true);
             }
         }
 
-        inline std::pair<T, bool> GetCopy(double x, double y, double z)
+        inline std::pair<T, bool> GetCopy(const double x, const double y, const double z) const
         {
             std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
             if (indices.size() != 3)
             {
-                return std::pair<T, bool>(default_value_, false);
+                return std::pair<T, bool>(oob_value_, false);
             }
             else
             {
-                return Get(indices[0], indices[1], indices[2]);
+                return GetCopy(indices[0], indices[1], indices[2]);
             }
         }
 
-        inline std::pair<T, bool> GetCopy(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline std::pair<T, bool> GetCopy(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             if (x_index < 0 || y_index < 0 || z_index < 0 || x_index >= num_x_cells_ || y_index >= num_y_cells_ || z_index >= num_z_cells_)
             {
-                return std::pair<T, bool>(default_value_, false);
+                return std::pair<T, bool>(oob_value_, false);
             }
             else
             {
@@ -135,24 +215,24 @@ namespace VOXEL_GRID
             }
         }
 
-        inline std::pair<T&, bool> GetMutable(double x, double y, double z)
+        inline std::pair<T&, bool> GetMutable(const double x, const double y, const double z)
         {
             std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
             if (indices.size() != 3)
             {
-                return std::pair<T&, bool>(default_value_, false);
+                return std::pair<T&, bool>(oob_value_, false);
             }
             else
             {
-                return Get(indices[0], indices[1], indices[2]);
+                return GetMutable(indices[0], indices[1], indices[2]);
             }
         }
 
-        inline std::pair<T&, bool> GetMutable(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline std::pair<T&, bool> GetMutable(const int64_t x_index, const int64_t y_index, const int64_t z_index)
         {
             if (x_index < 0 || y_index < 0 || z_index < 0 || x_index >= num_x_cells_ || y_index >= num_y_cells_ || z_index >= num_z_cells_)
             {
-                return std::pair<T&, bool>(default_value_, false);
+                return std::pair<T&, bool>(oob_value_, false);
             }
             else
             {
@@ -160,7 +240,7 @@ namespace VOXEL_GRID
             }
         }
 
-        inline bool Set(double x, double y, double z, T& value)
+        inline bool SetWithReference(const double x, const double y, const double z, T& value)
         {
             std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
             if (indices.size() != 3)
@@ -169,11 +249,11 @@ namespace VOXEL_GRID
             }
             else
             {
-                return Set(indices[0], indices[1], indices[2], value);
+                return SetWithReference(indices[0], indices[1], indices[2], value);
             }
         }
 
-        inline bool Set(int64_t x_index, int64_t y_index, int64_t z_index, T& value)
+        inline bool SetWithReference(const int64_t x_index, const int64_t y_index, const int64_t z_index, T& value)
         {
             if (x_index < 0 || y_index < 0 || z_index < 0 || x_index >= num_x_cells_ || y_index >= num_y_cells_ || z_index >= num_z_cells_)
             {
@@ -186,52 +266,93 @@ namespace VOXEL_GRID
             }
         }
 
-        inline double GetXSize()
+        inline bool SetWithValue(const double x, const double y, const double z, T value)
+        {
+            std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
+            if (indices.size() != 3)
+            {
+                return false;
+            }
+            else
+            {
+                return SetWithValue(indices[0], indices[1], indices[2], value);
+            }
+        }
+
+        inline bool SetWithValue(const int64_t x_index, const int64_t y_index, const int64_t z_index, T value)
+        {
+            if (x_index < 0 || y_index < 0 || z_index < 0 || x_index >= num_x_cells_ || y_index >= num_y_cells_ || z_index >= num_z_cells_)
+            {
+                return false;
+            }
+            else
+            {
+                data_[GetDataIndex(x_index, y_index, z_index)] = value;
+                return true;
+            }
+        }
+
+        inline double GetXSize() const
         {
             return x_size_;
         }
 
-        inline double GetYSize()
+        inline double GetYSize() const
         {
             return y_size_;
         }
 
-        inline double GetZSize()
+        inline double GetZSize() const
         {
             return z_size_;
         }
 
-        inline double GetCellSize()
+        inline double GetCellSize() const
         {
             return cell_size_;
         }
 
-        inline T GetDefaultValue()
+        inline T GetDefaultValue() const
         {
             return default_value_;
         }
 
-        inline int64_t GetNumXCells()
+        inline T GetOOBValue() const
+        {
+            return oob_value_;
+        }
+
+        inline void SetDefaultValue(T default_value)
+        {
+            default_value_ = default_value;
+        }
+
+        inline void SetOOBValue(T oob_value)
+        {
+            oob_value_ = oob_value;
+        }
+
+        inline int64_t GetNumXCells() const
         {
             return num_x_cells_;
         }
 
-        inline int64_t GetNumYCells()
+        inline int64_t GetNumYCells() const
         {
             return num_y_cells_;
         }
 
-        inline int64_t GetNumZCells()
+        inline int64_t GetNumZCells() const
         {
             return num_z_cells_;
         }
 
-        inline Transformation GetOriginTransform()
+        inline Eigen::Affine3d GetOriginTransform() const
         {
             return origin_transform_;
         }
 
-        inline std::vector<int64_t> LocationToGridIndex(double x, double y, double z)
+        inline std::vector<int64_t> LocationToGridIndex(const double x, const double y, const double z) const
         {
             Eigen::Vector3d point(x, y, z);
             Eigen::Vector3d point_in_grid_frame = inverse_origin_transform_ * point;
@@ -248,7 +369,7 @@ namespace VOXEL_GRID
             }
         }
 
-        inline std::vector<double> GridIndexToLocation(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline std::vector<double> GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             if (x_index < 0 || y_index < 0 || z_index < 0 || x_index >= num_x_cells_ || y_index >= num_y_cells_ || z_index >= num_z_cells_)
             {
@@ -262,12 +383,12 @@ namespace VOXEL_GRID
             }
         }
 
-        const std::vector<T>& GetRawData()
+        const std::vector<T>& GetRawData() const
         {
             return data_;
         }
 
-        std::vector<T> CopyRawData()
+        std::vector<T> CopyRawData() const
         {
             return data_;
         }
@@ -285,6 +406,32 @@ namespace VOXEL_GRID
                 data_ = data;
                 return true;
             }
+        }
+    };
+
+    struct grid_index
+    {
+        int64_t x;
+        int64_t y;
+        int64_t z;
+
+        bool operator==(const grid_index& other) const
+        {
+            return (x == other.x && y == other.y && z == other.z);
+        }
+    };
+}
+
+namespace std
+{
+    template <>
+    struct hash<VOXEL_GRID::grid_index>
+    {
+        std::size_t operator()(const VOXEL_GRID::grid_index& index) const
+        {
+            using std::size_t;
+            using std::hash;
+            return ((std::hash<int64_t>()(index.x) ^ (std::hash<int64_t>()(index.y) << 1) >> 1) ^ (std::hash<int64_t>()(index.z) << 1));
         }
     };
 }

@@ -54,6 +54,8 @@ set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Werror")
 
 # SDF library
 add_library(${PROJECT_NAME}
+    include/${PROJECT_NAME}/pretty_print.hpp
+    include/${PROJECT_NAME}/zlib_helpers.hpp
     include/${PROJECT_NAME}/voxel_grid.hpp
     include/${PROJECT_NAME}/collision_map.hpp
     include/${PROJECT_NAME}/sdf.hpp

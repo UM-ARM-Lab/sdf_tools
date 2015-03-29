@@ -27,7 +27,7 @@ visualization_msgs::Marker ExportCollisionMapForDisplay(VOXEL_GRID::VoxelGrid<u_
             for (int64_t z_index = 0; z_index < collision_map.GetNumZCells(); z_index++)
             {
                 // Check if the current cell is in collision
-                u_int8_t status = collision_map.Get(x_index, y_index, z_index).first;
+                u_int8_t status = collision_map.GetImmutable(x_index, y_index, z_index).first;
                 if (status == 1)
                 {
                     // Convert cell indices into a real-world location
@@ -75,7 +75,7 @@ int main(int argc, char** argv)
     Eigen::Translation3d origin_translation(0.1, -1.0, -0.3);
     Eigen::Quaterniond origin_rotation;
     origin_rotation.setIdentity();
-    Transformation origin_transform = origin_translation * origin_rotation;
+    Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
     sdf_tools::SDF_Builder sdf_builder(nh, origin_transform, frame, x_size, y_size, z_size, resolution, INFINITY, "get_planning_scene");
     ROS_INFO("...startup complete");
     ////////////////////

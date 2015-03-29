@@ -8,109 +8,11 @@
 #include <stdexcept>
 #include <zlib.h>
 #include <ros/ros.h>
+#include "sdf_tools/zlib_helpers.hpp"
 #include "sdf_tools/sdf.hpp"
 #include "sdf_tools/SDF.h"
 
 using namespace sdf_tools;
-
-std::vector<u_int8_t> SignedDistanceField::decompress_bytes(std::vector<u_int8_t>& compressed)
-{
-    z_stream strm;
-    std::vector<u_int8_t> buffer;
-    const size_t BUFSIZE = 1024 * 1024;
-    uint8_t temp_buffer[BUFSIZE];
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    int ret = inflateInit(&strm);
-    if (ret != Z_OK)
-    {
-        (void)inflateEnd(&strm);
-        std::cerr << "ZLIB unable to init inflate stream" << std::endl;
-        throw std::invalid_argument("ZLIB unable to init inflate stream");
-    }
-    strm.avail_in = compressed.size();
-    strm.next_in = reinterpret_cast<uint8_t *>(compressed.data());
-    do
-    {
-        strm.next_out = temp_buffer;
-        strm.avail_out = BUFSIZE;
-        ret = inflate(&strm, Z_NO_FLUSH);
-        if (buffer.size() < strm.total_out)
-        {
-            buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE - strm.avail_out);
-        }
-    }
-    while (ret == Z_OK);
-    if (ret != Z_STREAM_END)
-    {
-        (void)inflateEnd(&strm);
-        std::cerr << "ZLIB unable to inflate stream with ret=" << ret << std::endl;
-        throw std::invalid_argument("ZLIB unable to inflate stream");
-    }
-    (void)inflateEnd(&strm);
-    std::vector<u_int8_t> decompressed(buffer);
-    return decompressed;
-}
-
-std::vector<u_int8_t> SignedDistanceField::compress_bytes(std::vector<u_int8_t>& uncompressed)
-{
-    z_stream strm;
-    std::vector<u_int8_t> buffer;
-    const size_t BUFSIZE = 1024 * 1024;
-    uint8_t temp_buffer[BUFSIZE];
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = uncompressed.size();
-    strm.next_in = reinterpret_cast<u_int8_t *>(uncompressed.data());
-    strm.next_out = temp_buffer;
-    strm.avail_out = BUFSIZE;
-    int ret = deflateInit(&strm, Z_BEST_SPEED);
-    if (ret != Z_OK)
-    {
-        (void)deflateEnd(&strm);
-        std::cerr << "ZLIB unable to init deflate stream" << std::endl;
-        throw std::invalid_argument("ZLIB unable to init deflate stream");
-    }
-    while (strm.avail_in != 0)
-    {
-        ret = deflate(&strm, Z_NO_FLUSH);
-        if (ret != Z_OK)
-        {
-            (void)deflateEnd(&strm);
-            std::cerr << "ZLIB unable to deflate stream" << std::endl;
-            throw std::invalid_argument("ZLIB unable to deflate stream");
-        }
-        if (strm.avail_out == 0)
-        {
-            buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE);
-            strm.next_out = temp_buffer;
-            strm.avail_out = BUFSIZE;
-        }
-    }
-    int deflate_ret = Z_OK;
-    while (deflate_ret == Z_OK)
-    {
-        if (strm.avail_out == 0)
-        {
-            buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE);
-            strm.next_out = temp_buffer;
-            strm.avail_out = BUFSIZE;
-        }
-        deflate_ret = deflate(&strm, Z_FINISH);
-    }
-    if (deflate_ret != Z_STREAM_END)
-    {
-        (void)deflateEnd(&strm);
-        std::cerr << "ZLIB unable to deflate stream" << std::endl;
-        throw std::invalid_argument("ZLIB unable to deflate stream");
-    }
-    buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE - strm.avail_out);
-    (void)deflateEnd(&strm);
-    std::vector<u_int8_t> compressed(buffer);
-    return compressed;
-}
 
 SignedDistanceField::SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
 {
@@ -119,7 +21,7 @@ SignedDistanceField::SignedDistanceField(std::string frame, double resolution, d
     distance_field_ = new_field;
 }
 
-SignedDistanceField::SignedDistanceField(Transformation origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
+SignedDistanceField::SignedDistanceField(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
 {
     frame_ = frame;
     VOXEL_GRID::VoxelGrid<float> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
@@ -212,7 +114,7 @@ sdf_tools::SDF SignedDistanceField::GetMessageRepresentation()
     sdf_tools::SDF message_rep;
     // Populate message
     message_rep.header.frame_id = frame_;
-    Transformation origin_transform = distance_field_.GetOriginTransform();
+    Eigen::Affine3d origin_transform = distance_field_.GetOriginTransform();
     message_rep.origin_transform.translation.x = origin_transform.translation().x();
     message_rep.origin_transform.translation.y = origin_transform.translation().y();
     message_rep.origin_transform.translation.z = origin_transform.translation().z();
@@ -228,7 +130,7 @@ sdf_tools::SDF SignedDistanceField::GetMessageRepresentation()
     message_rep.OOB_value = distance_field_.GetDefaultValue();
     const std::vector<float>& raw_data = distance_field_.GetRawData();
     std::vector<u_int8_t> binary_data = GetInternalBinaryRepresentation(raw_data);
-    message_rep.data = compress_bytes(binary_data);
+    message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
 }
 
@@ -237,10 +139,10 @@ bool SignedDistanceField::LoadFromMessageRepresentation(sdf_tools::SDF& message)
     // Make a new voxel grid inside
     Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
     Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
-    Transformation origin_transform = origin_translation * origin_rotation;
+    Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
     VOXEL_GRID::VoxelGrid<float> new_field(origin_transform, message.sdf_cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, message.OOB_value);
     // Unpack the binary data
-    std::vector<u_int8_t> binary_data = decompress_bytes(message.data);
+    std::vector<u_int8_t> binary_data = ZlibHelpers::DecompressBytes(message.data);
     std::vector<float> unpacked = UnpackFieldFromBinaryRepresentation(binary_data);
     if (unpacked.empty())
     {

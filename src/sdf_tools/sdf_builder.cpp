@@ -14,7 +14,7 @@
 
 using namespace sdf_tools;
 
-SDF_Builder::SDF_Builder(ros::NodeHandle& nh, Transformation origin_transform, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service) : nh_(nh)
+SDF_Builder::SDF_Builder(ros::NodeHandle& nh, Eigen::Affine3d origin_transform, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service) : nh_(nh)
 {
     origin_transform_ = origin_transform;
     frame_ = frame;
@@ -312,14 +312,14 @@ VOXEL_GRID::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMapFromPlanningScene
                     // Mark as filled
                     //std::cout << "Collision" << std::endl;
                     u_int8_t status = 1;
-                    collision_field.Set(x_index, y_index, z_index, status);
+                    collision_field.SetWithValue(x_index, y_index, z_index, status);
                 }
                 else
                 {
                     // Mark as free space
                     //std::cout << "No collision" << std::endl;
                     u_int8_t status = 0;
-                    collision_field.Set(x_index, y_index, z_index, status);
+                    collision_field.SetWithValue(x_index, y_index, z_index, status);
                 }
             }
         }
@@ -382,8 +382,8 @@ SignedDistanceField SDF_Builder::UpdateSDFFromPlanningScene()
         {
             for (int64_t z_index = 0; z_index < filled_distance_field.GetNumZCells(); z_index++)
             {
-                double distance1 = sqrt(filled_distance_field.Get(x_index, y_index, z_index).first.distance_square) * resolution_;
-                double distance2 = sqrt(free_distance_field.Get(x_index, y_index, z_index).first.distance_square) * resolution_;
+                double distance1 = sqrt(filled_distance_field.GetImmutable(x_index, y_index, z_index).first.distance_square) * resolution_;
+                double distance2 = sqrt(free_distance_field.GetImmutable(x_index, y_index, z_index).first.distance_square) * resolution_;
                 new_sdf.Set(x_index, y_index, z_index, (distance1 - distance2));
             }
         }
@@ -463,7 +463,7 @@ DistanceField SDF_Builder::BuildDistanceField(std::vector<Eigen::Vector3i>& poin
     // Mark all points with distance zero and add to the bucket queue
     for (size_t index = 0; index < points.size(); index++)
     {
-        std::pair<bucket_cell&, bool> query = distance_field.Get((int64_t)points[index].x(), (int64_t)points[index].y(), (int64_t)points[index].z());
+        std::pair<bucket_cell&, bool> query = distance_field.GetMutable((int64_t)points[index].x(), (int64_t)points[index].y(), (int64_t)points[index].z());
         if (query.second)
         {
             query.first.location[0] = points[index].x();
@@ -518,7 +518,7 @@ DistanceField SDF_Builder::BuildDistanceField(std::vector<Eigen::Vector3i>& poin
                 int nx = x + dx;
                 int ny = y + dy;
                 int nz = z + dz;
-                std::pair<bucket_cell&, bool> neighbor_query = distance_field.Get((int64_t)nx, (int64_t)ny, (int64_t)nz);
+                std::pair<bucket_cell&, bool> neighbor_query = distance_field.GetMutable((int64_t)nx, (int64_t)ny, (int64_t)nz);
                 if (!neighbor_query.second)
                 {
                     // "Neighbor" is outside the bounds of the SDF

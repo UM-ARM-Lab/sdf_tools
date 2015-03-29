@@ -10,122 +10,28 @@
 #include <ros/ros.h>
 #include <list>
 #include <unordered_map>
+#include "sdf_tools/zlib_helpers.hpp"
 #include "sdf_tools/collision_map.hpp"
 #include "sdf_tools/CollisionMap.h"
 
 using namespace sdf_tools;
-
-std::vector<u_int8_t> CollisionMapGrid::decompress_bytes(std::vector<u_int8_t>& compressed)
-{
-    z_stream strm;
-    std::vector<u_int8_t> buffer;
-    const size_t BUFSIZE = 1024 * 1024;
-    uint8_t temp_buffer[BUFSIZE];
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    int ret = inflateInit(&strm);
-    if (ret != Z_OK)
-    {
-        (void)inflateEnd(&strm);
-        std::cerr << "ZLIB unable to init inflate stream" << std::endl;
-        throw std::invalid_argument("ZLIB unable to init inflate stream");
-    }
-    strm.avail_in = compressed.size();
-    strm.next_in = reinterpret_cast<uint8_t *>(compressed.data());
-    do
-    {
-        strm.next_out = temp_buffer;
-        strm.avail_out = BUFSIZE;
-        ret = inflate(&strm, Z_NO_FLUSH);
-        if (buffer.size() < strm.total_out)
-        {
-            buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE - strm.avail_out);
-        }
-    }
-    while (ret == Z_OK);
-    if (ret != Z_STREAM_END)
-    {
-        (void)inflateEnd(&strm);
-        std::cerr << "ZLIB unable to inflate stream with ret=" << ret << std::endl;
-        throw std::invalid_argument("ZLIB unable to inflate stream");
-    }
-    (void)inflateEnd(&strm);
-    std::vector<u_int8_t> decompressed(buffer);
-    return decompressed;
-}
-
-std::vector<u_int8_t> CollisionMapGrid::compress_bytes(std::vector<u_int8_t>& uncompressed)
-{
-    z_stream strm;
-    std::vector<u_int8_t> buffer;
-    const size_t BUFSIZE = 1024 * 1024;
-    uint8_t temp_buffer[BUFSIZE];
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = uncompressed.size();
-    strm.next_in = reinterpret_cast<u_int8_t *>(uncompressed.data());
-    strm.next_out = temp_buffer;
-    strm.avail_out = BUFSIZE;
-    int ret = deflateInit(&strm, Z_BEST_SPEED);
-    if (ret != Z_OK)
-    {
-        (void)deflateEnd(&strm);
-        std::cerr << "ZLIB unable to init deflate stream" << std::endl;
-        throw std::invalid_argument("ZLIB unable to init deflate stream");
-    }
-    while (strm.avail_in != 0)
-    {
-        ret = deflate(&strm, Z_NO_FLUSH);
-        if (ret != Z_OK)
-        {
-            (void)deflateEnd(&strm);
-            std::cerr << "ZLIB unable to deflate stream" << std::endl;
-            throw std::invalid_argument("ZLIB unable to deflate stream");
-        }
-        if (strm.avail_out == 0)
-        {
-            buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE);
-            strm.next_out = temp_buffer;
-            strm.avail_out = BUFSIZE;
-        }
-    }
-    int deflate_ret = Z_OK;
-    while (deflate_ret == Z_OK)
-    {
-        if (strm.avail_out == 0)
-        {
-            buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE);
-            strm.next_out = temp_buffer;
-            strm.avail_out = BUFSIZE;
-        }
-        deflate_ret = deflate(&strm, Z_FINISH);
-    }
-    if (deflate_ret != Z_STREAM_END)
-    {
-        (void)deflateEnd(&strm);
-        std::cerr << "ZLIB unable to deflate stream" << std::endl;
-        throw std::invalid_argument("ZLIB unable to deflate stream");
-    }
-    buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE - strm.avail_out);
-    (void)deflateEnd(&strm);
-    std::vector<u_int8_t> compressed(buffer);
-    return compressed;
-}
 
 CollisionMapGrid::CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value)
 {
     frame_ = frame;
     VOXEL_GRID::VoxelGrid<collision_cell> new_field(resolution, x_size, y_size, z_size, OOB_value);
     collision_field_ = new_field;
+    number_of_components_ = 0;
+    components_valid_ = false;
 }
 
-CollisionMapGrid::CollisionMapGrid(Transformation origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value)
+CollisionMapGrid::CollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value)
 {
     frame_ = frame;
     VOXEL_GRID::VoxelGrid<collision_cell> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
     collision_field_ = new_field;
+    number_of_components_ = 0;
+    components_valid_ = false;
 }
 
 bool CollisionMapGrid::SaveToFile(std::string& filepath)
@@ -217,7 +123,7 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
     sdf_tools::CollisionMap message_rep;
     // Populate message
     message_rep.header.frame_id = frame_;
-    Transformation origin_transform = collision_field_.GetOriginTransform();
+    Eigen::Affine3d origin_transform = collision_field_.GetOriginTransform();
     message_rep.origin_transform.translation.x = origin_transform.translation().x();
     message_rep.origin_transform.translation.y = origin_transform.translation().y();
     message_rep.origin_transform.translation.z = origin_transform.translation().z();
@@ -234,7 +140,7 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
     message_rep.OOB_component_value = collision_field_.GetDefaultValue().component;
     std::vector<collision_cell> raw_data = collision_field_.GetRawData();
     std::vector<u_int8_t> binary_data = PackBinaryRepresentation(raw_data);
-    message_rep.data = compress_bytes(binary_data);
+    message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
 }
 
@@ -243,13 +149,13 @@ bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& me
     // Make a new voxel grid inside
     Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
     Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
-    Transformation origin_transform = origin_translation * origin_rotation;
+    Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
     collision_cell OOB_value;
     OOB_value.occupancy = message.OOB_occupancy_value;
     OOB_value.component = message.OOB_component_value;
     VOXEL_GRID::VoxelGrid<collision_cell> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
     // Unpack the binary data
-    std::vector<u_int8_t> binary_representation = decompress_bytes(message.data);
+    std::vector<u_int8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
     std::vector<collision_cell> unpacked = UnpackBinaryRepresentation(binary_representation);
     if (unpacked.empty())
     {
@@ -298,11 +204,11 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(std_msgs::ColorRGB
                 new_point.y = location[1];
                 new_point.z = location[2];
                 display_rep.points.push_back(new_point);
-                if (collision_field_.Get(x_index, y_index, z_index).first.occupancy > 0.5)
+                if (collision_field_.GetImmutable(x_index, y_index, z_index).first.occupancy > 0.5)
                 {
                     display_rep.colors.push_back(collision_color);
                 }
-                else if (collision_field_.Get(x_index, y_index, z_index).first.occupancy < 0.5)
+                else if (collision_field_.GetImmutable(x_index, y_index, z_index).first.occupancy < 0.5)
                 {
                     display_rep.colors.push_back(free_color);
                 }
@@ -316,7 +222,7 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(std_msgs::ColorRGB
     return display_rep;
 }
 
-std_msgs::ColorRGBA CollisionMapGrid::GenerateComponentColor(u_int32_t component)
+std_msgs::ColorRGBA CollisionMapGrid::GenerateComponentColor(u_int32_t component) const
 {
     // For component < 22, we pick from a table
     if (component == 0)
@@ -495,7 +401,7 @@ visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay
                 new_point.y = location[1];
                 new_point.z = location[2];
                 display_rep.points.push_back(new_point);
-                collision_cell current_cell = collision_field_.Get(x_index, y_index, z_index).first;
+                collision_cell current_cell = collision_field_.GetImmutable(x_index, y_index, z_index).first;
                 if (current_cell.occupancy != 0.5)
                 {
                     std_msgs::ColorRGBA color = GenerateComponentColor(current_cell.component);
@@ -524,23 +430,22 @@ visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay
     return display_rep;
 }
 
-void CollisionMapGrid::UpdateConnectedComponents(bool reset_connected_components_first)
+u_int32_t CollisionMapGrid::UpdateConnectedComponents()
 {
-    if (reset_connected_components_first)
+    // Reset components first
+    for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
     {
-        for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
+        for (int64_t y_index = 0; y_index < collision_field_.GetNumYCells(); y_index++)
         {
-            for (int64_t y_index = 0; y_index < collision_field_.GetNumYCells(); y_index++)
+            for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
             {
-                for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
-                {
-                    collision_cell current = collision_field_.Get(x_index, y_index, z_index).first;
-                    current.component = 0;
-                    collision_field_.Set(x_index, y_index, z_index, current);
-                }
+                collision_cell current = collision_field_.GetImmutable(x_index, y_index, z_index).first;
+                current.component = 0;
+                collision_field_.SetWithValue(x_index, y_index, z_index, current);
             }
         }
     }
+    // Mark the components
     int64_t total_cells = collision_field_.GetNumXCells() * collision_field_.GetNumYCells() * collision_field_.GetNumZCells();
     int64_t marked_cells = 0;
     u_int32_t connected_components = 0;
@@ -552,7 +457,7 @@ void CollisionMapGrid::UpdateConnectedComponents(bool reset_connected_components
             for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
             {
                 // Check if the cell has already been marked, if so, ignore
-                if (collision_field_.Get(x_index, y_index, z_index).first.component > 0)
+                if (collision_field_.GetImmutable(x_index, y_index, z_index).first.component > 0)
                 {
                     continue;
                 }
@@ -563,132 +468,564 @@ void CollisionMapGrid::UpdateConnectedComponents(bool reset_connected_components
                 // Short-circuit if we've marked everything
                 if (marked_cells == total_cells)
                 {
-                    return;
+                    number_of_components_ = connected_components;
+                    components_valid_ = true;
+                    return connected_components;
                 }
             }
         }
     }
+    number_of_components_ = connected_components;
+    components_valid_ = true;
+    return connected_components;
 }
 
 int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_index, int64_t z_index, u_int32_t connected_component)
 {
     // Make the working queue
-    std::list<grid_index> working_queue;
+    std::list<VOXEL_GRID::grid_index> working_queue;
     // Make a hash table to store queued indices (so we don't repeat work)
-    std::unordered_map<std::string, int8_t> queued_hashtable;
+    std::unordered_map<VOXEL_GRID::grid_index, int8_t> queued_hashtable;
     // Add the starting index
-    grid_index start_index;
+    VOXEL_GRID::grid_index start_index;
     start_index.x = x_index;
     start_index.y = y_index;
     start_index.z = z_index;
     // Enqueue it
     working_queue.push_back(start_index);
-    queued_hashtable[GenerateGridIndexKey(start_index)] = 1;
+    queued_hashtable[start_index] = 1;
     // Work
     int64_t marked_cells = 0;
     while (working_queue.size() > 0)
     {
         // Get an item off the queue to work with
-        grid_index current_index = working_queue.front();
+        VOXEL_GRID::grid_index current_index = working_queue.front();
         working_queue.pop_front();
         // Get the current value
-        collision_cell current_value = collision_field_.Get(current_index.x, current_index.y, current_index.z).first;
+        collision_cell current_value = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z).first;
         // Mark the connected component
         current_value.component = connected_component;
         // Update the grid
-        collision_field_.Set(current_index.x, current_index.y, current_index.z, current_value);
+        collision_field_.SetWithValue(current_index.x, current_index.y, current_index.z, current_value);
         // Go through the possible neighbors and enqueue as needed
         // Since there are only six cases (voxels must share a face to be considered connected), we handle each explicitly
         // Case 1
-        std::pair<collision_cell, bool> xm1_neighbor = collision_field_.Get(current_index.x - 1, current_index.y, current_index.z);
+        std::pair<collision_cell, bool> xm1_neighbor = collision_field_.GetImmutable(current_index.x - 1, current_index.y, current_index.z);
         if (xm1_neighbor.second && (current_value.occupancy == xm1_neighbor.first.occupancy))
         {
-            grid_index neighbor_index;
+            VOXEL_GRID::grid_index neighbor_index;
             neighbor_index.x = current_index.x - 1;
             neighbor_index.y = current_index.y;
             neighbor_index.z = current_index.z;
-            std::string key = GenerateGridIndexKey(neighbor_index);
-            if (queued_hashtable[key] <= 0)
+            if (queued_hashtable[neighbor_index] <= 0)
             {
-                queued_hashtable[key] = 1;
+                queued_hashtable[neighbor_index] = 1;
                 working_queue.push_back(neighbor_index);
             }
         }
         // Case 2
-        std::pair<collision_cell, bool> ym1_neighbor = collision_field_.Get(current_index.x, current_index.y - 1, current_index.z);
+        std::pair<collision_cell, bool> ym1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y - 1, current_index.z);
         if (ym1_neighbor.second && (current_value.occupancy == ym1_neighbor.first.occupancy))
         {
-            grid_index neighbor_index;
+            VOXEL_GRID::grid_index neighbor_index;
             neighbor_index.x = current_index.x;
             neighbor_index.y = current_index.y - 1;
             neighbor_index.z = current_index.z;
-            std::string key = GenerateGridIndexKey(neighbor_index);
-            if (queued_hashtable[key] <= 0)
+            if (queued_hashtable[neighbor_index] <= 0)
             {
-                queued_hashtable[key] = 1;
+                queued_hashtable[neighbor_index] = 1;
                 working_queue.push_back(neighbor_index);
             }
         }
         // Case 3
-        std::pair<collision_cell, bool> zm1_neighbor = collision_field_.Get(current_index.x, current_index.y, current_index.z - 1);
+        std::pair<collision_cell, bool> zm1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z - 1);
         if (zm1_neighbor.second && (current_value.occupancy == zm1_neighbor.first.occupancy))
         {
-            grid_index neighbor_index;
+            VOXEL_GRID::grid_index neighbor_index;
             neighbor_index.x = current_index.x;
             neighbor_index.y = current_index.y;
             neighbor_index.z = current_index.z - 1;
-            std::string key = GenerateGridIndexKey(neighbor_index);
-            if (queued_hashtable[key] <= 0)
+            if (queued_hashtable[neighbor_index] <= 0)
             {
-                queued_hashtable[key] = 1;
+                queued_hashtable[neighbor_index] = 1;
                 working_queue.push_back(neighbor_index);
             }
         }
         // Case 4
-        std::pair<collision_cell, bool> xp1_neighbor = collision_field_.Get(current_index.x + 1, current_index.y, current_index.z);
+        std::pair<collision_cell, bool> xp1_neighbor = collision_field_.GetImmutable(current_index.x + 1, current_index.y, current_index.z);
         if (xp1_neighbor.second && (current_value.occupancy == xp1_neighbor.first.occupancy))
         {
-            grid_index neighbor_index;
+            VOXEL_GRID::grid_index neighbor_index;
             neighbor_index.x = current_index.x + 1;
             neighbor_index.y = current_index.y;
             neighbor_index.z = current_index.z;
-            std::string key = GenerateGridIndexKey(neighbor_index);
-            if (queued_hashtable[key] <= 0)
+            if (queued_hashtable[neighbor_index] <= 0)
             {
-                queued_hashtable[key] = 1;
+                queued_hashtable[neighbor_index] = 1;
                 working_queue.push_back(neighbor_index);
             }
         }
         // Case 5
-        std::pair<collision_cell, bool> yp1_neighbor = collision_field_.Get(current_index.x, current_index.y + 1, current_index.z);
+        std::pair<collision_cell, bool> yp1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y + 1, current_index.z);
         if (yp1_neighbor.second && (current_value.occupancy == yp1_neighbor.first.occupancy))
         {
-            grid_index neighbor_index;
+            VOXEL_GRID::grid_index neighbor_index;
             neighbor_index.x = current_index.x;
             neighbor_index.y = current_index.y + 1;
             neighbor_index.z = current_index.z;
-            std::string key = GenerateGridIndexKey(neighbor_index);
-            if (queued_hashtable[key] <= 0)
+            if (queued_hashtable[neighbor_index] <= 0)
             {
-                queued_hashtable[key] = 1;
+                queued_hashtable[neighbor_index] = 1;
                 working_queue.push_back(neighbor_index);
             }
         }
         // Case 6
-        std::pair<collision_cell, bool> zp1_neighbor = collision_field_.Get(current_index.x, current_index.y, current_index.z + 1);
+        std::pair<collision_cell, bool> zp1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z + 1);
         if (zp1_neighbor.second && (current_value.occupancy == zp1_neighbor.first.occupancy))
         {
-            grid_index neighbor_index;
+            VOXEL_GRID::grid_index neighbor_index;
             neighbor_index.x = current_index.x;
             neighbor_index.y = current_index.y;
             neighbor_index.z = current_index.z + 1;
-            std::string key = GenerateGridIndexKey(neighbor_index);
-            if (queued_hashtable[key] <= 0)
+            if (queued_hashtable[neighbor_index] <= 0)
             {
-                queued_hashtable[key] = 1;
+                queued_hashtable[neighbor_index] = 1;
                 working_queue.push_back(neighbor_index);
             }
         }
     }
     return marked_cells;
 }
+
+std::map<u_int32_t, std::pair<int32_t, int32_t>> CollisionMapGrid::ComputeComponentTopology(bool ignore_empty_components, bool recompute_connected_components, bool verbose)
+{
+    // Recompute the connected components if need be
+    if (recompute_connected_components)
+    {
+        UpdateConnectedComponents();
+    }
+    // Extract the surfaces of each connected component
+    std::map<u_int32_t, std::vector<VOXEL_GRID::grid_index>> component_surfaces = ExtractComponentSurfaces(ignore_empty_components);
+    // Compute the number of holes in each surface
+    std::map<u_int32_t, std::pair<int32_t, int32_t>> component_holes;
+    std::map<u_int32_t, std::vector<VOXEL_GRID::grid_index>>::iterator component_surfaces_itr;
+    for (component_surfaces_itr = component_surfaces.begin(); component_surfaces_itr != component_surfaces.end(); ++component_surfaces_itr)
+    {
+        u_int32_t component_number = component_surfaces_itr->first;
+        std::vector<VOXEL_GRID::grid_index>& component_surface = component_surfaces_itr->second;
+        std::pair<int32_t, int32_t> number_of_holes_and_voids = ComputeHolesInSurface(component_number, component_surface, verbose);
+        component_holes[component_number] = number_of_holes_and_voids;
+    }
+    return component_holes;
+}
+
+std::map<u_int32_t, std::vector<VOXEL_GRID::grid_index>> CollisionMapGrid::ExtractComponentSurfaces(const bool ignore_empty_components) const
+{
+    std::map<u_int32_t, std::vector<VOXEL_GRID::grid_index>> component_surfaces;
+    // Loop through the grid and extract surface cells for each component
+    for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < collision_field_.GetNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
+            {
+                collision_cell current_cell = collision_field_.GetImmutable(x_index, y_index, z_index).first;
+                if (ignore_empty_components)
+                {
+                    if (current_cell.occupancy > 0.5)
+                    {
+                        VOXEL_GRID::grid_index current_index;
+                        current_index.x = x_index;
+                        current_index.y = y_index;
+                        current_index.z = z_index;
+                        if (IsSurfaceIndex(x_index, y_index, z_index))
+                        {
+                            component_surfaces[current_cell.component].push_back(current_index);
+                        }
+                    }
+                }
+                else
+                {
+                    VOXEL_GRID::grid_index current_index;
+                    current_index.x = x_index;
+                    current_index.y = y_index;
+                    current_index.z = z_index;
+                    if (IsSurfaceIndex(x_index, y_index, z_index))
+                    {
+                        component_surfaces[current_cell.component].push_back(current_index);
+                    }
+                }
+            }
+        }
+    }
+    return component_surfaces;
+}
+
+std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int32_t component, const std::vector<VOXEL_GRID::grid_index>& surface, const bool verbose) const
+{
+    // We have a list of all voxels with an exposed surface face
+    // We loop through this list of voxels, and convert each voxel
+    // into 8 vertices (the corners), which we individually check:
+    //
+    // First - we check to see if the vertex has already been
+    // evaluated
+    //
+    // Second - we check if the vertex is actually on the surface
+    // (make sure at least one of the three adjacent vertices is
+    // exposed)
+    //
+    // Third - insert into hashtable of surface vertices
+    //
+    // Once we have completed this process, we loop back through
+    // the hashtable of surface vertices and compute the number
+    // of distance-1 neighboring surface vertices (we do this by
+    // checking each of the six potential neighbor vertices) and
+    // keep a running count of all vertices with 3, 5, and 6
+    // neighbors.
+    //
+    // Once we have evaluated all the neighbors of all surface
+    // vertices, we count the number of holes in the grid using
+    // the formula from Chen and Rong, "Linear Time Recognition
+    // Algorithms for Topological Invariants in 3D":
+    //
+    // #holes = 1 + (M5 + 2 * M6 - M3) / 8
+    //
+    // where M5 is the number of vertices with 5 neighbors,
+    // M6 is the number of vertices with 6 neighbors, and
+    // M3 is the number of vertices with 3 neighbors
+    //
+    // Storage for surface vertices
+    std::unordered_map<VOXEL_GRID::grid_index, u_int8_t> surface_vertices;
+    // Loop through all the surface voxels and extract surface vertices
+    for (size_t idx = 0; idx < surface.size(); idx++)
+    {
+        const VOXEL_GRID::grid_index& current_index = surface[idx];
+        // First, grab all six neighbors from the grid
+        std::pair<const collision_cell&, bool> xyzm1 = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z - 1);
+        std::pair<const collision_cell&, bool> xyzp1 = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z + 1);
+        std::pair<const collision_cell&, bool> xym1z = collision_field_.GetImmutable(current_index.x, current_index.y - 1, current_index.z);
+        std::pair<const collision_cell&, bool> xyp1z = collision_field_.GetImmutable(current_index.x, current_index.y + 1, current_index.z);
+        std::pair<const collision_cell&, bool> xm1yz = collision_field_.GetImmutable(current_index.x - 1, current_index.y, current_index.z);
+        std::pair<const collision_cell&, bool> xp1yz = collision_field_.GetImmutable(current_index.x + 1, current_index.y, current_index.z);
+        // Generate all 8 vertices for the current voxel, check if an adjacent vertex is on the surface, and insert it if so
+        // First, check the (-,-,-) vertex
+        if (component != xyzm1.first.component || component != xym1z.first.component || component != xm1yz.first.component)
+        {
+            VOXEL_GRID::grid_index vertex1;
+            vertex1.x = current_index.x;
+            vertex1.y = current_index.y;
+            vertex1.z = current_index.z;
+            surface_vertices[vertex1] = 1;
+        }
+        // Second, check the (-,-,+) vertex
+        if (component != xyzp1.first.component || component != xym1z.first.component || component != xm1yz.first.component)
+        {
+            VOXEL_GRID::grid_index vertex2;
+            vertex2.x = current_index.x;
+            vertex2.y = current_index.y;
+            vertex2.z = current_index.z + 1;
+            surface_vertices[vertex2] = 1;
+        }
+        // Third, check the (-,+,-) vertex
+        if (component != xyzm1.first.component || component != xyp1z.first.component || component != xm1yz.first.component)
+        {
+            VOXEL_GRID::grid_index vertex3;
+            vertex3.x = current_index.x;
+            vertex3.y = current_index.y + 1;
+            vertex3.z = current_index.z;
+            surface_vertices[vertex3] = 1;
+        }
+        // Fourth, check the (-,+,+) vertex
+        if (component != xyzp1.first.component || component != xyp1z.first.component || component != xm1yz.first.component)
+        {
+            VOXEL_GRID::grid_index vertex4;
+            vertex4.x = current_index.x;
+            vertex4.y = current_index.y + 1;
+            vertex4.z = current_index.z + 1;
+            surface_vertices[vertex4] = 1;
+        }
+        // Fifth, check the (+,-,-) vertex
+        if (component != xyzm1.first.component || component != xym1z.first.component || component != xp1yz.first.component)
+        {
+            VOXEL_GRID::grid_index vertex5;
+            vertex5.x = current_index.x + 1;
+            vertex5.y = current_index.y;
+            vertex5.z = current_index.z;
+            surface_vertices[vertex5] = 1;
+        }
+        // Sixth, check the (+,-,+) vertex
+        if (component != xyzp1.first.component || component != xym1z.first.component || component != xp1yz.first.component)
+        {
+            VOXEL_GRID::grid_index vertex6;
+            vertex6.x = current_index.x + 1;
+            vertex6.y = current_index.y;
+            vertex6.z = current_index.z + 1;
+            surface_vertices[vertex6] = 1;
+        }
+        // Seventh, check the (+,+,-) vertex
+        if (component != xyzm1.first.component || component != xyp1z.first.component || component != xp1yz.first.component)
+        {
+            VOXEL_GRID::grid_index vertex7;
+            vertex7.x = current_index.x + 1;
+            vertex7.y = current_index.y + 1;
+            vertex7.z = current_index.z;
+            surface_vertices[vertex7] = 1;
+        }
+        // Eighth, check the (+,+,+) vertex
+        if (component != xyzp1.first.component || component != xyp1z.first.component || component != xp1yz.first.component)
+        {
+            VOXEL_GRID::grid_index vertex8;
+            vertex8.x = current_index.x + 1;
+            vertex8.y = current_index.y + 1;
+            vertex8.z = current_index.z + 1;
+            surface_vertices[vertex8] = 1;
+        }
+    }
+    if (verbose)
+    {
+        std::cerr << "Surface with " << surface.size() << " voxels has " << surface_vertices.size() << " surface vertices" << std::endl;
+    }
+    // Iterate through the surface vertices and count the neighbors of each vertex
+    int32_t M3 = 0;
+    int32_t M5 = 0;
+    int32_t M6 = 0;
+    // Store the connectivity of each vertex
+    std::unordered_map<VOXEL_GRID::grid_index, u_int8_t> vertex_connectivity;
+    std::unordered_map<VOXEL_GRID::grid_index, u_int8_t>::iterator surface_vertices_itr;
+    for (surface_vertices_itr = surface_vertices.begin(); surface_vertices_itr != surface_vertices.end(); ++surface_vertices_itr)
+    {
+        VOXEL_GRID::grid_index key = surface_vertices_itr->first;
+        VOXEL_GRID::grid_index value = key;
+        // Insert into the connectivity map
+        vertex_connectivity[key] = 0b00000000;
+        // Check the six edges from the current vertex and count the number of exposed edges
+        // (an edge is exposed if the at least one of the four surrounding voxels is not part
+        // of the current component)
+        int32_t edge_count = 0;
+        // First, get the 8 voxels that surround the current vertex
+        std::pair<const collision_cell&, bool> xm1ym1zm1 = collision_field_.GetImmutable(value.x - 1, value.y - 1, value.z - 1);
+        std::pair<const collision_cell&, bool> xm1ym1zp1 = collision_field_.GetImmutable(value.x - 1, value.y - 1, value.z + 0);
+        std::pair<const collision_cell&, bool> xm1yp1zm1 = collision_field_.GetImmutable(value.x - 1, value.y + 0, value.z - 1);
+        std::pair<const collision_cell&, bool> xm1yp1zp1 = collision_field_.GetImmutable(value.x - 1, value.y + 0, value.z + 0);
+        std::pair<const collision_cell&, bool> xp1ym1zm1 = collision_field_.GetImmutable(value.x + 0, value.y - 1, value.z - 1);
+        std::pair<const collision_cell&, bool> xp1ym1zp1 = collision_field_.GetImmutable(value.x + 0, value.y - 1, value.z + 0);
+        std::pair<const collision_cell&, bool> xp1yp1zm1 = collision_field_.GetImmutable(value.x + 0, value.y + 0, value.z - 1);
+        std::pair<const collision_cell&, bool> xp1yp1zp1 = collision_field_.GetImmutable(value.x + 0, value.y + 0, value.z + 0);
+        // Check the "z- down" edge
+        if (component != xm1ym1zm1.first.component || component != xm1yp1zm1.first.component || component != xp1ym1zm1.first.component || component != xp1yp1zm1.first.component)
+        {
+            if (!(component != xm1ym1zm1.first.component && component != xm1yp1zm1.first.component && component != xp1ym1zm1.first.component && component != xp1yp1zm1.first.component))
+            {
+                edge_count++;
+                vertex_connectivity[key] |= 0b00000001;
+            }
+        }
+        // Check the "z+ up" edge
+        if (component != xm1ym1zp1.first.component || component != xm1yp1zp1.first.component || component != xp1ym1zp1.first.component || component != xp1yp1zp1.first.component)
+        {
+            if (!(component != xm1ym1zp1.first.component && component != xm1yp1zp1.first.component && component != xp1ym1zp1.first.component && component != xp1yp1zp1.first.component))
+            {
+                edge_count++;
+                vertex_connectivity[key] |= 0b00000010;
+            }
+        }
+        // Check the "y- right" edge
+        if (component != xm1ym1zm1.first.component || component != xm1ym1zp1.first.component || component != xp1ym1zm1.first.component || component != xp1ym1zp1.first.component)
+        {
+            if (!(component != xm1ym1zm1.first.component && component != xm1ym1zp1.first.component && component != xp1ym1zm1.first.component && component != xp1ym1zp1.first.component))
+            {
+                edge_count++;
+                vertex_connectivity[key] |= 0b00000100;
+            }
+        }
+        // Check the "y+ left" edge
+        if (component != xm1yp1zm1.first.component || component != xm1yp1zp1.first.component || component != xp1yp1zm1.first.component || component != xp1yp1zp1.first.component)
+        {
+            if (!(component != xm1yp1zm1.first.component && component != xm1yp1zp1.first.component && component != xp1yp1zm1.first.component && component != xp1yp1zp1.first.component))
+            {
+                edge_count++;
+                vertex_connectivity[key] |= 0b00001000;
+            }
+        }
+        // Check the "x- back" edge
+        if (component != xm1ym1zm1.first.component || component != xm1ym1zp1.first.component || component != xm1yp1zm1.first.component || component != xm1yp1zp1.first.component)
+        {
+            if (!(component != xm1ym1zm1.first.component && component != xm1ym1zp1.first.component && component != xm1yp1zm1.first.component && component != xm1yp1zp1.first.component))
+            {
+                edge_count++;
+                vertex_connectivity[key] |= 0b00010000;
+            }
+        }
+        // Check the "x+ front" edge
+        if (component != xp1ym1zm1.first.component || component != xp1ym1zp1.first.component || component != xp1yp1zm1.first.component || component != xp1yp1zp1.first.component)
+        {
+            if (!(component != xp1ym1zm1.first.component && component != xp1ym1zp1.first.component && component != xp1yp1zm1.first.component && component != xp1yp1zp1.first.component))
+            {
+                edge_count++;
+                vertex_connectivity[key] |= 0b00100000;
+            }
+        }
+        // Increment M counts
+        if (edge_count == 3)
+        {
+            M3++;
+        }
+        else if (edge_count == 5)
+        {
+            M5++;
+        }
+        else if (edge_count == 6)
+        {
+            M6++;
+        }
+    }
+    // Check to see if the set of vertices is connected. If not, our object contains void(s)
+    int32_t number_of_surfaces = ComputeConnectivityOfSurfaceVertices(vertex_connectivity);
+    int32_t number_of_voids = number_of_surfaces - 1;
+    // Compute the number of holes in the surface
+    int32_t raw_number_of_holes = 1 + ((M5 + (2 * M6) - M3) / 8);
+    int32_t number_of_holes = raw_number_of_holes + number_of_voids;
+    if (verbose)
+    {
+        std::cout << "Processing surface with M3 = " << M3 << " M5 = " << M5 << " M6 = " << M6 << " holes = " << number_of_holes << " surfaces = " << number_of_surfaces << " voids = " << number_of_voids << std::endl;
+    }
+    return std::pair<int32_t, int32_t>(number_of_holes, number_of_voids);
+}
+
+int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VOXEL_GRID::grid_index, u_int8_t>& surface_vertices) const
+{
+    int32_t connected_components = 0;
+    int64_t processed_vertices = 0;
+    std::unordered_map<VOXEL_GRID::grid_index, int32_t> vertex_components;
+    // Iterate through the vertices
+    std::unordered_map<VOXEL_GRID::grid_index, u_int8_t>::const_iterator surface_vertices_itr;
+    for (surface_vertices_itr = surface_vertices.begin(); surface_vertices_itr != surface_vertices.end(); ++surface_vertices_itr)
+    {
+        VOXEL_GRID::grid_index key = surface_vertices_itr->first;
+        VOXEL_GRID::grid_index location = key;
+        //const u_int8_t& connectivity = surface_vertices_itr->second.second;
+        // First, check if the vertex has already been marked
+        if (vertex_components[key] > 0)
+        {
+            continue;
+        }
+        else
+        {
+            // If not, we start marking a new connected component
+            connected_components++;
+            // Make the working queue
+            std::list<VOXEL_GRID::grid_index> working_queue;
+            // Make a hash table to store queued indices (so we don't repeat work)
+            std::unordered_map<VOXEL_GRID::grid_index, int8_t> queued_hashtable;
+            // Add the current point
+            working_queue.push_back(location);
+            queued_hashtable[key] = 1;
+            // Keep track of the number of vertices we've processed
+            int64_t component_processed_vertices = 0;
+            // Loop from the queue
+            while (working_queue.size() > 0)
+            {
+                // Get the top of thw working queue
+                VOXEL_GRID::grid_index current_vertex = working_queue.front();
+                working_queue.pop_front();
+                component_processed_vertices++;
+                vertex_components[current_vertex] = connected_components;
+                // Check the six possibly-connected vertices and add them to the queue if they are connected
+                // Get the connectivity of our index
+                u_int8_t connectivity = surface_vertices.at(current_vertex);
+                // Go through the neighbors
+                if ((connectivity & 0b00000001) > 0)
+                {
+                    // Try to add the vertex
+                    VOXEL_GRID::grid_index connected_vertex;
+                    connected_vertex.x = current_vertex.x;
+                    connected_vertex.y = current_vertex.y;
+                    connected_vertex.z = current_vertex.z - 1;
+                    // We only add if we haven't already processed it
+                    if (queued_hashtable[connected_vertex] <= 0)
+                    {
+                        queued_hashtable[connected_vertex] = 1;
+                        working_queue.push_back(connected_vertex);
+                    }
+                }
+                if ((connectivity & 0b00000010) > 0)
+                {
+                    // Try to add the vertex
+                    VOXEL_GRID::grid_index connected_vertex;
+                    connected_vertex.x = current_vertex.x;
+                    connected_vertex.y = current_vertex.y;
+                    connected_vertex.z = current_vertex.z + 1;
+                    // We only add if we haven't already processed it
+                    if (queued_hashtable[connected_vertex] <= 0)
+                    {
+                        queued_hashtable[connected_vertex] = 1;
+                        working_queue.push_back(connected_vertex);
+                    }
+                }
+                if ((connectivity & 0b00000100) > 0)
+                {
+                    // Try to add the vertex
+                    VOXEL_GRID::grid_index connected_vertex;
+                    connected_vertex.x = current_vertex.x;
+                    connected_vertex.y = current_vertex.y - 1;
+                    connected_vertex.z = current_vertex.z;
+                    // We only add if we haven't already processed it
+                    if (queued_hashtable[connected_vertex] <= 0)
+                    {
+                        queued_hashtable[connected_vertex] = 1;
+                        working_queue.push_back(connected_vertex);
+                    }
+                }
+                if ((connectivity & 0b00001000) > 0)
+                {
+                    // Try to add the vertex
+                    VOXEL_GRID::grid_index connected_vertex;
+                    connected_vertex.x = current_vertex.x;
+                    connected_vertex.y = current_vertex.y + 1;
+                    connected_vertex.z = current_vertex.z;
+                    // We only add if we haven't already processed it
+                    if (queued_hashtable[connected_vertex] <= 0)
+                    {
+                        queued_hashtable[connected_vertex] = 1;
+                        working_queue.push_back(connected_vertex);
+                    }
+                }
+                if ((connectivity & 0b00010000) > 0)
+                {
+                    // Try to add the vertex
+                    VOXEL_GRID::grid_index connected_vertex;
+                    connected_vertex.x = current_vertex.x - 1;
+                    connected_vertex.y = current_vertex.y;
+                    connected_vertex.z = current_vertex.z;
+                    // We only add if we haven't already processed it
+                    if (queued_hashtable[connected_vertex] <= 0)
+                    {
+                        queued_hashtable[connected_vertex] = 1;
+                        working_queue.push_back(connected_vertex);
+                    }
+                }
+                if ((connectivity & 0b00100000) > 0)
+                {
+                    // Try to add the vertex
+                    VOXEL_GRID::grid_index connected_vertex;
+                    connected_vertex.x = current_vertex.x + 1;
+                    connected_vertex.y = current_vertex.y;
+                    connected_vertex.z = current_vertex.z;
+                    // We only add if we haven't already processed it
+                    if (queued_hashtable[connected_vertex] <= 0)
+                    {
+                        queued_hashtable[connected_vertex] = 1;
+                        working_queue.push_back(connected_vertex);
+                    }
+                }
+            }
+            processed_vertices += component_processed_vertices;
+            if (processed_vertices == (int64_t)surface_vertices.size())
+            {
+                break;
+            }
+        }
+    }
+    return connected_components;
+}
+

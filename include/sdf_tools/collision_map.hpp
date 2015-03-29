@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <vector>
 #include <string>
+#include <functional>
+#include <unordered_map>
 #include <sstream>
 #include <iostream>
 #include <stdexcept>
@@ -13,17 +15,15 @@
 #ifndef COLLISION_MAP_HPP
 #define COLLISION_MAP_HPP
 
-typedef Eigen::Transform<double, 3, Eigen::Affine> Transformation;
-
 namespace sdf_tools
 {
-
-    typedef struct {
+    typedef struct
+    {
         float occupancy;
         u_int32_t component;
     } collision_cell;
 
-    std::vector<u_int8_t> CollisionCellToBinary(collision_cell value)
+    inline std::vector<u_int8_t> CollisionCellToBinary(collision_cell value)
     {
         std::vector<u_int8_t> binary(8);
         u_int32_t occupancy_binary_value = 0;
@@ -54,7 +54,7 @@ namespace sdf_tools
         return binary;
     }
 
-    collision_cell CollisionCellFromBinary(std::vector<u_int8_t>& binary)
+    inline collision_cell CollisionCellFromBinary(std::vector<u_int8_t>& binary)
     {
         if (binary.size() != 8)
         {
@@ -69,30 +69,30 @@ namespace sdf_tools
             collision_cell loaded;
             u_int32_t occupancy_binary_value = 0;
             // Copy in byte 4, most-significant byte
-            occupancy_binary_value  = occupancy_binary_value | binary[0];
+            occupancy_binary_value = occupancy_binary_value | binary[0];
             occupancy_binary_value = occupancy_binary_value << 8;
             // Copy in byte 3
-            occupancy_binary_value  = occupancy_binary_value | binary[1];
+            occupancy_binary_value = occupancy_binary_value | binary[1];
             occupancy_binary_value = occupancy_binary_value << 8;
             // Copy in byte 2
-            occupancy_binary_value  = occupancy_binary_value | binary[2];
+            occupancy_binary_value = occupancy_binary_value | binary[2];
             occupancy_binary_value = occupancy_binary_value << 8;
             // Copy in byte 1, least-significant byte
-            occupancy_binary_value  = occupancy_binary_value | binary[3];
+            occupancy_binary_value = occupancy_binary_value | binary[3];
             // Convert binary to float and store
             memcpy(&loaded.occupancy, &occupancy_binary_value, sizeof(float));
             u_int32_t component_binary_value = 0;
             // Copy in byte 4, most-significant byte
-            component_binary_value  = component_binary_value | binary[4];
+            component_binary_value = component_binary_value | binary[4];
             component_binary_value = component_binary_value << 8;
             // Copy in byte 3
-            component_binary_value  = component_binary_value | binary[5];
+            component_binary_value = component_binary_value | binary[5];
             component_binary_value = component_binary_value << 8;
             // Copy in byte 2
-            component_binary_value  = component_binary_value | binary[6];
+            component_binary_value = component_binary_value | binary[6];
             component_binary_value = component_binary_value << 8;
             // Copy in byte 1, least-significant byte
-            component_binary_value  = component_binary_value | binary[7];
+            component_binary_value = component_binary_value | binary[7];
             // Convert binary to float and store
             loaded.component = component_binary_value;
             return loaded;
@@ -108,27 +108,60 @@ namespace sdf_tools
     {
     protected:
 
-        typedef struct {
-            int64_t x;
-            int64_t y;
-            int64_t z;
-        } grid_index;
-
-        inline std::string GenerateGridIndexKey(grid_index& index)
+        inline bool IsSurfaceIndex(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
-            char raw_key[(16 * 3) + 1];
-            // Hex unsigned 64-bit int, pad with zeros, fixed number (16) of characters to print
-            // %0 16 lx
-            sprintf(raw_key, "%016lx%016lx%016lx", (u_int64_t)index.x, (u_int64_t)index.y, (u_int64_t)index.z);
-            return std::string(raw_key);
+            // First, we make sure that indices are within bounds
+            // Out of bounds indices are NOT surface cells
+            if (x_index < 0 || y_index < 0 || z_index < 0 || x_index >= GetNumXCells() || y_index >= GetNumYCells() || z_index >= GetNumZCells())
+            {
+                return false;
+            }
+            // Edge indices are automatically surface cells
+            if (x_index == 0 || y_index == 0 || z_index == 0 || x_index == (GetNumXCells() - 1) || y_index == (GetNumYCells() - 1) || z_index == (GetNumZCells()))
+            {
+                return true;
+            }
+            // If the cell is inside the grid, we check the neighbors
+            // Note that we must check all 26 neighbors
+            u_int32_t our_component = collision_field_.GetImmutable(x_index, y_index, z_index).first.component;
+            // Check neighbor 1
+            if (our_component != collision_field_.GetImmutable(x_index, y_index, z_index - 1).first.component)
+            {
+                return true;
+            }
+            // Check neighbor 2
+            else if (our_component != collision_field_.GetImmutable(x_index, y_index, z_index + 1).first.component)
+            {
+                return true;
+            }
+            // Check neighbor 3
+            else if (our_component != collision_field_.GetImmutable(x_index, y_index - 1, z_index).first.component)
+            {
+                return true;
+            }
+            // Check neighbor 4
+            else if (our_component != collision_field_.GetImmutable(x_index, y_index + 1, z_index).first.component)
+            {
+                return true;
+            }
+            // Check neighbor 5
+            else if (our_component != collision_field_.GetImmutable(x_index - 1, y_index, z_index).first.component)
+            {
+                return true;
+            }
+            // Check neighbor 6
+            else if (our_component != collision_field_.GetImmutable(x_index + 1, y_index, z_index).first.component)
+            {
+                return true;
+            }
+            // If none of the faces are exposed, it's not a surface voxel
+            return false;
         }
 
         std::string frame_;
         VOXEL_GRID::VoxelGrid<collision_cell> collision_field_;
-
-        std::vector<u_int8_t> decompress_bytes(std::vector<u_int8_t>& compressed);
-
-        std::vector<u_int8_t> compress_bytes(std::vector<u_int8_t>& uncompressed);
+        u_int32_t number_of_components_;
+        bool components_valid_;
 
         std::vector<u_int8_t> PackBinaryRepresentation(std::vector<collision_cell>& raw);
 
@@ -136,99 +169,115 @@ namespace sdf_tools
 
         int64_t MarkConnectedComponent(int64_t x_index, int64_t y_index, int64_t z_index, u_int32_t connected_component);
 
-        std_msgs::ColorRGBA GenerateComponentColor(u_int32_t component);
+        std::map<u_int32_t, std::vector<VOXEL_GRID::grid_index>> ExtractComponentSurfaces(const bool ignore_empty_components) const;
+
+        std::pair<int32_t, int32_t> ComputeHolesInSurface(const u_int32_t component, const std::vector<VOXEL_GRID::grid_index>& surface, const bool verbose) const;
+
+        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VOXEL_GRID::grid_index, u_int8_t> &surface_vertices) const;
+
+        std_msgs::ColorRGBA GenerateComponentColor(u_int32_t component) const;
 
     public:
 
         CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value);
 
-        CollisionMapGrid(Transformation origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value);
+        CollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value);
 
-        CollisionMapGrid()
+        CollisionMapGrid() : number_of_components_(0), components_valid_(false) {}
+
+        inline std::pair<collision_cell, bool> Get(const double x, const double y, const double z) const
         {
+            return collision_field_.GetImmutable(x, y, z);
         }
 
-        inline std::pair<collision_cell, bool> Get(double x, double y, double z)
+        inline std::pair<collision_cell, bool> Get(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
-            return collision_field_.Get(x, y, z);
-        }
-
-        inline std::pair<collision_cell, bool> Get(int64_t x_index, int64_t y_index, int64_t z_index)
-        {
-            return collision_field_.Get(x_index, y_index, z_index);
+            return collision_field_.GetImmutable(x_index, y_index, z_index);
         }
 
         inline bool Set(double x, double y, double z, collision_cell value)
         {
-            return collision_field_.Set(x, y, z, value);
+            return collision_field_.SetWithValue(x, y, z, value);
         }
 
         inline bool Set(int64_t x_index, int64_t y_index, int64_t z_index, collision_cell value)
         {
-            return collision_field_.Set(x_index, y_index, z_index, value);
+            return collision_field_.SetWithValue(x_index, y_index, z_index, value);
         }
 
-        inline bool CheckInBounds(double x, double y, double z)
+        inline bool CheckInBounds(double x, double y, double z) const
         {
-            return collision_field_.Get(x, y, z).second;
+            return collision_field_.GetImmutable(x, y, z).second;
         }
 
-        inline bool CheckInBounds(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline bool CheckInBounds(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
-            return collision_field_.Get(x_index, y_index, z_index).second;
+            if (x_index >= 0 && y_index >= 0 && z_index >= 0 && x_index < GetNumXCells() && y_index < GetNumYCells() && z_index < GetNumZCells())
+            {
+                return true;
+            }
+            else
+            {
+                return true;
+            }
         }
 
-        inline double GetXSize()
+        inline double GetXSize() const
         {
             return collision_field_.GetXSize();
         }
 
-        inline double GetYSize()
+        inline double GetYSize() const
         {
             return collision_field_.GetYSize();
         }
 
-        inline double GetZSize()
+        inline double GetZSize() const
         {
             return collision_field_.GetZSize();
         }
 
-        inline double GetResolution()
+        inline double GetResolution() const
         {
             return collision_field_.GetCellSize();
         }
 
-        inline collision_cell GetOOBValue()
+        inline collision_cell GetOOBValue() const
         {
             return collision_field_.GetDefaultValue();
         }
 
-        inline int64_t GetNumXCells()
+        inline int64_t GetNumXCells() const
         {
             return collision_field_.GetNumXCells();
         }
 
-        inline int64_t GetNumYCells()
+        inline int64_t GetNumYCells() const
         {
             return collision_field_.GetNumYCells();
         }
 
-        inline int64_t GetNumZCells()
+        inline int64_t GetNumZCells() const
         {
             return collision_field_.GetNumZCells();
         }
 
-        inline Transformation GetOriginTransform()
+        inline Eigen::Affine3d GetOriginTransform() const
         {
             return collision_field_.GetOriginTransform();
         }
 
-        inline std::vector<int64_t> LocationToGridIndex(double x, double y, double z)
+        inline std::pair<u_int32_t, bool> GetNumConnectedComponents() const
+        {
+            return std::pair<u_int32_t, bool>(number_of_components_, components_valid_);
+        }
+
+        inline std::vector<int64_t> LocationToGridIndex(double x, double y, double z) const
         {
             return collision_field_.LocationToGridIndex(x, y, z);
         }
 
-        inline std::vector<double> GridIndexToLocation(int64_t x_index, int64_t y_index, int64_t z_index)
+        inline std::vector<double> GridIndexToLocation(int64_t x_index, int64_t y_index, int64_t z_index) const
         {
             return collision_field_.GridIndexToLocation(x_index, y_index, z_index);
         }
@@ -241,7 +290,9 @@ namespace sdf_tools
 
         bool LoadFromMessageRepresentation(sdf_tools::CollisionMap& message);
 
-        void UpdateConnectedComponents(bool reset_connected_components_first=false);
+        u_int32_t UpdateConnectedComponents();
+
+        std::map<u_int32_t, std::pair<int32_t, int32_t>> ComputeComponentTopology(bool ignore_empty_components, bool recompute_connected_components, bool verbose);
 
         visualization_msgs::Marker ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color);
 

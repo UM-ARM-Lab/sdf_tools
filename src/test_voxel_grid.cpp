@@ -13,7 +13,7 @@ void test_voxel_grid()
         {
             for (int64_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
             {
-                test_grid.Set(x_index, y_index, z_index, check_val);
+                test_grid.SetWithValue(x_index, y_index, z_index, check_val);
                 check_vals.push_back(check_val);
                 check_val++;
             }
@@ -28,7 +28,7 @@ void test_voxel_grid()
         {
             for (int64_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
             {
-                int ref_val = test_grid.Get(x_index, y_index, z_index).first;
+                int ref_val = test_grid.GetImmutable(x_index, y_index, z_index).first;
                 std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
                 if (ref_val == check_vals[check_index])
                 {
