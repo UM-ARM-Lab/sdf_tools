@@ -169,11 +169,11 @@ namespace sdf_tools
 
         int64_t MarkConnectedComponent(int64_t x_index, int64_t y_index, int64_t z_index, u_int32_t connected_component);
 
-        std::map<u_int32_t, std::vector<VOXEL_GRID::grid_index>> ExtractComponentSurfaces(const bool ignore_empty_components) const;
+        std::map<u_int32_t, std::vector<VOXEL_GRID::GRID_INDEX>> ExtractComponentSurfaces(const bool ignore_empty_components) const;
 
-        std::pair<int32_t, int32_t> ComputeHolesInSurface(const u_int32_t component, const std::vector<VOXEL_GRID::grid_index>& surface, const bool verbose) const;
+        std::pair<int32_t, int32_t> ComputeHolesInSurface(const u_int32_t component, const std::vector<VOXEL_GRID::GRID_INDEX>& surface, const bool verbose) const;
 
-        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VOXEL_GRID::grid_index, u_int8_t> &surface_vertices) const;
+        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t> &surface_vertices) const;
 
         std_msgs::ColorRGBA GenerateComponentColor(u_int32_t component) const;
 

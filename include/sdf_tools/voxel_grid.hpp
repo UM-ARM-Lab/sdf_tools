@@ -409,13 +409,17 @@ namespace VOXEL_GRID
         }
     };
 
-    struct grid_index
+    struct GRID_INDEX
     {
         int64_t x;
         int64_t y;
         int64_t z;
 
-        bool operator==(const grid_index& other) const
+        GRID_INDEX() : x(0), y(0), z(0) {}
+
+        GRID_INDEX(const int64_t in_x, const int64_t in_y, const int64_t in_z) : x(in_x), y(in_y), z(in_z) {}
+
+        bool operator==(const GRID_INDEX& other) const
         {
             return (x == other.x && y == other.y && z == other.z);
         }
@@ -425,9 +429,9 @@ namespace VOXEL_GRID
 namespace std
 {
     template <>
-    struct hash<VOXEL_GRID::grid_index>
+    struct hash<VOXEL_GRID::GRID_INDEX>
     {
-        std::size_t operator()(const VOXEL_GRID::grid_index& index) const
+        std::size_t operator()(const VOXEL_GRID::GRID_INDEX& index) const
         {
             using std::size_t;
             using std::hash;
