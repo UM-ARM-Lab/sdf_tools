@@ -12,6 +12,22 @@
 
 namespace VOXEL_GRID
 {
+    struct GRID_INDEX
+    {
+        int64_t x;
+        int64_t y;
+        int64_t z;
+
+        GRID_INDEX() : x(0), y(0), z(0) {}
+
+        GRID_INDEX(const int64_t in_x, const int64_t in_y, const int64_t in_z) : x(in_x), y(in_y), z(in_z) {}
+
+        bool operator==(const GRID_INDEX& other) const
+        {
+            return (x == other.x && y == other.y && z == other.z);
+        }
+    };
+
     template <typename T>
     class VoxelGrid
     {
@@ -178,6 +194,11 @@ namespace VOXEL_GRID
             }
         }
 
+        inline std::pair<const T&, bool> GetImmutable(const GRID_INDEX& index) const
+        {
+            return GetImmutable(index.x, index.y, index.z);
+        }
+
         inline std::pair<const T&, bool> GetImmutable(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             if (x_index < 0 || y_index < 0 || z_index < 0 || x_index >= num_x_cells_ || y_index >= num_y_cells_ || z_index >= num_z_cells_)
@@ -201,6 +222,11 @@ namespace VOXEL_GRID
             {
                 return GetCopy(indices[0], indices[1], indices[2]);
             }
+        }
+
+        inline std::pair<T, bool> GetCopy(const GRID_INDEX& index) const
+        {
+            return GetCopy(index.x, index.y, index.z);
         }
 
         inline std::pair<T, bool> GetCopy(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
@@ -228,6 +254,11 @@ namespace VOXEL_GRID
             }
         }
 
+        inline std::pair<T&, bool> GetMutable(const GRID_INDEX& index)
+        {
+            return GetMutable(index.x, index.y, index.z);
+        }
+
         inline std::pair<T&, bool> GetMutable(const int64_t x_index, const int64_t y_index, const int64_t z_index)
         {
             if (x_index < 0 || y_index < 0 || z_index < 0 || x_index >= num_x_cells_ || y_index >= num_y_cells_ || z_index >= num_z_cells_)
@@ -251,6 +282,11 @@ namespace VOXEL_GRID
             {
                 return SetWithReference(indices[0], indices[1], indices[2], value);
             }
+        }
+
+        inline bool  SetWithReference(const GRID_INDEX& index, T& value)
+        {
+            return SetWithReference(index.x, index.y, index.z, value);
         }
 
         inline bool SetWithReference(const int64_t x_index, const int64_t y_index, const int64_t z_index, T& value)
@@ -277,6 +313,11 @@ namespace VOXEL_GRID
             {
                 return SetWithValue(indices[0], indices[1], indices[2], value);
             }
+        }
+
+        inline bool  SetWithValue(const GRID_INDEX& index, T value)
+        {
+            return SetWithValue(index.x, index.y, index.z, value);
         }
 
         inline bool SetWithValue(const int64_t x_index, const int64_t y_index, const int64_t z_index, T value)
@@ -407,21 +448,10 @@ namespace VOXEL_GRID
                 return true;
             }
         }
-    };
 
-    struct GRID_INDEX
-    {
-        int64_t x;
-        int64_t y;
-        int64_t z;
-
-        GRID_INDEX() : x(0), y(0), z(0) {}
-
-        GRID_INDEX(const int64_t in_x, const int64_t in_y, const int64_t in_z) : x(in_x), y(in_y), z(in_z) {}
-
-        bool operator==(const GRID_INDEX& other) const
+        inline u_int64_t HashDataIndex(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
-            return (x == other.x && y == other.y && z == other.z);
+            return (x_index * stride1_) + (y_index * stride2_) + z_index;
         }
     };
 }

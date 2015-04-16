@@ -174,7 +174,7 @@ bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& me
     return true;
 }
 
-visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color)
+visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -371,7 +371,7 @@ std_msgs::ColorRGBA CollisionMapGrid::GenerateComponentColor(u_int32_t component
     }
 }
 
-visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay(bool color_unknown_components)
+visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay(bool color_unknown_components) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -584,23 +584,23 @@ std::map<u_int32_t, std::pair<int32_t, int32_t>> CollisionMapGrid::ComputeCompon
         UpdateConnectedComponents();
     }
     // Extract the surfaces of each connected component
-    std::map<u_int32_t, std::vector<VOXEL_GRID::GRID_INDEX>> component_surfaces = ExtractComponentSurfaces(ignore_empty_components);
+    std::map<u_int32_t, std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>> component_surfaces = ExtractComponentSurfaces(ignore_empty_components);
     // Compute the number of holes in each surface
     std::map<u_int32_t, std::pair<int32_t, int32_t>> component_holes;
-    std::map<u_int32_t, std::vector<VOXEL_GRID::GRID_INDEX>>::iterator component_surfaces_itr;
+    std::map<u_int32_t, std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>>::iterator component_surfaces_itr;
     for (component_surfaces_itr = component_surfaces.begin(); component_surfaces_itr != component_surfaces.end(); ++component_surfaces_itr)
     {
         u_int32_t component_number = component_surfaces_itr->first;
-        std::vector<VOXEL_GRID::GRID_INDEX>& component_surface = component_surfaces_itr->second;
+        std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>& component_surface = component_surfaces_itr->second;
         std::pair<int32_t, int32_t> number_of_holes_and_voids = ComputeHolesInSurface(component_number, component_surface, verbose);
         component_holes[component_number] = number_of_holes_and_voids;
     }
     return component_holes;
 }
 
-std::map<u_int32_t, std::vector<VOXEL_GRID::GRID_INDEX>> CollisionMapGrid::ExtractComponentSurfaces(const bool ignore_empty_components) const
+std::map<u_int32_t, std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>> CollisionMapGrid::ExtractComponentSurfaces(const bool ignore_empty_components) const
 {
-    std::map<u_int32_t, std::vector<VOXEL_GRID::GRID_INDEX>> component_surfaces;
+    std::map<u_int32_t, std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>> component_surfaces;
     // Loop through the grid and extract surface cells for each component
     for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
     {
@@ -616,7 +616,7 @@ std::map<u_int32_t, std::vector<VOXEL_GRID::GRID_INDEX>> CollisionMapGrid::Extra
                         VOXEL_GRID::GRID_INDEX current_index(x_index, y_index, z_index);
                         if (IsSurfaceIndex(x_index, y_index, z_index))
                         {
-                            component_surfaces[current_cell.component].push_back(current_index);
+                            component_surfaces[current_cell.component][current_index] = 1;
                         }
                     }
                 }
@@ -625,7 +625,7 @@ std::map<u_int32_t, std::vector<VOXEL_GRID::GRID_INDEX>> CollisionMapGrid::Extra
                     VOXEL_GRID::GRID_INDEX current_index(x_index, y_index, z_index);
                     if (IsSurfaceIndex(x_index, y_index, z_index))
                     {
-                        component_surfaces[current_cell.component].push_back(current_index);
+                        component_surfaces[current_cell.component][current_index] = 1;
                     }
                 }
             }
@@ -634,7 +634,7 @@ std::map<u_int32_t, std::vector<VOXEL_GRID::GRID_INDEX>> CollisionMapGrid::Extra
     return component_surfaces;
 }
 
-std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int32_t component, const std::vector<VOXEL_GRID::GRID_INDEX>& surface, const bool verbose) const
+std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int32_t component, const std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>& surface, const bool verbose) const
 {
     // We have a list of all voxels with an exposed surface face
     // We loop through this list of voxels, and convert each voxel
@@ -670,9 +670,10 @@ std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int3
     // Storage for surface vertices
     std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t> surface_vertices;
     // Loop through all the surface voxels and extract surface vertices
-    for (size_t idx = 0; idx < surface.size(); idx++)
+    std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>::const_iterator surface_itr;
+    for (surface_itr = surface.begin(); surface_itr != surface.end(); ++surface_itr)
     {
-        const VOXEL_GRID::GRID_INDEX& current_index = surface[idx];
+        const VOXEL_GRID::GRID_INDEX& current_index = surface_itr->first;
         // First, grab all six neighbors from the grid
         std::pair<const collision_cell&, bool> xyzm1 = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z - 1);
         std::pair<const collision_cell&, bool> xyzp1 = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z + 1);

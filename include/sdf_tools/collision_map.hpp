@@ -169,12 +169,6 @@ namespace sdf_tools
 
         int64_t MarkConnectedComponent(int64_t x_index, int64_t y_index, int64_t z_index, u_int32_t connected_component);
 
-        std::map<u_int32_t, std::vector<VOXEL_GRID::GRID_INDEX>> ExtractComponentSurfaces(const bool ignore_empty_components) const;
-
-        std::pair<int32_t, int32_t> ComputeHolesInSurface(const u_int32_t component, const std::vector<VOXEL_GRID::GRID_INDEX>& surface, const bool verbose) const;
-
-        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t> &surface_vertices) const;
-
         std_msgs::ColorRGBA GenerateComponentColor(u_int32_t component) const;
 
     public:
@@ -294,9 +288,15 @@ namespace sdf_tools
 
         std::map<u_int32_t, std::pair<int32_t, int32_t>> ComputeComponentTopology(bool ignore_empty_components, bool recompute_connected_components, bool verbose);
 
-        visualization_msgs::Marker ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color);
+        std::map<u_int32_t, std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>> ExtractComponentSurfaces(const bool ignore_empty_components) const;
 
-        visualization_msgs::Marker ExportConnectedComponentsForDisplay(bool color_unknown_components);
+        std::pair<int32_t, int32_t> ComputeHolesInSurface(const u_int32_t component, const std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>& surface, const bool verbose) const;
+
+        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>& surface_vertices) const;
+
+        visualization_msgs::Marker ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color) const;
+
+        visualization_msgs::Marker ExportConnectedComponentsForDisplay(bool color_unknown_components) const;
     };
 }
 
