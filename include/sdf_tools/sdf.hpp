@@ -74,6 +74,11 @@ namespace sdf_tools
 
         std::vector<float> UnpackFieldFromBinaryRepresentation(std::vector<u_int8_t>& binary);
 
+        /*
+         * You *MUST* provide valid indices to this function, hence why it is protected (there are safe wrappers available - use them!)
+         */
+        void FollowGradientsToLocalMaximaUnsafe(VOXEL_GRID::VoxelGrid<Eigen::Vector3d>& watershed_map, const int64_t x_index, const int64_t y_index, const int64_t z_index) const;
+
     public:
 
         SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value);
@@ -87,6 +92,11 @@ namespace sdf_tools
             return distance_field_.GetImmutable(x, y, z).first;
         }
 
+        inline float Get(const Eigen::Vector3d& location) const
+        {
+            return distance_field_.GetImmutable(location).first;
+        }
+
         inline float Get(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             return distance_field_.GetImmutable(x_index, y_index, z_index).first;
@@ -95,6 +105,11 @@ namespace sdf_tools
         inline std::pair<float, bool> GetSafe(const double x, const double y, const double z) const
         {
             return distance_field_.GetImmutable(x, y, z);
+        }
+
+        inline std::pair<float, bool> GetSafe(const Eigen::Vector3d& location) const
+        {
+            return distance_field_.GetImmutable(location);
         }
 
         inline std::pair<float, bool> GetSafe(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
@@ -107,14 +122,29 @@ namespace sdf_tools
             return distance_field_.SetWithValue(x, y, z, value);
         }
 
+        inline bool Set(const Eigen::Vector3d& location, float value)
+        {
+            return distance_field_.SetWithValue(location, value);
+        }
+
         inline bool Set(int64_t x_index, int64_t y_index, int64_t z_index, float value)
         {
             return distance_field_.SetWithValue(x_index, y_index, z_index, value);
         }
 
+        inline bool CheckInBounds(const Eigen::Vector3d& location) const
+        {
+            return distance_field_.GetImmutable(location.x(), location.y(), location.z()).second;
+        }
+
         inline bool CheckInBounds(const double x, const double y, const double z) const
         {
             return distance_field_.GetImmutable(x, y, z).second;
+        }
+
+        inline bool CheckInBounds(const VOXEL_GRID::GRID_INDEX& index) const
+        {
+            return distance_field_.GetImmutable(index.x, index.y, index.z).second;
         }
 
         inline bool CheckInBounds(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
@@ -162,6 +192,11 @@ namespace sdf_tools
             return distance_field_.GetNumZCells();
         }
 
+        inline std::vector<double> GetGradient(const Eigen::Vector3d& location, const bool enable_edge_gradients=false) const
+        {
+            return GetGradient(location.x(), location.y(), location.z(), enable_edge_gradients);
+        }
+
         inline std::vector<double> GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients=false) const
         {
             std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
@@ -173,6 +208,11 @@ namespace sdf_tools
             {
                 return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
             }
+        }
+
+        inline std::vector<double> GetGradient(const VOXEL_GRID::GRID_INDEX& index, const bool enable_edge_gradients=false) const
+        {
+            return GetGradient(index.x, index.y, index.z, enable_edge_gradients);
         }
 
         inline std::vector<double> GetGradient(const int64_t x_index, const int64_t y_index, const int64_t z_index, const bool enable_edge_gradients=false) const
@@ -253,9 +293,19 @@ namespace sdf_tools
             return distance_field_.GetOriginTransform();
         }
 
+        inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector3d& location) const
+        {
+            return distance_field_.LocationToGridIndex(location);
+        }
+
         inline std::vector<int64_t> LocationToGridIndex(const double x, const double y, const double z) const
         {
             return distance_field_.LocationToGridIndex(x, y, z);
+        }
+
+        inline std::vector<double> GridIndexToLocation(const VOXEL_GRID::GRID_INDEX& index) const
+        {
+            return distance_field_.GridIndexToLocation(index);
         }
 
         inline std::vector<double> GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
@@ -276,6 +326,57 @@ namespace sdf_tools
         visualization_msgs::Marker ExportForDisplayCollisionOnly(float alpha=0.01);
 
         visualization_msgs::Marker ExportForDebug(float alpha=0.5);
+
+        /*
+         * The following function can be *VERY EXPENSIVE* to compute, since it performs gradient ascent across the SDF
+         */
+        VOXEL_GRID::VoxelGrid<Eigen::Vector3d> ComputeWatershedMap() const;
+
+        inline bool GradientIsEffectiveFlat(const Eigen::Vector3d& gradient) const
+        {
+            // A gradient is at a local maxima if the absolute value of all components (x,y,z) are less than 1/2 SDF resolution
+            double half_resolution = GetResolution() * 0.5;
+            if (fabs(gradient.x()) <= half_resolution && fabs(gradient.y()) <= half_resolution && fabs(gradient.z()) <= half_resolution)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        inline VOXEL_GRID::GRID_INDEX GetNextFromGradient(const VOXEL_GRID::GRID_INDEX& index, const Eigen::Vector3d& gradient) const
+        {
+            // Given the gradient, pick the "best fit" of the 26 neighboring points
+            VOXEL_GRID::GRID_INDEX next_index = index;
+            double half_resolution = GetResolution() * 0.5;
+            if (gradient.x() > half_resolution)
+            {
+                next_index.x++;
+            }
+            else if (gradient.x() < -half_resolution)
+            {
+                next_index.x--;
+            }
+            if (gradient.y() > half_resolution)
+            {
+                next_index.y++;
+            }
+            else if (gradient.y() < -half_resolution)
+            {
+                next_index.y--;
+            }
+            if (gradient.z() > half_resolution)
+            {
+                next_index.z++;
+            }
+            else if (gradient.z() < -half_resolution)
+            {
+                next_index.z--;
+            }
+            return next_index;
+        }
     };
 }
 

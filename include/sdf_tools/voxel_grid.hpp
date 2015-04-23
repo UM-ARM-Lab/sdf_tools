@@ -181,6 +181,11 @@ namespace VOXEL_GRID
             SetContents(default_value_);
         }
 
+        inline std::pair<const T&, bool> GetImmutable(const Eigen::Vector3d& location) const
+        {
+            return GetImmutable(location.x(), location.y(), location.z());
+        }
+
         inline std::pair<const T&, bool> GetImmutable(const double x, const double y, const double z) const
         {
             std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
@@ -209,6 +214,11 @@ namespace VOXEL_GRID
             {
                 return std::pair<const T&, bool>(data_[GetDataIndex(x_index, y_index, z_index)], true);
             }
+        }
+
+        inline std::pair<T, bool> GetCopy(const Eigen::Vector3d& location) const
+        {
+            return GetCopy(location.x(), location.y(), location.z());
         }
 
         inline std::pair<T, bool> GetCopy(const double x, const double y, const double z) const
@@ -241,6 +251,11 @@ namespace VOXEL_GRID
             }
         }
 
+        inline std::pair<T&, bool> GetMutable(const Eigen::Vector3d& location) const
+        {
+            return GetMutable(location.x(), location.y(), location.z());
+        }
+
         inline std::pair<T&, bool> GetMutable(const double x, const double y, const double z)
         {
             std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
@@ -269,6 +284,11 @@ namespace VOXEL_GRID
             {
                 return std::pair<T&, bool>(data_[GetDataIndex(x_index, y_index, z_index)], true);
             }
+        }
+
+        inline bool SetWithReference(const Eigen::Vector3d& location, T& value)
+        {
+            return SetWithReference(location.x(), location.y(), location.z(), value);
         }
 
         inline bool SetWithReference(const double x, const double y, const double z, T& value)
@@ -300,6 +320,11 @@ namespace VOXEL_GRID
                 data_[GetDataIndex(x_index, y_index, z_index)] = value;
                 return true;
             }
+        }
+
+        inline bool SetWithValue(const Eigen::Vector3d& location, T value)
+        {
+            return SetWithValue(location.x(), location.y(), location.z(), value);
         }
 
         inline bool SetWithValue(const double x, const double y, const double z, T value)
@@ -393,6 +418,11 @@ namespace VOXEL_GRID
             return origin_transform_;
         }
 
+        inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector3d& location) const
+        {
+            return LocationToGridIndex(location.x(), location.y(), location.z());
+        }
+
         inline std::vector<int64_t> LocationToGridIndex(const double x, const double y, const double z) const
         {
             Eigen::Vector3d point(x, y, z);
@@ -408,6 +438,11 @@ namespace VOXEL_GRID
             {
                 return std::vector<int64_t>{x_cell, y_cell, z_cell};
             }
+        }
+
+        inline std::vector<double> GridIndexToLocation(const VOXEL_GRID::GRID_INDEX& index) const
+        {
+            return GridIndexToLocation(index.x, index.y, index.z);
         }
 
         inline std::vector<double> GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
