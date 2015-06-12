@@ -20,6 +20,7 @@
   <build_depend>octomap</build_depend>
   <build_depend>moveit_core</build_depend>
   <build_depend>moveit_ros_planning</build_depend>
+  <build_depend>arc_utilities</build_depend>
   <build_depend>message_generation</build_depend>
 
   <run_depend>image_transport</run_depend>
@@ -34,6 +35,7 @@
   <run_depend>octomap</run_depend>
   <run_depend>moveit_core</run_depend>
   <run_depend>moveit_ros_planning</run_depend>
+  <run_depend>arc_utilities</run_depend>
   <run_depend>message_runtime</run_depend>
 
 

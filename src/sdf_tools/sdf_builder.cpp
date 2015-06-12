@@ -198,7 +198,7 @@ SignedDistanceField SDF_Builder::GetCachedSDF()
     }
 }
 
-VOXEL_GRID::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMap(u_int8_t update_mode)
+VoxelGrid::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMap(u_int8_t update_mode)
 {
     if (!initialized_)
     {
@@ -266,7 +266,7 @@ VOXEL_GRID::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMap(u_int8_t update_
     }
 }
 
-VOXEL_GRID::VoxelGrid<u_int8_t> SDF_Builder::GetCachedCollisionMap()
+VoxelGrid::VoxelGrid<u_int8_t> SDF_Builder::GetCachedCollisionMap()
 {
     if (has_cached_collmap_)
     {
@@ -279,10 +279,10 @@ VOXEL_GRID::VoxelGrid<u_int8_t> SDF_Builder::GetCachedCollisionMap()
     }
 }
 
-VOXEL_GRID::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMapFromPlanningScene()
+VoxelGrid::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMapFromPlanningScene()
 {
     // Make a collision field for debugging
-    VOXEL_GRID::VoxelGrid<u_int8_t> collision_field(origin_transform_, resolution_, x_size_, y_size_, z_size_, 0);
+    VoxelGrid::VoxelGrid<u_int8_t> collision_field(origin_transform_, resolution_, x_size_, y_size_, z_size_, 0);
     // Loop through the planning scene to populate the voxel grids
     std::string x_joint("virtual_x");
     std::string y_joint("virtual_y");

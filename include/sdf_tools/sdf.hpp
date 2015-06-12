@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <Eigen/Geometry>
 #include <visualization_msgs/Marker.h>
-#include "sdf_tools/voxel_grid.hpp"
+#include "arc_utilities/voxel_grid.hpp"
 #include "sdf_tools/SDF.h"
 
 #ifndef SDF_HPP
@@ -68,7 +68,7 @@ namespace sdf_tools
     protected:
 
         std::string frame_;
-        VOXEL_GRID::VoxelGrid<float> distance_field_;
+        VoxelGrid::VoxelGrid<float> distance_field_;
 
         std::vector<u_int8_t> GetInternalBinaryRepresentation(const std::vector<float> &field_data);
 
@@ -77,7 +77,7 @@ namespace sdf_tools
         /*
          * You *MUST* provide valid indices to this function, hence why it is protected (there are safe wrappers available - use them!)
          */
-        void FollowGradientsToLocalMaximaUnsafe(VOXEL_GRID::VoxelGrid<Eigen::Vector3d>& watershed_map, const int64_t x_index, const int64_t y_index, const int64_t z_index) const;
+        void FollowGradientsToLocalMaximaUnsafe(VoxelGrid::VoxelGrid<Eigen::Vector3d>& watershed_map, const int64_t x_index, const int64_t y_index, const int64_t z_index) const;
 
     public:
 
@@ -142,7 +142,7 @@ namespace sdf_tools
             return distance_field_.GetImmutable(x, y, z).second;
         }
 
-        inline bool CheckInBounds(const VOXEL_GRID::GRID_INDEX& index) const
+        inline bool CheckInBounds(const VoxelGrid::GRID_INDEX& index) const
         {
             return distance_field_.GetImmutable(index.x, index.y, index.z).second;
         }
@@ -210,7 +210,7 @@ namespace sdf_tools
             }
         }
 
-        inline std::vector<double> GetGradient(const VOXEL_GRID::GRID_INDEX& index, const bool enable_edge_gradients=false) const
+        inline std::vector<double> GetGradient(const VoxelGrid::GRID_INDEX& index, const bool enable_edge_gradients=false) const
         {
             return GetGradient(index.x, index.y, index.z, enable_edge_gradients);
         }
@@ -303,7 +303,7 @@ namespace sdf_tools
             return distance_field_.LocationToGridIndex(x, y, z);
         }
 
-        inline std::vector<double> GridIndexToLocation(const VOXEL_GRID::GRID_INDEX& index) const
+        inline std::vector<double> GridIndexToLocation(const VoxelGrid::GRID_INDEX& index) const
         {
             return distance_field_.GridIndexToLocation(index);
         }
@@ -330,7 +330,7 @@ namespace sdf_tools
         /*
          * The following function can be *VERY EXPENSIVE* to compute, since it performs gradient ascent across the SDF
          */
-        VOXEL_GRID::VoxelGrid<Eigen::Vector3d> ComputeWatershedMap() const;
+        VoxelGrid::VoxelGrid<Eigen::Vector3d> ComputeWatershedMap() const;
 
         inline bool GradientIsEffectiveFlat(const Eigen::Vector3d& gradient) const
         {
@@ -346,10 +346,10 @@ namespace sdf_tools
             }
         }
 
-        inline VOXEL_GRID::GRID_INDEX GetNextFromGradient(const VOXEL_GRID::GRID_INDEX& index, const Eigen::Vector3d& gradient) const
+        inline VoxelGrid::GRID_INDEX GetNextFromGradient(const VoxelGrid::GRID_INDEX& index, const Eigen::Vector3d& gradient) const
         {
             // Given the gradient, pick the "best fit" of the 26 neighboring points
-            VOXEL_GRID::GRID_INDEX next_index = index;
+            VoxelGrid::GRID_INDEX next_index = index;
             double half_resolution = GetResolution() * 0.5;
             if (gradient.x() > half_resolution)
             {

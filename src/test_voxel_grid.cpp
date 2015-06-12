@@ -1,9 +1,9 @@
-#include "sdf_tools/voxel_grid.hpp"
+#include "arc_utilities/voxel_grid.hpp"
 #include "sdf_tools/sdf.hpp"
 
 void test_voxel_grid()
 {
-    VOXEL_GRID::VoxelGrid<int> test_grid(0.5, 10.0, 10.0, 10.0, 0);
+    VoxelGrid::VoxelGrid<int> test_grid(0.5, 10.0, 10.0, 10.0, 0);
     // Load with special values
     int check_val = 1;
     std::vector<int> check_vals;

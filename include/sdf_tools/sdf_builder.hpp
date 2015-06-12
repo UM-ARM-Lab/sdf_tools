@@ -32,7 +32,7 @@ namespace sdf_tools
         int32_t update_direction;
     } bucket_cell;
 
-    typedef VOXEL_GRID::VoxelGrid<bucket_cell> DistanceField;
+    typedef VoxelGrid::VoxelGrid<bucket_cell> DistanceField;
 
     inline double ComputeDistanceSquared(int32_t x1, int32_t y1, int32_t z1, int32_t x2, int32_t y2, int32_t z2)
     {
@@ -58,14 +58,14 @@ namespace sdf_tools
         double resolution_;
         float OOB_value_;
         SignedDistanceField cached_sdf_;
-        VOXEL_GRID::VoxelGrid<u_int8_t> cached_collmap_;
+        VoxelGrid::VoxelGrid<u_int8_t> cached_collmap_;
         std::shared_ptr<planning_scene::PlanningScene> planning_scene_ptr_;
         ros::NodeHandle nh_;
         ros::ServiceClient planning_scene_client_;
 
         SignedDistanceField UpdateSDFFromPlanningScene();
 
-        VOXEL_GRID::VoxelGrid<u_int8_t> UpdateCollisionMapFromPlanningScene();
+        VoxelGrid::VoxelGrid<u_int8_t> UpdateCollisionMapFromPlanningScene();
 
         bool BuildInternalPlanningScene();
 
@@ -102,9 +102,9 @@ namespace sdf_tools
 
         SignedDistanceField GetCachedSDF();
 
-        VOXEL_GRID::VoxelGrid<u_int8_t> UpdateCollisionMap(u_int8_t update_mode);
+        VoxelGrid::VoxelGrid<u_int8_t> UpdateCollisionMap(u_int8_t update_mode);
 
-        VOXEL_GRID::VoxelGrid<u_int8_t> GetCachedCollisionMap();
+        VoxelGrid::VoxelGrid<u_int8_t> GetCachedCollisionMap();
 
     };
 

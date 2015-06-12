@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <Eigen/Geometry>
 #include <visualization_msgs/Marker.h>
-#include "sdf_tools/voxel_grid.hpp"
+#include "arc_utilities//voxel_grid.hpp"
 #include "sdf_tools/CollisionMap.h"
 
 #ifndef COLLISION_MAP_HPP
@@ -159,7 +159,7 @@ namespace sdf_tools
         }
 
         std::string frame_;
-        VOXEL_GRID::VoxelGrid<collision_cell> collision_field_;
+        VoxelGrid::VoxelGrid<collision_cell> collision_field_;
         u_int32_t number_of_components_;
         bool components_valid_;
 
@@ -288,11 +288,11 @@ namespace sdf_tools
 
         std::map<u_int32_t, std::pair<int32_t, int32_t>> ComputeComponentTopology(bool ignore_empty_components, bool recompute_connected_components, bool verbose);
 
-        std::map<u_int32_t, std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>> ExtractComponentSurfaces(const bool ignore_empty_components) const;
+        std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>> ExtractComponentSurfaces(const bool ignore_empty_components) const;
 
-        std::pair<int32_t, int32_t> ComputeHolesInSurface(const u_int32_t component, const std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>& surface, const bool verbose) const;
+        std::pair<int32_t, int32_t> ComputeHolesInSurface(const u_int32_t component, const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface, const bool verbose) const;
 
-        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VOXEL_GRID::GRID_INDEX, u_int8_t>& surface_vertices) const;
+        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface_vertices) const;
 
         visualization_msgs::Marker ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color) const;
 

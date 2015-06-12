@@ -4,7 +4,7 @@ project(sdf_tools)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs octomap_msgs image_transport cv_bridge message_generation)
+find_package(catkin REQUIRED COMPONENTS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs octomap_msgs image_transport cv_bridge arc_utilities message_generation)
 find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
 find_package(octomap REQUIRED)
@@ -40,7 +40,7 @@ generate_messages(DEPENDENCIES geometry_msgs std_msgs)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs octomap_msgs image_transport cv_bridge message_runtime DEPENDS system_lib z Eigen OpenCV octomap)
+catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs octomap_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib z Eigen OpenCV octomap)
 
 ###########
 ## Build ##
@@ -54,9 +54,6 @@ set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Werror")
 
 # SDF library
 add_library(${PROJECT_NAME}
-    include/${PROJECT_NAME}/pretty_print.hpp
-    include/${PROJECT_NAME}/zlib_helpers.hpp
-    include/${PROJECT_NAME}/voxel_grid.hpp
     include/${PROJECT_NAME}/collision_map.hpp
     include/${PROJECT_NAME}/sdf.hpp
     include/${PROJECT_NAME}/sdf_builder.hpp

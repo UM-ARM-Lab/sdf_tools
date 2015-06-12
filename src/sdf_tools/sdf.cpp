@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <zlib.h>
 #include <ros/ros.h>
-#include "sdf_tools/zlib_helpers.hpp"
+#include "arc_utilities/zlib_helpers.hpp"
 #include "sdf_tools/sdf.hpp"
 #include "sdf_tools/SDF.h"
 
@@ -18,14 +18,14 @@ using namespace sdf_tools;
 SignedDistanceField::SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
 {
     frame_ = frame;
-    VOXEL_GRID::VoxelGrid<float> new_field(resolution, x_size, y_size, z_size, OOB_value);
+    VoxelGrid::VoxelGrid<float> new_field(resolution, x_size, y_size, z_size, OOB_value);
     distance_field_ = new_field;
 }
 
 SignedDistanceField::SignedDistanceField(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
 {
     frame_ = frame;
-    VOXEL_GRID::VoxelGrid<float> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
+    VoxelGrid::VoxelGrid<float> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
     distance_field_ = new_field;
 }
 
@@ -141,7 +141,7 @@ bool SignedDistanceField::LoadFromMessageRepresentation(sdf_tools::SDF& message)
     Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
     Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
     Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
-    VOXEL_GRID::VoxelGrid<float> new_field(origin_transform, message.sdf_cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, message.OOB_value);
+    VoxelGrid::VoxelGrid<float> new_field(origin_transform, message.sdf_cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, message.OOB_value);
     // Unpack the binary data
     std::vector<u_int8_t> binary_data = ZlibHelpers::DecompressBytes(message.data);
     std::vector<float> unpacked = UnpackFieldFromBinaryRepresentation(binary_data);
@@ -334,7 +334,7 @@ visualization_msgs::Marker SignedDistanceField::ExportForDebug(float alpha)
     return display_rep;
 }
 
-void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(VOXEL_GRID::VoxelGrid<Eigen::Vector3d>& watershed_map, const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(VoxelGrid::VoxelGrid<Eigen::Vector3d>& watershed_map, const int64_t x_index, const int64_t y_index, const int64_t z_index) const
 {
     // First, check if we've already found the local maxima for the current cell
     const Eigen::Vector3d& stored = watershed_map.GetImmutable(x_index, y_index, z_index).first;
@@ -364,8 +364,8 @@ void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(VOXEL_GRID::VoxelGr
         else
         {
             // Follow the gradient, one cell at a time, until we reach a local maxima
-            std::unordered_map<VOXEL_GRID::GRID_INDEX, int8_t> path;
-            VOXEL_GRID::GRID_INDEX current_index(x_index, y_index, z_index);
+            std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> path;
+            VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
             path[current_index] = 1;
             Eigen::Vector3d local_maxima(-INFINITY, -INFINITY, -INFINITY);
             while (true)
@@ -414,19 +414,19 @@ void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(VOXEL_GRID::VoxelGr
                 }
             }
             // Now, go back and mark the entire explored path with the local maxima
-            std::unordered_map<VOXEL_GRID::GRID_INDEX, int8_t>::const_iterator path_itr;
+            std::unordered_map<VoxelGrid::GRID_INDEX, int8_t>::const_iterator path_itr;
             for (path_itr = path.begin(); path_itr != path.end(); ++path_itr)
             {
-                const VOXEL_GRID::GRID_INDEX& index = path_itr->first;
+                const VoxelGrid::GRID_INDEX& index = path_itr->first;
                 watershed_map.SetWithValue(index, local_maxima);
             }
         }
     }
 }
 
-VOXEL_GRID::VoxelGrid<Eigen::Vector3d> SignedDistanceField::ComputeWatershedMap() const
+VoxelGrid::VoxelGrid<Eigen::Vector3d> SignedDistanceField::ComputeWatershedMap() const
 {
-    VOXEL_GRID::VoxelGrid<Eigen::Vector3d> watershed_map(GetOriginTransform(), GetResolution(), GetXSize(), GetYSize(), GetZSize(), Eigen::Vector3d(-INFINITY, -INFINITY, -INFINITY));
+    VoxelGrid::VoxelGrid<Eigen::Vector3d> watershed_map(GetOriginTransform(), GetResolution(), GetXSize(), GetYSize(), GetZSize(), Eigen::Vector3d(-INFINITY, -INFINITY, -INFINITY));
     for (int64_t x_idx = 0; x_idx < watershed_map.GetNumXCells(); x_idx++)
     {
         for (int64_t y_idx = 0; y_idx < watershed_map.GetNumYCells(); y_idx++)

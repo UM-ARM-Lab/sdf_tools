@@ -3,7 +3,7 @@
 #include "sdf_tools/sdf_builder.hpp"
 #include <time.h>
 
-visualization_msgs::Marker ExportCollisionMapForDisplay(VOXEL_GRID::VoxelGrid<u_int8_t>& collision_map, std::string frame, float alpha)
+visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<u_int8_t>& collision_map, std::string frame, float alpha)
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -87,7 +87,7 @@ int main(int argc, char** argv)
     {
         /* Collision map visualization message publish */
         std::cout << "Generating a new Collision Map..." << std::endl;
-        VOXEL_GRID::VoxelGrid<u_int8_t> coll_map = sdf_builder.UpdateCollisionMap(sdf_tools::USE_FULL_PLANNING_SCENE);
+        VoxelGrid::VoxelGrid<u_int8_t> coll_map = sdf_builder.UpdateCollisionMap(sdf_tools::USE_FULL_PLANNING_SCENE);
         std::cout << "...Collision Map with " << (coll_map.GetNumXCells() * coll_map.GetNumYCells() * coll_map.GetNumZCells()) << " cells generated - sending to RVIZ" << std::endl;
         viz_pub.publish(ExportCollisionMapForDisplay(coll_map, "base", 1.0));
         /* SDF visualization message publish */
