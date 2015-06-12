@@ -10,6 +10,7 @@
 #include <Eigen/Geometry>
 #include <visualization_msgs/Marker.h>
 #include "arc_utilities//voxel_grid.hpp"
+#include "sdf_tools/sdf.hpp"
 #include "sdf_tools/CollisionMap.h"
 
 #ifndef COLLISION_MAP_HPP
@@ -158,6 +159,33 @@ namespace sdf_tools
             return false;
         }
 
+        typedef struct
+        {
+            u_int32_t location[3];
+            u_int32_t closest_point[3];
+            double distance_square;
+            int32_t update_direction;
+        } bucket_cell;
+
+        typedef VoxelGrid::VoxelGrid<bucket_cell> DistanceField;
+
+        DistanceField BuildDistanceField(std::vector<Eigen::Vector3i>& points) const;
+
+        std::vector<std::vector<std::vector<std::vector<int>>>> MakeNeighborhoods() const;
+
+        inline int GetDirectionNumber(const int dx, const int dy, const int dz) const
+        {
+            return ((dx + 1) * 9) + ((dy + 1) * 3) + (dz + 1);
+        }
+
+        inline double ComputeDistanceSquared(const int32_t x1, const int32_t y1, const int32_t z1, const int32_t x2, const int32_t y2, const int32_t z2) const
+        {
+            int32_t dx = x1 - x2;
+            int32_t dy = y1 - y2;
+            int32_t dz = z1 - z2;
+            return double((dx * dx) + (dy * dy) + (dz * dz));
+        }
+
         std::string frame_;
         VoxelGrid::VoxelGrid<collision_cell> collision_field_;
         u_int32_t number_of_components_;
@@ -293,6 +321,8 @@ namespace sdf_tools
         std::pair<int32_t, int32_t> ComputeHolesInSurface(const u_int32_t component, const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface, const bool verbose) const;
 
         int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface_vertices) const;
+
+        sdf_tools::SignedDistanceField ExtractSignedDistanceField(const float oob_value) const;
 
         visualization_msgs::Marker ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color) const;
 

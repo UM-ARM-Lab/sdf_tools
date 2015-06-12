@@ -961,3 +961,209 @@ int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unorde
     return connected_components;
 }
 
+std::vector<std::vector<std::vector<std::vector<int>>>> CollisionMapGrid::MakeNeighborhoods() const
+{
+    std::vector<std::vector<std::vector<std::vector<int>>>> neighborhoods;
+    neighborhoods.resize(2);
+    for (size_t n = 0; n < neighborhoods.size(); n++)
+    {
+        neighborhoods[n].resize(27);
+        // Loop through the source directions
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    int direction_number = GetDirectionNumber(dx, dy, dz);
+                    // Loop through the target directions
+                    for (int tdx = -1; tdx <= 1; tdx++)
+                    {
+                        for (int tdy = -1; tdy <= 1; tdy++)
+                        {
+                            for (int tdz = -1; tdz <= 1; tdz++)
+                            {
+                                if (tdx == 0 && tdy == 0 && tdz == 0)
+                                {
+                                    continue;
+                                }
+                                if (n >= 1)
+                                {
+                                    if ((abs(tdx) + abs(tdy) + abs(tdz)) != 1)
+                                    {
+                                        continue;
+                                    }
+                                    if ((dx * tdx) < 0 || (dy * tdy) < 0 || (dz * tdz) < 0)
+                                    {
+                                        continue;
+                                    }
+                                }
+                                std::vector<int> new_point;
+                                new_point.resize(3);
+                                new_point[0] = tdx;
+                                new_point[1] = tdy;
+                                new_point[2] = tdz;
+                                neighborhoods[n][direction_number].push_back(new_point);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return neighborhoods;
+}
+
+sdf_tools::SignedDistanceField CollisionMapGrid::ExtractSignedDistanceField(const float oob_value) const
+{
+    // Make the SDF
+    SignedDistanceField new_sdf(collision_field_.GetOriginTransform(), frame_, collision_field_.GetCellSize(), collision_field_.GetXSize(), collision_field_.GetYSize(), collision_field_.GetZSize(), oob_value);
+    std::vector<Eigen::Vector3i> filled;
+    std::vector<Eigen::Vector3i> free;
+    for (int64_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < new_sdf.GetNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < new_sdf.GetNumZCells(); z_index++)
+            {
+                collision_cell stored = Get(x_index, y_index, z_index).first;
+                if (stored.occupancy > 0.5)
+                {
+                    // Mark as filled
+                    filled.push_back(Eigen::Vector3i((int32_t)x_index, (int32_t)y_index, (int32_t)z_index));
+                }
+                else
+                {
+                    // Mark as free space
+                    free.push_back(Eigen::Vector3i((int32_t)x_index, (int32_t)y_index, (int32_t)z_index));
+                }
+            }
+        }
+    }
+    // Make two distance fields (one for distance to filled voxels, one for distance to free voxels
+    DistanceField filled_distance_field = BuildDistanceField(filled);
+    DistanceField free_distance_field = BuildDistanceField(free);
+    // Generate the SDF
+    for (int64_t x_index = 0; x_index < filled_distance_field.GetNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < filled_distance_field.GetNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < filled_distance_field.GetNumZCells(); z_index++)
+            {
+                double distance1 = sqrt(filled_distance_field.GetImmutable(x_index, y_index, z_index).first.distance_square) * new_sdf.GetResolution();
+                double distance2 = sqrt(free_distance_field.GetImmutable(x_index, y_index, z_index).first.distance_square) * new_sdf.GetResolution();
+                new_sdf.Set(x_index, y_index, z_index, (distance1 - distance2));
+            }
+        }
+    }
+    return new_sdf;
+}
+
+CollisionMapGrid::DistanceField CollisionMapGrid::BuildDistanceField(std::vector<Eigen::Vector3i>& points) const
+{
+    // Make the DistanceField container
+    bucket_cell default_cell;
+    default_cell.distance_square = INFINITY;
+    DistanceField distance_field(collision_field_.GetOriginTransform(), collision_field_.GetCellSize(), collision_field_.GetXSize(), collision_field_.GetYSize(), collision_field_.GetZSize(), default_cell);
+    // Compute maximum distance square
+    long max_distance_square = (distance_field.GetNumXCells() * distance_field.GetNumXCells()) + (distance_field.GetNumYCells() * distance_field.GetNumYCells()) + (distance_field.GetNumZCells() * distance_field.GetNumZCells());
+    // Make bucket queue
+    std::vector<std::vector<bucket_cell>> bucket_queue(max_distance_square + 1);
+    bucket_queue[0].reserve(points.size());
+    // Set initial update direction
+    int initial_update_direction = GetDirectionNumber(0, 0, 0);
+    // Mark all points with distance zero and add to the bucket queue
+    for (size_t index = 0; index < points.size(); index++)
+    {
+        std::pair<bucket_cell&, bool> query = distance_field.GetMutable((int64_t)points[index].x(), (int64_t)points[index].y(), (int64_t)points[index].z());
+        if (query.second)
+        {
+            query.first.location[0] = points[index].x();
+            query.first.location[1] = points[index].y();
+            query.first.location[2] = points[index].z();
+            query.first.closest_point[0] = points[index].x();
+            query.first.closest_point[1] = points[index].y();
+            query.first.closest_point[2] = points[index].z();
+            query.first.distance_square = 0.0;
+            query.first.update_direction = initial_update_direction;
+            bucket_queue[0].push_back(query.first);
+        }
+        // If the point is outside the bounds of the SDF, skip
+        else
+        {
+            continue;
+        }
+    }
+    // Process the bucket queue
+    std::vector<std::vector<std::vector<std::vector<int>>>> neighborhoods = MakeNeighborhoods();
+    for (size_t bq_idx = 0; bq_idx < bucket_queue.size(); bq_idx++)
+    {
+        std::vector<bucket_cell>::iterator queue_itr = bucket_queue[bq_idx].begin();
+        while (queue_itr != bucket_queue[bq_idx].end())
+        {
+            // Get the current location
+            bucket_cell& cur_cell = *queue_itr;
+            double x = cur_cell.location[0];
+            double y = cur_cell.location[1];
+            double z = cur_cell.location[2];
+            // Pick the update direction
+            int D = bq_idx;
+            if (D > 1)
+            {
+                D = 1;
+            }
+            // Make sure the update direction is valid
+            if (cur_cell.update_direction < 0 || cur_cell.update_direction > 26)
+            {
+                ++queue_itr;
+                continue;
+            }
+            // Get the current neighborhood list
+            std::vector<std::vector<int>>& neighborhood = neighborhoods[D][cur_cell.update_direction];
+            // Update the distance from the neighboring cells
+            for (size_t nh_idx = 0; nh_idx < neighborhood.size(); nh_idx++)
+            {
+                // Get the direction to check
+                int dx = neighborhood[nh_idx][0];
+                int dy = neighborhood[nh_idx][1];
+                int dz = neighborhood[nh_idx][2];
+                int nx = x + dx;
+                int ny = y + dy;
+                int nz = z + dz;
+                std::pair<bucket_cell&, bool> neighbor_query = distance_field.GetMutable((int64_t)nx, (int64_t)ny, (int64_t)nz);
+                if (!neighbor_query.second)
+                {
+                    // "Neighbor" is outside the bounds of the SDF
+                    continue;
+                }
+                // Update the neighbor's distance based on the current
+                int new_distance_square = ComputeDistanceSquared(nx, ny, nz, cur_cell.closest_point[0], cur_cell.closest_point[1], cur_cell.closest_point[2]);
+                if (new_distance_square > max_distance_square)
+                {
+                    // Skip these cases
+                    continue;
+                }
+                if (new_distance_square < neighbor_query.first.distance_square)
+                {
+                    // If the distance is better, time to update the neighbor
+                    neighbor_query.first.distance_square = new_distance_square;
+                    neighbor_query.first.closest_point[0] = cur_cell.closest_point[0];
+                    neighbor_query.first.closest_point[1] = cur_cell.closest_point[1];
+                    neighbor_query.first.closest_point[2] = cur_cell.closest_point[2];
+                    neighbor_query.first.location[0] = nx;
+                    neighbor_query.first.location[1] = ny;
+                    neighbor_query.first.location[2] = nz;
+                    neighbor_query.first.update_direction = GetDirectionNumber(dx, dy, dz);
+                    // Add the neighbor into the bucket queue
+                    bucket_queue[new_distance_square].push_back(neighbor_query.first);
+                }
+            }
+            // Increment the queue iterator
+            ++queue_itr;
+        }
+        // Clear the current queue now that we're done with it
+        bucket_queue[bq_idx].clear();
+    }
+    return distance_field;
+}
+
