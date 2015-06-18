@@ -64,9 +64,9 @@ add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_genc
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 # Simple test node for voxel_grid
-add_executable(text_voxel_grid src/test_voxel_grid.cpp)
-add_dependencies(text_voxel_grid ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
-target_link_libraries(text_voxel_grid ${catkin_LIBRARIES})
+add_executable(test_voxel_grid src/test_voxel_grid.cpp)
+add_dependencies(test_voxel_grid ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(test_voxel_grid ${catkin_LIBRARIES})
 
 # SDF generation node
 add_executable(sdf_generation_node src/sdf_generation_node.cpp)
@@ -77,6 +77,11 @@ target_link_libraries(sdf_generation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 add_executable(image_2d_sdf_node src/image_2d_sdf_node.cpp)
 add_dependencies(image_2d_sdf_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(image_2d_sdf_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# Tutorial on how to use the components of the sdf_tools library
+add_executable(sdf_tools_tutorial src/sdf_tools_tutorial.cpp)
+add_dependencies(sdf_tools_tutorial ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(sdf_tools_tutorial ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 #############
 ## Install ##

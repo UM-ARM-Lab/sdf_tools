@@ -169,7 +169,7 @@ namespace sdf_tools
 
         typedef VoxelGrid::VoxelGrid<bucket_cell> DistanceField;
 
-        DistanceField BuildDistanceField(std::vector<Eigen::Vector3i>& points) const;
+        DistanceField BuildDistanceField(const std::vector<VoxelGrid::GRID_INDEX>& points) const;
 
         std::vector<std::vector<std::vector<std::vector<int>>>> MakeNeighborhoods() const;
 

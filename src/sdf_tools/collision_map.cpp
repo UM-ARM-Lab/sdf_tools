@@ -1018,24 +1018,25 @@ sdf_tools::SignedDistanceField CollisionMapGrid::ExtractSignedDistanceField(cons
 {
     // Make the SDF
     SignedDistanceField new_sdf(collision_field_.GetOriginTransform(), frame_, collision_field_.GetCellSize(), collision_field_.GetXSize(), collision_field_.GetYSize(), collision_field_.GetZSize(), oob_value);
-    std::vector<Eigen::Vector3i> filled;
-    std::vector<Eigen::Vector3i> free;
+    std::vector<VoxelGrid::GRID_INDEX> filled;
+    std::vector<VoxelGrid::GRID_INDEX> free;
     for (int64_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
     {
         for (int64_t y_index = 0; y_index < new_sdf.GetNumYCells(); y_index++)
         {
             for (int64_t z_index = 0; z_index < new_sdf.GetNumZCells(); z_index++)
             {
+                VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
                 collision_cell stored = Get(x_index, y_index, z_index).first;
                 if (stored.occupancy > 0.5)
                 {
                     // Mark as filled
-                    filled.push_back(Eigen::Vector3i((int32_t)x_index, (int32_t)y_index, (int32_t)z_index));
+                    filled.push_back(current_index);
                 }
                 else
                 {
                     // Mark as free space
-                    free.push_back(Eigen::Vector3i((int32_t)x_index, (int32_t)y_index, (int32_t)z_index));
+                    free.push_back(current_index);
                 }
             }
         }
@@ -1059,7 +1060,7 @@ sdf_tools::SignedDistanceField CollisionMapGrid::ExtractSignedDistanceField(cons
     return new_sdf;
 }
 
-CollisionMapGrid::DistanceField CollisionMapGrid::BuildDistanceField(std::vector<Eigen::Vector3i>& points) const
+CollisionMapGrid::DistanceField CollisionMapGrid::BuildDistanceField(const std::vector<VoxelGrid::GRID_INDEX>& points) const
 {
     // Make the DistanceField container
     bucket_cell default_cell;
@@ -1075,15 +1076,16 @@ CollisionMapGrid::DistanceField CollisionMapGrid::BuildDistanceField(std::vector
     // Mark all points with distance zero and add to the bucket queue
     for (size_t index = 0; index < points.size(); index++)
     {
-        std::pair<bucket_cell&, bool> query = distance_field.GetMutable((int64_t)points[index].x(), (int64_t)points[index].y(), (int64_t)points[index].z());
+        const VoxelGrid::GRID_INDEX& current_index = points[index];
+        std::pair<bucket_cell&, bool> query = distance_field.GetMutable(current_index);
         if (query.second)
         {
-            query.first.location[0] = points[index].x();
-            query.first.location[1] = points[index].y();
-            query.first.location[2] = points[index].z();
-            query.first.closest_point[0] = points[index].x();
-            query.first.closest_point[1] = points[index].y();
-            query.first.closest_point[2] = points[index].z();
+            query.first.location[0] = current_index.x;
+            query.first.location[1] = current_index.y;
+            query.first.location[2] = current_index.z;
+            query.first.closest_point[0] = current_index.x;
+            query.first.closest_point[1] = current_index.y;
+            query.first.closest_point[2] = current_index.z;
             query.first.distance_square = 0.0;
             query.first.update_direction = initial_update_direction;
             bucket_queue[0].push_back(query.first);
