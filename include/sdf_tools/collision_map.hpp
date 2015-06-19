@@ -186,6 +186,7 @@ namespace sdf_tools
             return double((dx * dx) + (dy * dy) + (dz * dz));
         }
 
+        bool initialized_;
         std::string frame_;
         VoxelGrid::VoxelGrid<collision_cell> collision_field_;
         u_int32_t number_of_components_;
@@ -205,11 +206,31 @@ namespace sdf_tools
 
         CollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value);
 
-        CollisionMapGrid() : number_of_components_(0), components_valid_(false) {}
+        CollisionMapGrid() : initialized_(false), number_of_components_(0), components_valid_(false) {}
+
+        inline bool IsInitialized() const
+        {
+            return initialized_;
+        }
+
+        inline bool AreComponentsValid() const
+        {
+            return components_valid_;
+        }
+
+        inline std::pair<collision_cell, bool> Get(const Eigen::Vector3d& location) const
+        {
+            return collision_field_.GetImmutable(location);
+        }
 
         inline std::pair<collision_cell, bool> Get(const double x, const double y, const double z) const
         {
             return collision_field_.GetImmutable(x, y, z);
+        }
+
+        inline std::pair<collision_cell, bool> Get(const VoxelGrid::GRID_INDEX& index) const
+        {
+            return collision_field_.GetImmutable(index);
         }
 
         inline std::pair<collision_cell, bool> Get(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
@@ -217,31 +238,28 @@ namespace sdf_tools
             return collision_field_.GetImmutable(x_index, y_index, z_index);
         }
 
-        inline bool Set(double x, double y, double z, collision_cell value)
+        inline bool Set(const double x, const double y, const double z, collision_cell value)
         {
+            components_valid_ = false;
             return collision_field_.SetWithValue(x, y, z, value);
         }
 
-        inline bool Set(int64_t x_index, int64_t y_index, int64_t z_index, collision_cell value)
+        inline bool Set(const Eigen::Vector3d& location, collision_cell value)
         {
+            components_valid_ = false;
+            return collision_field_.SetWithValue(location, value);
+        }
+
+        inline bool Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, collision_cell value)
+        {
+            components_valid_ = false;
             return collision_field_.SetWithValue(x_index, y_index, z_index, value);
         }
 
-        inline bool CheckInBounds(double x, double y, double z) const
+        inline bool Set(const VoxelGrid::GRID_INDEX& index, collision_cell value)
         {
-            return collision_field_.GetImmutable(x, y, z).second;
-        }
-
-        inline bool CheckInBounds(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
-        {
-            if (x_index >= 0 && y_index >= 0 && z_index >= 0 && x_index < GetNumXCells() && y_index < GetNumYCells() && z_index < GetNumZCells())
-            {
-                return true;
-            }
-            else
-            {
-                return true;
-            }
+            components_valid_ = false;
+            return collision_field_.SetWithValue(index, value);
         }
 
         inline double GetXSize() const

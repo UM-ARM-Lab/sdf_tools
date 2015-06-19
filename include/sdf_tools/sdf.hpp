@@ -67,6 +67,8 @@ namespace sdf_tools
     {
     protected:
 
+        bool initialized_;
+        bool locked_;
         std::string frame_;
         VoxelGrid::VoxelGrid<float> distance_field_;
 
@@ -85,7 +87,27 @@ namespace sdf_tools
 
         SignedDistanceField(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value);
 
-        SignedDistanceField() {}
+        SignedDistanceField()  : initialized_(false), locked_(false) {}
+
+        inline bool IsInitialized() const
+        {
+            return initialized_;
+        }
+
+        inline bool IsLocked() const
+        {
+            return locked_;
+        }
+
+        inline void Lock()
+        {
+            locked_ = true;
+        }
+
+        inline void Unlock()
+        {
+            locked_ = false;
+        }
 
         inline float Get(const double x, const double y, const double z) const
         {
@@ -117,19 +139,62 @@ namespace sdf_tools
             return distance_field_.GetImmutable(x_index, y_index, z_index);
         }
 
+        /*
+         * Setter functions MUST be used carefully - If you arbitrarily change SDF values, it is not a proper SDF any more!
+         *
+         * Use of these functions can be prevented by calling SignedDistanceField::Lock() on the SDF, at which point these functions
+         * will fail with a warning printed to std_err.
+         */
         inline bool Set(const double x, const double y, const double z, float value)
         {
-            return distance_field_.SetWithValue(x, y, z, value);
+            if (!locked_)
+            {
+                return distance_field_.SetWithValue(x, y, z, value);
+            }
+            else
+            {
+                std::cerr << "Attempt to set value in locked SDF" << std::endl;
+                return false;
+            }
         }
 
         inline bool Set(const Eigen::Vector3d& location, float value)
         {
-            return distance_field_.SetWithValue(location, value);
+            if (!locked_)
+            {
+                return distance_field_.SetWithValue(location, value);
+            }
+            else
+            {
+                std::cerr << "Attempt to set value in locked SDF" << std::endl;
+                return false;
+            }
         }
 
-        inline bool Set(int64_t x_index, int64_t y_index, int64_t z_index, float value)
+        inline bool Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, const float value)
         {
-            return distance_field_.SetWithValue(x_index, y_index, z_index, value);
+            if (!locked_)
+            {
+                return distance_field_.SetWithValue(x_index, y_index, z_index, value);
+            }
+            else
+            {
+                std::cerr << "Attempt to set value in locked SDF" << std::endl;
+                return false;
+            }
+        }
+
+        inline bool Set(const VoxelGrid::GRID_INDEX& index, const float value)
+        {
+            if (!locked_)
+            {
+                return distance_field_.SetWithValue(index, value);
+            }
+            else
+            {
+                std::cerr << "Attempt to set value in locked SDF" << std::endl;
+                return false;
+            }
         }
 
         inline bool CheckInBounds(const Eigen::Vector3d& location) const
@@ -330,7 +395,7 @@ namespace sdf_tools
         /*
          * The following function can be *VERY EXPENSIVE* to compute, since it performs gradient ascent across the SDF
          */
-        VoxelGrid::VoxelGrid<Eigen::Vector3d> ComputeWatershedMap() const;
+        VoxelGrid::VoxelGrid<Eigen::Vector3d> ComputeLocalMaximaMap() const;
 
         inline bool GradientIsEffectiveFlat(const Eigen::Vector3d& gradient) const
         {

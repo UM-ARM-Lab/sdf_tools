@@ -15,14 +15,14 @@
 
 using namespace sdf_tools;
 
-SignedDistanceField::SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
+SignedDistanceField::SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
 {
     frame_ = frame;
     VoxelGrid::VoxelGrid<float> new_field(resolution, x_size, y_size, z_size, OOB_value);
     distance_field_ = new_field;
 }
 
-SignedDistanceField::SignedDistanceField(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
+SignedDistanceField::SignedDistanceField(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
 {
     frame_ = frame;
     VoxelGrid::VoxelGrid<float> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
@@ -129,6 +129,8 @@ sdf_tools::SDF SignedDistanceField::GetMessageRepresentation()
     message_rep.dimensions.z = distance_field_.GetZSize();
     message_rep.sdf_cell_size = distance_field_.GetCellSize();
     message_rep.OOB_value = distance_field_.GetDefaultValue();
+    message_rep.initialized = initialized_;
+    message_rep.locked = locked_;
     const std::vector<float>& raw_data = distance_field_.GetRawData();
     std::vector<u_int8_t> binary_data = GetInternalBinaryRepresentation(raw_data);
     message_rep.data = ZlibHelpers::CompressBytes(binary_data);
@@ -159,6 +161,8 @@ bool SignedDistanceField::LoadFromMessageRepresentation(sdf_tools::SDF& message)
     // Set it
     distance_field_ = new_field;
     frame_ = message.header.frame_id;
+    initialized_ = message.initialized;
+    locked_ = message.locked;
     return true;
 }
 
@@ -424,7 +428,7 @@ void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(VoxelGrid::VoxelGri
     }
 }
 
-VoxelGrid::VoxelGrid<Eigen::Vector3d> SignedDistanceField::ComputeWatershedMap() const
+VoxelGrid::VoxelGrid<Eigen::Vector3d> SignedDistanceField::ComputeLocalMaximaMap() const
 {
     VoxelGrid::VoxelGrid<Eigen::Vector3d> watershed_map(GetOriginTransform(), GetResolution(), GetXSize(), GetYSize(), GetZSize(), Eigen::Vector3d(-INFINITY, -INFINITY, -INFINITY));
     for (int64_t x_idx = 0; x_idx < watershed_map.GetNumXCells(); x_idx++)

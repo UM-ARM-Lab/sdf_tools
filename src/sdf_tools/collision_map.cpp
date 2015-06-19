@@ -16,7 +16,7 @@
 
 using namespace sdf_tools;
 
-CollisionMapGrid::CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value)
+CollisionMapGrid::CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value) : initialized_(true)
 {
     frame_ = frame;
     VoxelGrid::VoxelGrid<collision_cell> new_field(resolution, x_size, y_size, z_size, OOB_value);
@@ -25,7 +25,7 @@ CollisionMapGrid::CollisionMapGrid(std::string frame, double resolution, double 
     components_valid_ = false;
 }
 
-CollisionMapGrid::CollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value)
+CollisionMapGrid::CollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value) : initialized_(true)
 {
     frame_ = frame;
     VoxelGrid::VoxelGrid<collision_cell> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
@@ -138,6 +138,9 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
     message_rep.cell_size = collision_field_.GetCellSize();
     message_rep.OOB_occupancy_value = collision_field_.GetDefaultValue().occupancy;
     message_rep.OOB_component_value = collision_field_.GetDefaultValue().component;
+    message_rep.number_of_components = number_of_components_;
+    message_rep.components_valid = components_valid_;
+    message_rep.initialized = initialized_;
     std::vector<collision_cell> raw_data = collision_field_.GetRawData();
     std::vector<u_int8_t> binary_data = PackBinaryRepresentation(raw_data);
     message_rep.data = ZlibHelpers::CompressBytes(binary_data);
@@ -171,6 +174,9 @@ bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& me
     // Set it
     collision_field_ = new_field;
     frame_ = message.header.frame_id;
+    number_of_components_ = message.number_of_components;
+    components_valid_ = message.components_valid;
+    initialized_ = message.initialized;
     return true;
 }
 
