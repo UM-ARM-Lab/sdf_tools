@@ -18,13 +18,19 @@
 
 namespace sdf_tools
 {
-    typedef struct
+    struct COLLISION_CELL
     {
         float occupancy;
         u_int32_t component;
-    } collision_cell;
 
-    inline std::vector<u_int8_t> CollisionCellToBinary(collision_cell value)
+        COLLISION_CELL() : occupancy(0.0), component(0) {}
+
+        COLLISION_CELL(const float in_occupancy) : occupancy(in_occupancy), component(0) {}
+
+        COLLISION_CELL(const float in_occupancy, const u_int32_t in_component) : occupancy(in_occupancy), component(in_component) {}
+    };
+
+    inline std::vector<u_int8_t> CollisionCellToBinary(COLLISION_CELL value)
     {
         std::vector<u_int8_t> binary(8);
         u_int32_t occupancy_binary_value = 0;
@@ -55,19 +61,19 @@ namespace sdf_tools
         return binary;
     }
 
-    inline collision_cell CollisionCellFromBinary(std::vector<u_int8_t>& binary)
+    inline COLLISION_CELL CollisionCellFromBinary(std::vector<u_int8_t>& binary)
     {
         if (binary.size() != 8)
         {
             std::cerr << "Binary value is not 8 bytes" << std::endl;
-            collision_cell error_cell;
+            COLLISION_CELL error_cell;
             error_cell.component = 0;
             error_cell.occupancy = NAN;
             return error_cell;
         }
         else
         {
-            collision_cell loaded;
+            COLLISION_CELL loaded;
             u_int32_t occupancy_binary_value = 0;
             // Copy in byte 4, most-significant byte
             occupancy_binary_value = occupancy_binary_value | binary[0];
@@ -188,13 +194,13 @@ namespace sdf_tools
 
         bool initialized_;
         std::string frame_;
-        VoxelGrid::VoxelGrid<collision_cell> collision_field_;
+        VoxelGrid::VoxelGrid<COLLISION_CELL> collision_field_;
         u_int32_t number_of_components_;
         bool components_valid_;
 
-        std::vector<u_int8_t> PackBinaryRepresentation(std::vector<collision_cell>& raw);
+        std::vector<u_int8_t> PackBinaryRepresentation(std::vector<COLLISION_CELL>& raw);
 
-        std::vector<collision_cell> UnpackBinaryRepresentation(std::vector<u_int8_t>& packed);
+        std::vector<COLLISION_CELL> UnpackBinaryRepresentation(std::vector<u_int8_t>& packed);
 
         int64_t MarkConnectedComponent(int64_t x_index, int64_t y_index, int64_t z_index, u_int32_t connected_component);
 
@@ -202,9 +208,9 @@ namespace sdf_tools
 
     public:
 
-        CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value);
+        CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, COLLISION_CELL OOB_value);
 
-        CollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value);
+        CollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, COLLISION_CELL OOB_value);
 
         CollisionMapGrid() : initialized_(false), number_of_components_(0), components_valid_(false) {}
 
@@ -218,45 +224,45 @@ namespace sdf_tools
             return components_valid_;
         }
 
-        inline std::pair<collision_cell, bool> Get(const Eigen::Vector3d& location) const
+        inline std::pair<COLLISION_CELL, bool> Get(const Eigen::Vector3d& location) const
         {
             return collision_field_.GetImmutable(location);
         }
 
-        inline std::pair<collision_cell, bool> Get(const double x, const double y, const double z) const
+        inline std::pair<COLLISION_CELL, bool> Get(const double x, const double y, const double z) const
         {
             return collision_field_.GetImmutable(x, y, z);
         }
 
-        inline std::pair<collision_cell, bool> Get(const VoxelGrid::GRID_INDEX& index) const
+        inline std::pair<COLLISION_CELL, bool> Get(const VoxelGrid::GRID_INDEX& index) const
         {
             return collision_field_.GetImmutable(index);
         }
 
-        inline std::pair<collision_cell, bool> Get(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+        inline std::pair<COLLISION_CELL, bool> Get(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             return collision_field_.GetImmutable(x_index, y_index, z_index);
         }
 
-        inline bool Set(const double x, const double y, const double z, collision_cell value)
+        inline bool Set(const double x, const double y, const double z, COLLISION_CELL value)
         {
             components_valid_ = false;
             return collision_field_.SetWithValue(x, y, z, value);
         }
 
-        inline bool Set(const Eigen::Vector3d& location, collision_cell value)
+        inline bool Set(const Eigen::Vector3d& location, COLLISION_CELL value)
         {
             components_valid_ = false;
             return collision_field_.SetWithValue(location, value);
         }
 
-        inline bool Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, collision_cell value)
+        inline bool Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, COLLISION_CELL value)
         {
             components_valid_ = false;
             return collision_field_.SetWithValue(x_index, y_index, z_index, value);
         }
 
-        inline bool Set(const VoxelGrid::GRID_INDEX& index, collision_cell value)
+        inline bool Set(const VoxelGrid::GRID_INDEX& index, COLLISION_CELL value)
         {
             components_valid_ = false;
             return collision_field_.SetWithValue(index, value);
@@ -282,7 +288,7 @@ namespace sdf_tools
             return collision_field_.GetCellSize();
         }
 
-        inline collision_cell GetOOBValue() const
+        inline COLLISION_CELL GetOOBValue() const
         {
             return collision_field_.GetDefaultValue();
         }
@@ -322,9 +328,9 @@ namespace sdf_tools
             return collision_field_.GridIndexToLocation(x_index, y_index, z_index);
         }
 
-        bool SaveToFile(std::string& filepath);
+        bool SaveToFile(const std::string& filepath);
 
-        bool LoadFromFile(std::string& filepath);
+        bool LoadFromFile(const std::string &filepath);
 
         sdf_tools::CollisionMap GetMessageRepresentation();
 

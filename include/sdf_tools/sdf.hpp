@@ -378,9 +378,9 @@ namespace sdf_tools
             return distance_field_.GridIndexToLocation(x_index, y_index, z_index);
         }
 
-        bool SaveToFile(std::string& filepath);
+        bool SaveToFile(const std::string& filepath);
 
-        bool LoadFromFile(std::string& filepath);
+        bool LoadFromFile(const std::string& filepath);
 
         sdf_tools::SDF GetMessageRepresentation();
 

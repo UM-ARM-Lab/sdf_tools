@@ -16,25 +16,25 @@
 
 using namespace sdf_tools;
 
-CollisionMapGrid::CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value) : initialized_(true)
+CollisionMapGrid::CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, COLLISION_CELL OOB_value) : initialized_(true)
 {
     frame_ = frame;
-    VoxelGrid::VoxelGrid<collision_cell> new_field(resolution, x_size, y_size, z_size, OOB_value);
+    VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(resolution, x_size, y_size, z_size, OOB_value);
     collision_field_ = new_field;
     number_of_components_ = 0;
     components_valid_ = false;
 }
 
-CollisionMapGrid::CollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, collision_cell OOB_value) : initialized_(true)
+CollisionMapGrid::CollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, COLLISION_CELL OOB_value) : initialized_(true)
 {
     frame_ = frame;
-    VoxelGrid::VoxelGrid<collision_cell> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
+    VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
     collision_field_ = new_field;
     number_of_components_ = 0;
     components_valid_ = false;
 }
 
-bool CollisionMapGrid::SaveToFile(std::string& filepath)
+bool CollisionMapGrid::SaveToFile(const std::string &filepath)
 {
     // Convert to message representation
     sdf_tools::CollisionMap message_rep = GetMessageRepresentation();
@@ -56,7 +56,7 @@ bool CollisionMapGrid::SaveToFile(std::string& filepath)
     }
 }
 
-bool CollisionMapGrid::LoadFromFile(std::string& filepath)
+bool CollisionMapGrid::LoadFromFile(const std::string& filepath)
 {
     try
     {
@@ -82,12 +82,12 @@ bool CollisionMapGrid::LoadFromFile(std::string& filepath)
     }
 }
 
-std::vector<u_int8_t> CollisionMapGrid::PackBinaryRepresentation(std::vector<collision_cell>& raw)
+std::vector<u_int8_t> CollisionMapGrid::PackBinaryRepresentation(std::vector<COLLISION_CELL>& raw)
 {
     std::vector<u_int8_t> packed(raw.size() * 8);
     for (size_t field_idx = 0, binary_index = 0; field_idx < raw.size(); field_idx++, binary_index+=8)
     {
-        collision_cell raw_cell = raw[field_idx];
+        COLLISION_CELL raw_cell = raw[field_idx];
         std::vector<u_int8_t> packed_cell = CollisionCellToBinary(raw_cell);
         packed[binary_index] = packed_cell[0];
         packed[binary_index + 1] = packed_cell[1];
@@ -101,15 +101,15 @@ std::vector<u_int8_t> CollisionMapGrid::PackBinaryRepresentation(std::vector<col
     return packed;
 }
 
-std::vector<collision_cell> CollisionMapGrid::UnpackBinaryRepresentation(std::vector<u_int8_t>& packed)
+std::vector<COLLISION_CELL> CollisionMapGrid::UnpackBinaryRepresentation(std::vector<u_int8_t>& packed)
 {
     if ((packed.size() % 8) != 0)
     {
         std::cerr << "Invalid binary representation - length is not a multiple of 8" << std::endl;
-        return std::vector<collision_cell>();
+        return std::vector<COLLISION_CELL>();
     }
     u_int64_t data_size = packed.size() / 8;
-    std::vector<collision_cell> unpacked(data_size);
+    std::vector<COLLISION_CELL> unpacked(data_size);
     for (size_t field_idx = 0, binary_index = 0; field_idx < unpacked.size(); field_idx++, binary_index+=8)
     {
         std::vector<u_int8_t> binary_block{packed[binary_index], packed[binary_index + 1], packed[binary_index + 2], packed[binary_index + 3], packed[binary_index + 4], packed[binary_index + 5], packed[binary_index + 6], packed[binary_index + 7]};
@@ -141,7 +141,7 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
     message_rep.number_of_components = number_of_components_;
     message_rep.components_valid = components_valid_;
     message_rep.initialized = initialized_;
-    std::vector<collision_cell> raw_data = collision_field_.GetRawData();
+    std::vector<COLLISION_CELL> raw_data = collision_field_.GetRawData();
     std::vector<u_int8_t> binary_data = PackBinaryRepresentation(raw_data);
     message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
@@ -153,13 +153,13 @@ bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& me
     Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
     Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
     Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
-    collision_cell OOB_value;
+    COLLISION_CELL OOB_value;
     OOB_value.occupancy = message.OOB_occupancy_value;
     OOB_value.component = message.OOB_component_value;
-    VoxelGrid::VoxelGrid<collision_cell> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
+    VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
     // Unpack the binary data
     std::vector<u_int8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
-    std::vector<collision_cell> unpacked = UnpackBinaryRepresentation(binary_representation);
+    std::vector<COLLISION_CELL> unpacked = UnpackBinaryRepresentation(binary_representation);
     if (unpacked.empty())
     {
         std::cerr << "Unpack returned an empty SDF" << std::endl;
@@ -407,7 +407,7 @@ visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay
                 new_point.y = location[1];
                 new_point.z = location[2];
                 display_rep.points.push_back(new_point);
-                collision_cell current_cell = collision_field_.GetImmutable(x_index, y_index, z_index).first;
+                COLLISION_CELL current_cell = collision_field_.GetImmutable(x_index, y_index, z_index).first;
                 if (current_cell.occupancy != 0.5)
                 {
                     std_msgs::ColorRGBA color = GenerateComponentColor(current_cell.component);
@@ -438,6 +438,12 @@ visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay
 
 u_int32_t CollisionMapGrid::UpdateConnectedComponents()
 {
+    // If the connected components are already valid, skip computing them again
+    if (components_valid_)
+    {
+        return number_of_components_;
+    }
+    components_valid_ = false;
     // Reset components first
     for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
     {
@@ -445,7 +451,7 @@ u_int32_t CollisionMapGrid::UpdateConnectedComponents()
         {
             for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
             {
-                collision_cell current = collision_field_.GetImmutable(x_index, y_index, z_index).first;
+                COLLISION_CELL current = collision_field_.GetImmutable(x_index, y_index, z_index).first;
                 current.component = 0;
                 collision_field_.SetWithValue(x_index, y_index, z_index, current);
             }
@@ -505,7 +511,7 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
         VoxelGrid::GRID_INDEX current_index = working_queue.front();
         working_queue.pop_front();
         // Get the current value
-        collision_cell current_value = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z).first;
+        COLLISION_CELL current_value = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z).first;
         // Mark the connected component
         current_value.component = connected_component;
         // Update the grid
@@ -513,7 +519,7 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
         // Go through the possible neighbors and enqueue as needed
         // Since there are only six cases (voxels must share a face to be considered connected), we handle each explicitly
         // Case 1
-        std::pair<collision_cell, bool> xm1_neighbor = collision_field_.GetImmutable(current_index.x - 1, current_index.y, current_index.z);
+        std::pair<COLLISION_CELL, bool> xm1_neighbor = collision_field_.GetImmutable(current_index.x - 1, current_index.y, current_index.z);
         if (xm1_neighbor.second && (current_value.occupancy == xm1_neighbor.first.occupancy))
         {
             VoxelGrid::GRID_INDEX neighbor_index(current_index.x - 1, current_index.y, current_index.z);
@@ -524,7 +530,7 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
             }
         }
         // Case 2
-        std::pair<collision_cell, bool> ym1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y - 1, current_index.z);
+        std::pair<COLLISION_CELL, bool> ym1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y - 1, current_index.z);
         if (ym1_neighbor.second && (current_value.occupancy == ym1_neighbor.first.occupancy))
         {
             VoxelGrid::GRID_INDEX neighbor_index(current_index.x, current_index.y - 1, current_index.z);
@@ -535,7 +541,7 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
             }
         }
         // Case 3
-        std::pair<collision_cell, bool> zm1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z - 1);
+        std::pair<COLLISION_CELL, bool> zm1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z - 1);
         if (zm1_neighbor.second && (current_value.occupancy == zm1_neighbor.first.occupancy))
         {
             VoxelGrid::GRID_INDEX neighbor_index(current_index.x, current_index.y, current_index.z - 1);
@@ -546,7 +552,7 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
             }
         }
         // Case 4
-        std::pair<collision_cell, bool> xp1_neighbor = collision_field_.GetImmutable(current_index.x + 1, current_index.y, current_index.z);
+        std::pair<COLLISION_CELL, bool> xp1_neighbor = collision_field_.GetImmutable(current_index.x + 1, current_index.y, current_index.z);
         if (xp1_neighbor.second && (current_value.occupancy == xp1_neighbor.first.occupancy))
         {
             VoxelGrid::GRID_INDEX neighbor_index(current_index.x + 1, current_index.y, current_index.z);
@@ -557,7 +563,7 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
             }
         }
         // Case 5
-        std::pair<collision_cell, bool> yp1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y + 1, current_index.z);
+        std::pair<COLLISION_CELL, bool> yp1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y + 1, current_index.z);
         if (yp1_neighbor.second && (current_value.occupancy == yp1_neighbor.first.occupancy))
         {
             VoxelGrid::GRID_INDEX neighbor_index(current_index.x, current_index.y + 1, current_index.z);
@@ -568,7 +574,7 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
             }
         }
         // Case 6
-        std::pair<collision_cell, bool> zp1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z + 1);
+        std::pair<COLLISION_CELL, bool> zp1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z + 1);
         if (zp1_neighbor.second && (current_value.occupancy == zp1_neighbor.first.occupancy))
         {
             VoxelGrid::GRID_INDEX neighbor_index(current_index.x, current_index.y, current_index.z + 1);
@@ -614,7 +620,7 @@ std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>> Collisi
         {
             for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
             {
-                collision_cell current_cell = collision_field_.GetImmutable(x_index, y_index, z_index).first;
+                COLLISION_CELL current_cell = collision_field_.GetImmutable(x_index, y_index, z_index).first;
                 if (ignore_empty_components)
                 {
                     if (current_cell.occupancy > 0.5)
@@ -681,12 +687,12 @@ std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int3
     {
         const VoxelGrid::GRID_INDEX& current_index = surface_itr->first;
         // First, grab all six neighbors from the grid
-        std::pair<const collision_cell&, bool> xyzm1 = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z - 1);
-        std::pair<const collision_cell&, bool> xyzp1 = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z + 1);
-        std::pair<const collision_cell&, bool> xym1z = collision_field_.GetImmutable(current_index.x, current_index.y - 1, current_index.z);
-        std::pair<const collision_cell&, bool> xyp1z = collision_field_.GetImmutable(current_index.x, current_index.y + 1, current_index.z);
-        std::pair<const collision_cell&, bool> xm1yz = collision_field_.GetImmutable(current_index.x - 1, current_index.y, current_index.z);
-        std::pair<const collision_cell&, bool> xp1yz = collision_field_.GetImmutable(current_index.x + 1, current_index.y, current_index.z);
+        std::pair<const COLLISION_CELL&, bool> xyzm1 = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z - 1);
+        std::pair<const COLLISION_CELL&, bool> xyzp1 = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z + 1);
+        std::pair<const COLLISION_CELL&, bool> xym1z = collision_field_.GetImmutable(current_index.x, current_index.y - 1, current_index.z);
+        std::pair<const COLLISION_CELL&, bool> xyp1z = collision_field_.GetImmutable(current_index.x, current_index.y + 1, current_index.z);
+        std::pair<const COLLISION_CELL&, bool> xm1yz = collision_field_.GetImmutable(current_index.x - 1, current_index.y, current_index.z);
+        std::pair<const COLLISION_CELL&, bool> xp1yz = collision_field_.GetImmutable(current_index.x + 1, current_index.y, current_index.z);
         // Generate all 8 vertices for the current voxel, check if an adjacent vertex is on the surface, and insert it if so
         // First, check the (-,-,-) vertex
         if (component != xyzm1.first.component || component != xym1z.first.component || component != xm1yz.first.component)
@@ -759,14 +765,14 @@ std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int3
         // of the current component)
         int32_t edge_count = 0;
         // First, get the 8 voxels that surround the current vertex
-        std::pair<const collision_cell&, bool> xm1ym1zm1 = collision_field_.GetImmutable(value.x - 1, value.y - 1, value.z - 1);
-        std::pair<const collision_cell&, bool> xm1ym1zp1 = collision_field_.GetImmutable(value.x - 1, value.y - 1, value.z + 0);
-        std::pair<const collision_cell&, bool> xm1yp1zm1 = collision_field_.GetImmutable(value.x - 1, value.y + 0, value.z - 1);
-        std::pair<const collision_cell&, bool> xm1yp1zp1 = collision_field_.GetImmutable(value.x - 1, value.y + 0, value.z + 0);
-        std::pair<const collision_cell&, bool> xp1ym1zm1 = collision_field_.GetImmutable(value.x + 0, value.y - 1, value.z - 1);
-        std::pair<const collision_cell&, bool> xp1ym1zp1 = collision_field_.GetImmutable(value.x + 0, value.y - 1, value.z + 0);
-        std::pair<const collision_cell&, bool> xp1yp1zm1 = collision_field_.GetImmutable(value.x + 0, value.y + 0, value.z - 1);
-        std::pair<const collision_cell&, bool> xp1yp1zp1 = collision_field_.GetImmutable(value.x + 0, value.y + 0, value.z + 0);
+        std::pair<const COLLISION_CELL&, bool> xm1ym1zm1 = collision_field_.GetImmutable(value.x - 1, value.y - 1, value.z - 1);
+        std::pair<const COLLISION_CELL&, bool> xm1ym1zp1 = collision_field_.GetImmutable(value.x - 1, value.y - 1, value.z + 0);
+        std::pair<const COLLISION_CELL&, bool> xm1yp1zm1 = collision_field_.GetImmutable(value.x - 1, value.y + 0, value.z - 1);
+        std::pair<const COLLISION_CELL&, bool> xm1yp1zp1 = collision_field_.GetImmutable(value.x - 1, value.y + 0, value.z + 0);
+        std::pair<const COLLISION_CELL&, bool> xp1ym1zm1 = collision_field_.GetImmutable(value.x + 0, value.y - 1, value.z - 1);
+        std::pair<const COLLISION_CELL&, bool> xp1ym1zp1 = collision_field_.GetImmutable(value.x + 0, value.y - 1, value.z + 0);
+        std::pair<const COLLISION_CELL&, bool> xp1yp1zm1 = collision_field_.GetImmutable(value.x + 0, value.y + 0, value.z - 1);
+        std::pair<const COLLISION_CELL&, bool> xp1yp1zp1 = collision_field_.GetImmutable(value.x + 0, value.y + 0, value.z + 0);
         // Check the "z- down" edge
         if (component != xm1ym1zm1.first.component || component != xm1yp1zm1.first.component || component != xp1ym1zm1.first.component || component != xp1yp1zm1.first.component)
         {
@@ -1033,7 +1039,7 @@ sdf_tools::SignedDistanceField CollisionMapGrid::ExtractSignedDistanceField(cons
             for (int64_t z_index = 0; z_index < new_sdf.GetNumZCells(); z_index++)
             {
                 VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
-                collision_cell stored = Get(x_index, y_index, z_index).first;
+                COLLISION_CELL stored = Get(x_index, y_index, z_index).first;
                 if (stored.occupancy > 0.5)
                 {
                     // Mark as filled

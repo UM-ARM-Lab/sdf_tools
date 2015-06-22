@@ -62,7 +62,7 @@ std::vector<float> SignedDistanceField::UnpackFieldFromBinaryRepresentation(std:
     return field_data;
 }
 
-bool SignedDistanceField::SaveToFile(std::string& filepath)
+bool SignedDistanceField::SaveToFile(const std::string& filepath)
 {
     // Convert to message representation
     sdf_tools::SDF message_rep = GetMessageRepresentation();
@@ -84,7 +84,7 @@ bool SignedDistanceField::SaveToFile(std::string& filepath)
     }
 }
 
-bool SignedDistanceField::LoadFromFile(std::string& filepath)
+bool SignedDistanceField::LoadFromFile(const std::string &filepath)
 {
     try
     {
