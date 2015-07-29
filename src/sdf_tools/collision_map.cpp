@@ -497,7 +497,11 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
     // Make the working queue
     std::list<VoxelGrid::GRID_INDEX> working_queue;
     // Make a hash table to store queued indices (so we don't repeat work)
-    std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable;
+    // Let's provide an hint at the size of hashmap we'll need, since this will reduce the need to resize & rehash
+    // We're going to assume that connected components, in general, will take ~1/16 of the grid in size
+    // which means, with 2 cells/hash bucket, we'll initialize to grid size/32
+    size_t queued_hashtable_size_hint = collision_field_.GetRawData().size() / 32;
+    std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable(queued_hashtable_size_hint);
     // Add the starting index
     VoxelGrid::GRID_INDEX start_index(x_index, y_index, z_index);
     // Enqueue it
@@ -680,7 +684,11 @@ std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int3
     // M3 is the number of vertices with 3 neighbors
     //
     // Storage for surface vertices
-    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> surface_vertices;
+    // Compute a hint for initial surface vertex hashmap size
+    // expected # of surface vertices
+    // surface cells * 6
+    size_t surface_vertices_size_hint = surface.size() * 6;
+    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> surface_vertices(surface_vertices_size_hint);
     // Loop through all the surface voxels and extract surface vertices
     std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::const_iterator surface_itr;
     for (surface_itr = surface.begin(); surface_itr != surface.end(); ++surface_itr)
@@ -752,7 +760,11 @@ std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int3
     int32_t M5 = 0;
     int32_t M6 = 0;
     // Store the connectivity of each vertex
-    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> vertex_connectivity;
+    // Compute a hint for initial vertex connectivity hashmap size
+    // real # of surface vertices
+    // surface vertices
+    size_t vertex_connectivity_size_hint = surface_vertices.size();
+    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> vertex_connectivity(vertex_connectivity_size_hint);
     std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::iterator surface_vertices_itr;
     for (surface_vertices_itr = surface_vertices.begin(); surface_vertices_itr != surface_vertices.end(); ++surface_vertices_itr)
     {
@@ -858,7 +870,11 @@ int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unorde
 {
     int32_t connected_components = 0;
     int64_t processed_vertices = 0;
-    std::unordered_map<VoxelGrid::GRID_INDEX, int32_t> vertex_components;
+    // Compute a hint for initial vertex components hashmap size
+    // real # of surface vertices
+    // surface vertices
+    size_t vertex_components_size_hint = surface_vertices.size();
+    std::unordered_map<VoxelGrid::GRID_INDEX, int32_t> vertex_components(vertex_components_size_hint);
     // Iterate through the vertices
     std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::const_iterator surface_vertices_itr;
     for (surface_vertices_itr = surface_vertices.begin(); surface_vertices_itr != surface_vertices.end(); ++surface_vertices_itr)
@@ -878,7 +894,13 @@ int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unorde
             // Make the working queue
             std::list<VoxelGrid::GRID_INDEX> working_queue;
             // Make a hash table to store queued indices (so we don't repeat work)
-            std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable;
+            // Compute a hint for initial queued hashtable hashmap size
+            // If we assume that most object surfaces are, in fact, intact, then the first (and only)
+            // queued_hashtable will need to store an entry for every vertex on the surface.
+            // real # of surface vertices
+            // surface vertices
+            size_t queued_hashtable_size_hint = surface_vertices.size();
+            std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable(queued_hashtable_size_hint);
             // Add the current point
             working_queue.push_back(location);
             queued_hashtable[key] = 1;
