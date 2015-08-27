@@ -127,7 +127,7 @@ sdf_tools::SDF SignedDistanceField::GetMessageRepresentation()
     message_rep.dimensions.x = distance_field_.GetXSize();
     message_rep.dimensions.y = distance_field_.GetYSize();
     message_rep.dimensions.z = distance_field_.GetZSize();
-    message_rep.sdf_cell_size = distance_field_.GetCellSize();
+    message_rep.sdf_cell_size = GetResolution();
     message_rep.OOB_value = distance_field_.GetDefaultValue();
     message_rep.initialized = initialized_;
     message_rep.locked = locked_;
@@ -179,9 +179,9 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha)
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    display_rep.scale.x = distance_field_.GetCellSize();
-    display_rep.scale.y = distance_field_.GetCellSize();
-    display_rep.scale.z = distance_field_.GetCellSize();
+    display_rep.scale.x = GetResolution();
+    display_rep.scale.y = GetResolution();
+    display_rep.scale.z = GetResolution();
     // Add all the cells of the SDF to the message
     double min_distance = 0.0;
     double max_distance = 0.0;
@@ -260,9 +260,9 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(fl
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    display_rep.scale.x = distance_field_.GetCellSize();
-    display_rep.scale.y = distance_field_.GetCellSize();
-    display_rep.scale.z = distance_field_.GetCellSize();
+    display_rep.scale.x = GetResolution();
+    display_rep.scale.y = GetResolution();
+    display_rep.scale.z = GetResolution();
     // Add all the cells of the SDF to the message
     for (int64_t x_index = 0; x_index < distance_field_.GetNumXCells(); x_index++)
     {
@@ -308,9 +308,9 @@ visualization_msgs::Marker SignedDistanceField::ExportForDebug(float alpha)
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    display_rep.scale.x = distance_field_.GetCellSize();
-    display_rep.scale.y = distance_field_.GetCellSize();
-    display_rep.scale.z = distance_field_.GetCellSize();
+    display_rep.scale.x = GetResolution();
+    display_rep.scale.y = GetResolution();
+    display_rep.scale.z = GetResolution();
     // Add all the cells of the SDF to the message
     for (int64_t x_index = 0; x_index < distance_field_.GetNumXCells(); x_index++)
     {

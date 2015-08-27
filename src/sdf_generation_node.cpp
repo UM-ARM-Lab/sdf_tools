@@ -16,9 +16,9 @@ visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<u_i
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    display_rep.scale.x = collision_map.GetCellSize();
-    display_rep.scale.y = collision_map.GetCellSize();
-    display_rep.scale.z = collision_map.GetCellSize();
+    display_rep.scale.x = collision_map.GetCellSizes()[0];
+    display_rep.scale.y = collision_map.GetCellSizes()[1];
+    display_rep.scale.z = collision_map.GetCellSizes()[2];
     // Add all cells in collision
     for (int64_t x_index = 0; x_index < collision_map.GetNumXCells(); x_index++)
     {

@@ -132,10 +132,10 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
     message_rep.origin_transform.rotation.y = origin_transform_rotation.y();
     message_rep.origin_transform.rotation.z = origin_transform_rotation.z();
     message_rep.origin_transform.rotation.w = origin_transform_rotation.w();
-    message_rep.dimensions.x = collision_field_.GetXSize();
-    message_rep.dimensions.y = collision_field_.GetYSize();
-    message_rep.dimensions.z = collision_field_.GetZSize();
-    message_rep.cell_size = collision_field_.GetCellSize();
+    message_rep.dimensions.x = GetXSize();
+    message_rep.dimensions.y = GetYSize();
+    message_rep.dimensions.z = GetZSize();
+    message_rep.cell_size = GetResolution();
     message_rep.OOB_occupancy_value = collision_field_.GetDefaultValue().occupancy;
     message_rep.OOB_component_value = collision_field_.GetDefaultValue().component;
     message_rep.number_of_components = number_of_components_;
@@ -193,9 +193,9 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(std_msgs::ColorRGB
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    display_rep.scale.x = collision_field_.GetCellSize();
-    display_rep.scale.y = collision_field_.GetCellSize();
-    display_rep.scale.z = collision_field_.GetCellSize();
+    display_rep.scale.x = GetResolution();
+    display_rep.scale.y = GetResolution();
+    display_rep.scale.z = GetResolution();
     // Add all the cells of the SDF to the message
     for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
     {
@@ -390,9 +390,9 @@ visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    display_rep.scale.x = collision_field_.GetCellSize();
-    display_rep.scale.y = collision_field_.GetCellSize();
-    display_rep.scale.z = collision_field_.GetCellSize();
+    display_rep.scale.x = GetResolution();
+    display_rep.scale.y = GetResolution();
+    display_rep.scale.z = GetResolution();
     // Add all the cells of the SDF to the message
     for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
     {
@@ -500,8 +500,12 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
     // Let's provide an hint at the size of hashmap we'll need, since this will reduce the need to resize & rehash
     // We're going to assume that connected components, in general, will take ~1/16 of the grid in size
     // which means, with 2 cells/hash bucket, we'll initialize to grid size/32
+#ifdef ENABLE_UNORDERED_MAP_SIZE_HINTS
     size_t queued_hashtable_size_hint = collision_field_.GetRawData().size() / 32;
     std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable(queued_hashtable_size_hint);
+#else
+    std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable;
+#endif
     // Add the starting index
     VoxelGrid::GRID_INDEX start_index(x_index, y_index, z_index);
     // Enqueue it
@@ -686,9 +690,13 @@ std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int3
     // Storage for surface vertices
     // Compute a hint for initial surface vertex hashmap size
     // expected # of surface vertices
-    // surface cells * 6
-    size_t surface_vertices_size_hint = surface.size() * 6;
+    // surface cells * 8
+#ifdef ENABLE_UNORDERED_MAP_SIZE_HINTS
+    size_t surface_vertices_size_hint = surface.size() * 8;
     std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> surface_vertices(surface_vertices_size_hint);
+#else
+    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> surface_vertices;
+#endif
     // Loop through all the surface voxels and extract surface vertices
     std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::const_iterator surface_itr;
     for (surface_itr = surface.begin(); surface_itr != surface.end(); ++surface_itr)
@@ -866,18 +874,18 @@ std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int3
     return std::pair<int32_t, int32_t>(number_of_holes, number_of_voids);
 }
 
-int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface_vertices) const
+int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface_vertex_connectivity) const
 {
     int32_t connected_components = 0;
     int64_t processed_vertices = 0;
     // Compute a hint for initial vertex components hashmap size
     // real # of surface vertices
     // surface vertices
-    size_t vertex_components_size_hint = surface_vertices.size();
+    size_t vertex_components_size_hint = surface_vertex_connectivity.size();
     std::unordered_map<VoxelGrid::GRID_INDEX, int32_t> vertex_components(vertex_components_size_hint);
     // Iterate through the vertices
     std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::const_iterator surface_vertices_itr;
-    for (surface_vertices_itr = surface_vertices.begin(); surface_vertices_itr != surface_vertices.end(); ++surface_vertices_itr)
+    for (surface_vertices_itr = surface_vertex_connectivity.begin(); surface_vertices_itr != surface_vertex_connectivity.end(); ++surface_vertices_itr)
     {
         VoxelGrid::GRID_INDEX key = surface_vertices_itr->first;
         VoxelGrid::GRID_INDEX location = key;
@@ -899,7 +907,7 @@ int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unorde
             // queued_hashtable will need to store an entry for every vertex on the surface.
             // real # of surface vertices
             // surface vertices
-            size_t queued_hashtable_size_hint = surface_vertices.size();
+            size_t queued_hashtable_size_hint = surface_vertex_connectivity.size();
             std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable(queued_hashtable_size_hint);
             // Add the current point
             working_queue.push_back(location);
@@ -916,7 +924,7 @@ int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unorde
                 vertex_components[current_vertex] = connected_components;
                 // Check the six possibly-connected vertices and add them to the queue if they are connected
                 // Get the connectivity of our index
-                u_int8_t connectivity = surface_vertices.at(current_vertex);
+                u_int8_t connectivity = surface_vertex_connectivity.at(current_vertex);
                 // Go through the neighbors
                 if ((connectivity & 0b00000001) > 0)
                 {
@@ -986,7 +994,7 @@ int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unorde
                 }
             }
             processed_vertices += component_processed_vertices;
-            if (processed_vertices == (int64_t)surface_vertices.size())
+            if (processed_vertices == (int64_t)surface_vertex_connectivity.size())
             {
                 break;
             }
@@ -1051,7 +1059,7 @@ std::vector<std::vector<std::vector<std::vector<int>>>> CollisionMapGrid::MakeNe
 sdf_tools::SignedDistanceField CollisionMapGrid::ExtractSignedDistanceField(const float oob_value) const
 {
     // Make the SDF
-    SignedDistanceField new_sdf(collision_field_.GetOriginTransform(), frame_, collision_field_.GetCellSize(), collision_field_.GetXSize(), collision_field_.GetYSize(), collision_field_.GetZSize(), oob_value);
+    SignedDistanceField new_sdf(collision_field_.GetOriginTransform(), frame_, GetResolution(), collision_field_.GetXSize(), collision_field_.GetYSize(), collision_field_.GetZSize(), oob_value);
     std::vector<VoxelGrid::GRID_INDEX> filled;
     std::vector<VoxelGrid::GRID_INDEX> free;
     for (int64_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
@@ -1099,7 +1107,7 @@ CollisionMapGrid::DistanceField CollisionMapGrid::BuildDistanceField(const std::
     // Make the DistanceField container
     bucket_cell default_cell;
     default_cell.distance_square = INFINITY;
-    DistanceField distance_field(collision_field_.GetOriginTransform(), collision_field_.GetCellSize(), collision_field_.GetXSize(), collision_field_.GetYSize(), collision_field_.GetZSize(), default_cell);
+    DistanceField distance_field(collision_field_.GetOriginTransform(), GetResolution(), collision_field_.GetXSize(), collision_field_.GetYSize(), collision_field_.GetZSize(), default_cell);
     // Compute maximum distance square
     long max_distance_square = (distance_field.GetNumXCells() * distance_field.GetNumXCells()) + (distance_field.GetNumYCells() * distance_field.GetNumYCells()) + (distance_field.GetNumZCells() * distance_field.GetNumZCells());
     // Make bucket queue

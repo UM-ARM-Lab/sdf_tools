@@ -16,6 +16,8 @@
 #ifndef COLLISION_MAP_HPP
 #define COLLISION_MAP_HPP
 
+#define ENABLE_UNORDERED_MAP_SIZE_HINTS
+
 namespace sdf_tools
 {
     struct COLLISION_CELL
@@ -285,7 +287,7 @@ namespace sdf_tools
 
         inline double GetResolution() const
         {
-            return collision_field_.GetCellSize();
+            return collision_field_.GetCellSizes()[0];
         }
 
         inline COLLISION_CELL GetOOBValue() const
@@ -344,7 +346,7 @@ namespace sdf_tools
 
         std::pair<int32_t, int32_t> ComputeHolesInSurface(const u_int32_t component, const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface, const bool verbose) const;
 
-        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface_vertices) const;
+        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface_vertex_connectivity) const;
 
         sdf_tools::SignedDistanceField ExtractSignedDistanceField(const float oob_value) const;
 

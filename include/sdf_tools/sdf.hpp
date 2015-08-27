@@ -234,7 +234,7 @@ namespace sdf_tools
 
         inline double GetResolution() const
         {
-            return distance_field_.GetCellSize();
+            return distance_field_.GetCellSizes()[0];
         }
 
         inline float GetOOBValue() const
