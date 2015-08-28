@@ -1,6 +1,7 @@
 #include "arc_utilities/voxel_grid.hpp"
 #include "arc_utilities/pretty_print.hpp"
 #include "arc_utilities/dynamic_spatial_hashed_voxel_grid.hpp"
+#include "sdf_tools/dynamic_spatial_hashed_collision_map.hpp"
 #include "sdf_tools/sdf.hpp"
 
 void test_voxel_grid_indices()
@@ -31,10 +32,10 @@ void test_voxel_grid_indices()
             for (int64_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
             {
                 int ref_val = test_grid.GetImmutable(x_index, y_index, z_index).first;
-                std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
+                //std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
                 if (ref_val == check_vals[check_index])
                 {
-                    std::cout << "Check pass" << std::endl;
+                    //std::cout << "Check pass" << std::endl;
                 }
                 else
                 {
@@ -47,11 +48,11 @@ void test_voxel_grid_indices()
     }
     if (pass)
     {
-        std::cout << "All checks pass" << std::endl;
+        std::cout << "VG-I - All checks pass" << std::endl;
     }
     else
     {
-        std::cout << "*** Checks failed ***" << std::endl;
+        std::cout << "*** VG-I - Checks failed ***" << std::endl;
     }
 }
 
@@ -83,10 +84,10 @@ void test_voxel_grid_locations()
             for (double z_pos = -9.5; z_pos <= 9.5; z_pos += 1.0)
             {
                 int ref_val = test_grid.GetImmutable(x_pos, y_pos, z_pos).first;
-                std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
+                //std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
                 if (ref_val == check_vals[check_index])
                 {
-                    std::cout << "Value check pass" << std::endl;
+                    //std::cout << "Value check pass" << std::endl;
                 }
                 else
                 {
@@ -95,16 +96,16 @@ void test_voxel_grid_locations()
                 }
                 check_index++;
                 std::vector<double> query_point = {x_pos, y_pos, z_pos};
-                std::cout << "Query point - " << PrettyPrint::PrettyPrint(query_point) << std::endl;
+                //std::cout << "Query point - " << PrettyPrint::PrettyPrint(query_point) << std::endl;
                 std::vector<int64_t> query_index = test_grid.LocationToGridIndex(x_pos, y_pos, z_pos);
-                std::cout << "Query index - " << PrettyPrint::PrettyPrint(query_index) << std::endl;
+                //std::cout << "Query index - " << PrettyPrint::PrettyPrint(query_index) << std::endl;
                 std::vector<double> query_location = test_grid.GridIndexToLocation(query_index[0], query_index[1], query_index[2]);
-                std::cout << "Query location - " << PrettyPrint::PrettyPrint(query_location) << std::endl;
+                //std::cout << "Query location - " << PrettyPrint::PrettyPrint(query_location) << std::endl;
                 std::vector<int64_t> found_query_index = test_grid.LocationToGridIndex(query_location[0], query_location[1], query_location[2]);
-                std::cout << "Found query index - " << PrettyPrint::PrettyPrint(found_query_index) << std::endl;
+                //std::cout << "Found query index - " << PrettyPrint::PrettyPrint(found_query_index) << std::endl;
                 if (query_point[0] == query_location[0] && query_point[1] == query_location[1] && query_point[2] == query_location[2])
                 {
-                    std::cout << "Position check pass" << std::endl;
+                    //std::cout << "Position check pass" << std::endl;
                 }
                 else
                 {
@@ -113,7 +114,7 @@ void test_voxel_grid_locations()
                 }
                 if (query_index[0] == found_query_index[0] && query_index[1] == found_query_index[1] && query_index[2] == found_query_index[2])
                 {
-                    std::cout << "Position index check pass" << std::endl;
+                    //std::cout << "Position index check pass" << std::endl;
                 }
                 else
                 {
@@ -125,11 +126,11 @@ void test_voxel_grid_locations()
     }
     if (pass)
     {
-        std::cout << "All checks pass" << std::endl;
+        std::cout << "VG-L - All checks pass" << std::endl;
     }
     else
     {
-        std::cout << "*** Checks failed ***" << std::endl;
+        std::cout << "*** VG-L - Checks failed ***" << std::endl;
     }
 }
 
@@ -161,10 +162,10 @@ void test_dsh_voxel_grid_locations()
             for (double z_pos = -9.5; z_pos <= 9.5; z_pos += 1.0)
             {
                 int ref_val = test_grid.GetImmutable(x_pos, y_pos, z_pos).first;
-                std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
+                //std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
                 if (ref_val == check_vals[check_index])
                 {
-                    std::cout << "Value check pass" << std::endl;
+                    //std::cout << "Value check pass" << std::endl;
                 }
                 else
                 {
@@ -177,11 +178,11 @@ void test_dsh_voxel_grid_locations()
     }
     if (pass)
     {
-        std::cout << "All checks pass" << std::endl;
+        std::cout << "DSHVG - All checks pass" << std::endl;
     }
     else
     {
-        std::cout << "*** Checks failed ***" << std::endl;
+        std::cout << "*** DSHVG - Checks failed ***" << std::endl;
     }
 }
 

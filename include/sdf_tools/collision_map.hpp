@@ -350,7 +350,7 @@ namespace sdf_tools
 
         sdf_tools::SignedDistanceField ExtractSignedDistanceField(const float oob_value) const;
 
-        visualization_msgs::Marker ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color) const;
+        visualization_msgs::Marker ExportForDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const;
 
         visualization_msgs::Marker ExportConnectedComponentsForDisplay(bool color_unknown_components) const;
     };

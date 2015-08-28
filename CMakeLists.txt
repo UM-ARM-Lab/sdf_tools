@@ -55,9 +55,11 @@ set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Werror")
 # SDF library
 add_library(${PROJECT_NAME}
     include/${PROJECT_NAME}/collision_map.hpp
+    include/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.hpp
     include/${PROJECT_NAME}/sdf.hpp
     include/${PROJECT_NAME}/sdf_builder.hpp
     src/${PROJECT_NAME}/collision_map.cpp
+    src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
     src/${PROJECT_NAME}/sdf.cpp
     src/${PROJECT_NAME}/sdf_builder.cpp)
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)

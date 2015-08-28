@@ -10,7 +10,7 @@
 #include <ros/ros.h>
 #include <list>
 #include <unordered_map>
-#include "arc_utilities//zlib_helpers.hpp"
+#include "arc_utilities/zlib_helpers.hpp"
 #include "sdf_tools/collision_map.hpp"
 #include "sdf_tools/CollisionMap.h"
 
@@ -180,7 +180,7 @@ bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& me
     return true;
 }
 
-visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(std_msgs::ColorRGBA collision_color, std_msgs::ColorRGBA free_color, std_msgs::ColorRGBA unknown_color) const
+visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
