@@ -149,7 +149,7 @@ namespace sdf_tools
         {
             if (!locked_)
             {
-                return distance_field_.SetWithValue(x, y, z, value);
+                return distance_field_.SetValue(x, y, z, value);
             }
             else
             {
@@ -162,7 +162,7 @@ namespace sdf_tools
         {
             if (!locked_)
             {
-                return distance_field_.SetWithValue(location, value);
+                return distance_field_.SetValue(location, value);
             }
             else
             {
@@ -175,7 +175,7 @@ namespace sdf_tools
         {
             if (!locked_)
             {
-                return distance_field_.SetWithValue(x_index, y_index, z_index, value);
+                return distance_field_.SetValue(x_index, y_index, z_index, value);
             }
             else
             {
@@ -188,7 +188,7 @@ namespace sdf_tools
         {
             if (!locked_)
             {
-                return distance_field_.SetWithValue(index, value);
+                return distance_field_.SetValue(index, value);
             }
             else
             {

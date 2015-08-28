@@ -59,22 +59,22 @@ namespace sdf_tools
 
         inline VoxelGrid::SET_STATUS SetCell(const double x, const double y, const double z, COLLISION_CELL value)
         {
-            return collision_field_.SetCellWithValue(x, y, z, value);
+            return collision_field_.SetCellValue(x, y, z, value);
         }
 
         inline VoxelGrid::SET_STATUS SetCell(const Eigen::Vector3d& location, COLLISION_CELL value)
         {
-            return collision_field_.SetCellWithValue(location, value);
+            return collision_field_.SetCellValue(location, value);
         }
 
         inline VoxelGrid::SET_STATUS SetChunk(const double x, const double y, const double z, COLLISION_CELL value)
         {
-            return collision_field_.SetChunkWithValue(x, y, z, value);
+            return collision_field_.SetChunkValue(x, y, z, value);
         }
 
         inline VoxelGrid::SET_STATUS SetChunk(const Eigen::Vector3d& location, COLLISION_CELL value)
         {
-            return collision_field_.SetChunkWithValue(location, value);
+            return collision_field_.SetChunkValue(location, value);
         }
 
         inline Eigen::Affine3d GetOriginTransform() const

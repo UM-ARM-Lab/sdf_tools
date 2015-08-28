@@ -249,25 +249,25 @@ namespace sdf_tools
         inline bool Set(const double x, const double y, const double z, COLLISION_CELL value)
         {
             components_valid_ = false;
-            return collision_field_.SetWithValue(x, y, z, value);
+            return collision_field_.SetValue(x, y, z, value);
         }
 
         inline bool Set(const Eigen::Vector3d& location, COLLISION_CELL value)
         {
             components_valid_ = false;
-            return collision_field_.SetWithValue(location, value);
+            return collision_field_.SetValue(location, value);
         }
 
         inline bool Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, COLLISION_CELL value)
         {
             components_valid_ = false;
-            return collision_field_.SetWithValue(x_index, y_index, z_index, value);
+            return collision_field_.SetValue(x_index, y_index, z_index, value);
         }
 
         inline bool Set(const VoxelGrid::GRID_INDEX& index, COLLISION_CELL value)
         {
             components_valid_ = false;
-            return collision_field_.SetWithValue(index, value);
+            return collision_field_.SetValue(index, value);
         }
 
         inline double GetXSize() const

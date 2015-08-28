@@ -363,7 +363,7 @@ void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(VoxelGrid::VoxelGri
         {
             std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
             Eigen::Vector3d local_maxima(location[0], location[1], location[2]);
-            watershed_map.SetWithValue(x_index, y_index, z_index, local_maxima);
+            watershed_map.SetValue(x_index, y_index, z_index, local_maxima);
         }
         else
         {
@@ -422,7 +422,7 @@ void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(VoxelGrid::VoxelGri
             for (path_itr = path.begin(); path_itr != path.end(); ++path_itr)
             {
                 const VoxelGrid::GRID_INDEX& index = path_itr->first;
-                watershed_map.SetWithValue(index, local_maxima);
+                watershed_map.SetValue(index, local_maxima);
             }
         }
     }

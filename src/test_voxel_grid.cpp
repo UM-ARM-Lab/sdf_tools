@@ -16,7 +16,7 @@ void test_voxel_grid_indices()
         {
             for (int64_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
             {
-                test_grid.SetWithValue(x_index, y_index, z_index, check_val);
+                test_grid.SetValue(x_index, y_index, z_index, check_val);
                 check_vals.push_back(check_val);
                 check_val++;
             }
@@ -68,7 +68,7 @@ void test_voxel_grid_locations()
         {
             for (double z_pos = -9.5; z_pos <= 9.5; z_pos += 1.0)
             {
-                test_grid.SetWithValue(x_pos, y_pos, z_pos, check_val);
+                test_grid.SetValue(x_pos, y_pos, z_pos, check_val);
                 check_vals.push_back(check_val);
                 check_val++;
             }
@@ -146,7 +146,7 @@ void test_dsh_voxel_grid_locations()
         {
             for (double z_pos = -9.5; z_pos <= 9.5; z_pos += 1.0)
             {
-                test_grid.SetCellWithValue(x_pos, y_pos, z_pos, check_val);
+                test_grid.SetCellValue(x_pos, y_pos, z_pos, check_val);
                 check_vals.push_back(check_val);
                 check_val++;
             }

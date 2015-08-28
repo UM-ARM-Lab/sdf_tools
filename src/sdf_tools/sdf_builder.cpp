@@ -312,14 +312,14 @@ VoxelGrid::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMapFromPlanningScene(
                     // Mark as filled
                     //std::cout << "Collision" << std::endl;
                     u_int8_t status = 1;
-                    collision_field.SetWithValue(x_index, y_index, z_index, status);
+                    collision_field.SetValue(x_index, y_index, z_index, status);
                 }
                 else
                 {
                     // Mark as free space
                     //std::cout << "No collision" << std::endl;
                     u_int8_t status = 0;
-                    collision_field.SetWithValue(x_index, y_index, z_index, status);
+                    collision_field.SetValue(x_index, y_index, z_index, status);
                 }
             }
         }

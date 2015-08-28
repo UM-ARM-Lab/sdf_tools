@@ -453,7 +453,7 @@ u_int32_t CollisionMapGrid::UpdateConnectedComponents()
             {
                 COLLISION_CELL current = collision_field_.GetImmutable(x_index, y_index, z_index).first;
                 current.component = 0;
-                collision_field_.SetWithValue(x_index, y_index, z_index, current);
+                collision_field_.SetValue(x_index, y_index, z_index, current);
             }
         }
     }
@@ -523,7 +523,7 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
         // Mark the connected component
         current_value.component = connected_component;
         // Update the grid
-        collision_field_.SetWithValue(current_index.x, current_index.y, current_index.z, current_value);
+        collision_field_.SetValue(current_index.x, current_index.y, current_index.z, current_value);
         // Go through the possible neighbors and enqueue as needed
         // Since there are only six cases (voxels must share a face to be considered connected), we handle each explicitly
         // Case 1
