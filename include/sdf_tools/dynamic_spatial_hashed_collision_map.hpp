@@ -49,12 +49,12 @@ namespace sdf_tools
 
         inline std::pair<COLLISION_CELL, VoxelGrid::FOUND_STATUS> Get(const double x, const double y, const double z) const
         {
-            return collision_field_.GetCopy(x, y, z);
+            return collision_field_.GetImmutable(x, y, z);
         }
 
         inline std::pair<COLLISION_CELL, VoxelGrid::FOUND_STATUS> Get(const Eigen::Vector3d& location) const
         {
-            return collision_field_.GetCopy(location);
+            return collision_field_.GetImmutable(location);
         }
 
         inline VoxelGrid::SET_STATUS SetCell(const double x, const double y, const double z, COLLISION_CELL value)

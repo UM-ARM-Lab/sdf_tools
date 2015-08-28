@@ -1,8 +1,13 @@
 #include "arc_utilities/voxel_grid.hpp"
 #include "arc_utilities/pretty_print.hpp"
+#include "sdf_tools/collision_map.hpp"
 #include "arc_utilities/dynamic_spatial_hashed_voxel_grid.hpp"
 #include "sdf_tools/dynamic_spatial_hashed_collision_map.hpp"
 #include "sdf_tools/sdf.hpp"
+#include "ros/ros.h"
+#include "visualization_msgs/MarkerArray.h"
+#include <chrono>
+#include <random>
 
 void test_voxel_grid_indices()
 {
@@ -195,11 +200,89 @@ void test_float_binary_conversion(float test_val)
     std::cout << "Final value " << final_val << std::endl;
 }
 
-int main()
+Eigen::Vector3d get_random_location(std::default_random_engine& generator, const double min_x, const double min_y, const double min_z, const double max_x, const double max_y, const double max_z)
 {
+    std::uniform_real_distribution<double> x_distribution(min_x, max_x);
+    std::uniform_real_distribution<double> y_distribution(min_y, max_y);
+    std::uniform_real_distribution<double> z_distribution(min_z, max_z);
+    double rand_x = x_distribution(generator);
+    double rand_y = y_distribution(generator);
+    double rand_z = z_distribution(generator);
+    return Eigen::Vector3d(rand_x, rand_y, rand_z);
+}
+
+bool get_random_bool(std::default_random_engine& generator)
+{
+    std::uniform_int_distribution<int> distribution(0,1);
+    int rand_int = distribution(generator);
+    if (rand_int)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+visualization_msgs::MarkerArray test_dsh_collision_map(std::default_random_engine& generator)
+{
+    sdf_tools::COLLISION_CELL default_cell(0.0);
+    sdf_tools::COLLISION_CELL filled_cell(1.0);
+    sdf_tools::DynamicSpatialHashedCollisionMapGrid test_col_map("test_voxel_grid", 1.0, 5, 5, 5, default_cell);
+    // Add a bunch of random data
+    for (int idx = 0; idx < 500; idx++)
+    {
+        // Get a random location in +-10m
+        Eigen::Vector3d random_location = get_random_location(generator, -20.0, -20.0, -20.0, 20.0, 20.0, 20.0);
+        // Get a random bool to choose between cell/chunk
+        bool use_cell = get_random_bool(generator);
+        // Update the col map
+        if (use_cell)
+        {
+            test_col_map.SetCell(random_location, filled_cell);
+        }
+        else
+        {
+            test_col_map.SetChunk(random_location, filled_cell);
+        }
+    }
+    // Get the Rviz markers
+    std_msgs::ColorRGBA filled_color;
+    filled_color.a = 1.0;
+    filled_color.b = 0.0;
+    filled_color.g = 0.0;
+    filled_color.r = 1.0;
+    std_msgs::ColorRGBA free_color;
+    free_color.a = 0.1;
+    free_color.b = 0.0;
+    free_color.g = 1.0;
+    free_color.r = 0.0;
+    std_msgs::ColorRGBA unknown_color;
+    unknown_color.a = 0.5;
+    unknown_color.b = 1.0;
+    unknown_color.g = 0.0;
+    unknown_color.r = 0.0;
+    std::vector<visualization_msgs::Marker> display_markers = test_col_map.ExportForDisplay(filled_color, free_color, unknown_color);
+    visualization_msgs::MarkerArray display_rep;
+    display_rep.markers = display_markers;
+    return display_rep;
+}
+
+int main(int argc, char** argv)
+{
+    // construct a trivial random generator engine from a time-based seed:
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine generator(seed);
+    ros::init(argc, argv, "test_voxel_grid");
+    ros::NodeHandle nh;
+    ros::Publisher display_pub = nh.advertise<visualization_msgs::MarkerArray>("display_test_voxel_grid", 1, true);
     test_voxel_grid_indices();
     test_voxel_grid_locations();
     test_dsh_voxel_grid_locations();
     test_float_binary_conversion(5280.0);
+    visualization_msgs::MarkerArray display_rep = test_dsh_collision_map(generator);
+    display_pub.publish(display_rep);
+    ros::spin();
     return 0;
 }
