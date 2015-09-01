@@ -348,7 +348,7 @@ namespace sdf_tools
 
         int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface_vertex_connectivity) const;
 
-        sdf_tools::SignedDistanceField ExtractSignedDistanceField(const float oob_value) const;
+        std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>> ExtractSignedDistanceField(const float oob_value) const;
 
         visualization_msgs::Marker ExportForDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const;
 

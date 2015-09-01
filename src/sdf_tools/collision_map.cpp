@@ -1056,7 +1056,7 @@ std::vector<std::vector<std::vector<std::vector<int>>>> CollisionMapGrid::MakeNe
     return neighborhoods;
 }
 
-sdf_tools::SignedDistanceField CollisionMapGrid::ExtractSignedDistanceField(const float oob_value) const
+std::pair<SignedDistanceField, std::pair<double, double>> CollisionMapGrid::ExtractSignedDistanceField(const float oob_value) const
 {
     // Make the SDF
     SignedDistanceField new_sdf(collision_field_.GetOriginTransform(), frame_, GetResolution(), collision_field_.GetXSize(), collision_field_.GetYSize(), collision_field_.GetZSize(), oob_value);
@@ -1087,6 +1087,8 @@ sdf_tools::SignedDistanceField CollisionMapGrid::ExtractSignedDistanceField(cons
     DistanceField filled_distance_field = BuildDistanceField(filled);
     DistanceField free_distance_field = BuildDistanceField(free);
     // Generate the SDF
+    double max_distance = -INFINITY;
+    double min_distance = INFINITY;
     for (int64_t x_index = 0; x_index < filled_distance_field.GetNumXCells(); x_index++)
     {
         for (int64_t y_index = 0; y_index < filled_distance_field.GetNumYCells(); y_index++)
@@ -1095,11 +1097,21 @@ sdf_tools::SignedDistanceField CollisionMapGrid::ExtractSignedDistanceField(cons
             {
                 double distance1 = sqrt(filled_distance_field.GetImmutable(x_index, y_index, z_index).first.distance_square) * new_sdf.GetResolution();
                 double distance2 = sqrt(free_distance_field.GetImmutable(x_index, y_index, z_index).first.distance_square) * new_sdf.GetResolution();
-                new_sdf.Set(x_index, y_index, z_index, (distance1 - distance2));
+                double distance = distance1 - distance2;
+                if (distance > max_distance)
+                {
+                    max_distance = distance;
+                }
+                if (distance < min_distance)
+                {
+                    min_distance = distance;
+                }
+                new_sdf.Set(x_index, y_index, z_index, distance);
             }
         }
     }
-    return new_sdf;
+    std::pair<double, double> extrema(max_distance, min_distance);
+    return std::pair<SignedDistanceField, std::pair<double, double>>(new_sdf, extrema);
 }
 
 CollisionMapGrid::DistanceField CollisionMapGrid::BuildDistanceField(const std::vector<VoxelGrid::GRID_INDEX>& points) const

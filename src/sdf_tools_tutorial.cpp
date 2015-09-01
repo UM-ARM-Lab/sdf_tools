@@ -112,7 +112,7 @@ int main(int argc, char** argv)
     // You can also save it to a file
     std::string collision_map_filename = "collision_map.cmg";
     collision_map.SaveToFile(collision_map_filename);
-    // An load it back in
+    // And load it back in
     bool loaded = collision_map.LoadFromFile(collision_map_filename);
     if (loaded)
     {
@@ -128,7 +128,10 @@ int main(int argc, char** argv)
     // We pick a reasonable out-of-bounds value
     float oob_value = INFINITY;
     // We start by extracting the SDF from the CollisionMap
-    sdf_tools::SignedDistanceField sdf = collision_map.ExtractSignedDistanceField(oob_value);
+    std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>> sdf_with_extrema = collision_map.ExtractSignedDistanceField(oob_value);
+    sdf_tools::SignedDistanceField& sdf = sdf_with_extrema.first;
+    std::pair<double, double> sdf_extrema = sdf_with_extrema.second;
+    std::cout << "Maximum distance in the SDF: " << sdf_extrema.first << ", minimum distance in the SDF: " << sdf_extrema.second << std::endl;
     // We lock the SDF to prevent unintended changes that would invalidate it
     sdf.Lock();
     // Let's get some values
