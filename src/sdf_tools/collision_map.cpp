@@ -209,18 +209,29 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(const std_msgs::Co
                 new_point.x = location[0];
                 new_point.y = location[1];
                 new_point.z = location[2];
-                display_rep.points.push_back(new_point);
                 if (collision_field_.GetImmutable(x_index, y_index, z_index).first.occupancy > 0.5)
                 {
-                    display_rep.colors.push_back(collision_color);
+                    if (collision_color.a > 0.0)
+                    {
+                        display_rep.points.push_back(new_point);
+                        display_rep.colors.push_back(collision_color);
+                    }
                 }
                 else if (collision_field_.GetImmutable(x_index, y_index, z_index).first.occupancy < 0.5)
                 {
-                    display_rep.colors.push_back(free_color);
+                    if (free_color.a > 0.0)
+                    {
+                        display_rep.points.push_back(new_point);
+                        display_rep.colors.push_back(free_color);
+                    }
                 }
                 else
                 {
-                    display_rep.colors.push_back(unknown_color);
+                    if (unknown_color.a > 0.0)
+                    {
+                        display_rep.points.push_back(new_point);
+                        display_rep.colors.push_back(unknown_color);
+                    }
                 }
             }
         }

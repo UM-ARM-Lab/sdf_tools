@@ -315,6 +315,11 @@ namespace sdf_tools
             return collision_field_.GetOriginTransform();
         }
 
+        inline std::string GetFrame() const
+        {
+            return frame_;
+        }
+
         inline std::pair<u_int32_t, bool> GetNumConnectedComponents() const
         {
             return std::pair<u_int32_t, bool>(number_of_components_, components_valid_);

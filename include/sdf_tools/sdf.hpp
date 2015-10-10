@@ -358,6 +358,11 @@ namespace sdf_tools
             return distance_field_.GetOriginTransform();
         }
 
+        inline std::string GetFrame() const
+        {
+            return frame_;
+        }
+
         inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector3d& location) const
         {
             return distance_field_.LocationToGridIndex(location);
