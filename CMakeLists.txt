@@ -40,7 +40,7 @@ generate_messages(DEPENDENCIES geometry_msgs std_msgs)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs octomap_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib z Eigen OpenCV octomap)
+catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs octomap_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib Eigen OpenCV octomap)
 
 ###########
 ## Build ##
