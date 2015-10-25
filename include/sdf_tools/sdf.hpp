@@ -83,11 +83,21 @@ namespace sdf_tools
 
     public:
 
-        SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value);
+        inline SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
+        {
+            frame_ = frame;
+            VoxelGrid::VoxelGrid<float> new_field(resolution, x_size, y_size, z_size, OOB_value);
+            distance_field_ = new_field;
+        }
 
-        SignedDistanceField(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value);
+        inline SignedDistanceField(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
+        {
+            frame_ = frame;
+            VoxelGrid::VoxelGrid<float> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
+            distance_field_ = new_field;
+        }
 
-        SignedDistanceField()  : initialized_(false), locked_(false) {}
+        inline SignedDistanceField()  : initialized_(false), locked_(false) {}
 
         inline bool IsInitialized() const
         {

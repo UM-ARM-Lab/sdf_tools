@@ -15,20 +15,6 @@
 
 using namespace sdf_tools;
 
-SignedDistanceField::SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
-{
-    frame_ = frame;
-    VoxelGrid::VoxelGrid<float> new_field(resolution, x_size, y_size, z_size, OOB_value);
-    distance_field_ = new_field;
-}
-
-SignedDistanceField::SignedDistanceField(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
-{
-    frame_ = frame;
-    VoxelGrid::VoxelGrid<float> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
-    distance_field_ = new_field;
-}
-
 std::vector<u_int8_t> SignedDistanceField::GetInternalBinaryRepresentation(const std::vector<float>& field_data)
 {
     std::vector<u_int8_t> raw_binary_data(field_data.size() * 4);
