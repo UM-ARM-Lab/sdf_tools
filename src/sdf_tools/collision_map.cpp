@@ -144,13 +144,13 @@ bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& me
     std::vector<COLLISION_CELL> unpacked = UnpackBinaryRepresentation(binary_representation);
     if (unpacked.empty())
     {
-        std::cerr << "Unpack returned an empty SDF" << std::endl;
+        std::cerr << "Unpack returned an empty CollisionMapGrid" << std::endl;
         return false;
     }
     bool success = new_field.SetRawData(unpacked);
     if (!success)
     {
-        std::cerr << "Unable to set internal representation of the SDF" << std::endl;
+        std::cerr << "Unable to set internal representation of the CollisionMapGrid" << std::endl;
         return false;
     }
     // Set it
