@@ -23,7 +23,7 @@ find_package(OpenCV REQUIRED)
 #######################################
 
 ## Generate messages in the 'msg' folder
-add_message_files(DIRECTORY msg FILES SDF.msg CollisionMap.msg ReachabilityMap.msg)
+add_message_files(DIRECTORY msg FILES SDF.msg CollisionMap.msg TaggedObjectCollisionMap.msg ReachabilityMap.msg)
 
 ## Generate services in the 'srv' folder
 add_service_files(DIRECTORY srv FILES ComputeSDF.srv)
@@ -54,11 +54,13 @@ set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Werror")
 # SDF library
 add_library(${PROJECT_NAME}
     include/${PROJECT_NAME}/collision_map.hpp
+    include/${PROJECT_NAME}/tagged_object_collision_map.hpp
     include/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.hpp
     include/${PROJECT_NAME}/reachability_map.hpp
     include/${PROJECT_NAME}/sdf.hpp
     include/${PROJECT_NAME}/sdf_builder.hpp
     src/${PROJECT_NAME}/collision_map.cpp
+    src/${PROJECT_NAME}/tagged_object_collision_map.cpp
     src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
     src/${PROJECT_NAME}/reachability_map.cpp
     src/${PROJECT_NAME}/sdf.cpp

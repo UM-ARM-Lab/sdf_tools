@@ -1,0 +1,12 @@
+std_msgs/Header header
+geometry_msgs/Transform origin_transform
+geometry_msgs/Vector3 dimensions
+float64 cell_size
+float32 OOB_occupancy_value
+uint32 OOB_component_value
+uint32 OOB_object_id
+uint32 number_of_components
+std_msgs/ColorRGBA OOB_color
+bool components_valid
+bool initialized
+uint8[] data

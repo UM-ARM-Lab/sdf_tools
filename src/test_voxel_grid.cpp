@@ -272,7 +272,7 @@ visualization_msgs::MarkerArray test_dsh_collision_map(std::default_random_engin
 
 void test_reachability_map()
 {
-    sdf_tools::ReachabilityMapGrid test_grid("test_voxel_grid", 1.0, 20.0, 20.0, 20.0);
+    sdf_tools::ReachabilityMapGrid test_grid("test_voxel_grid", 1.0, 20.0, 20.0, 20.0, 0u);
     // Load with special values
     u_int64_t check_val = 1;
     std::vector<u_int64_t> check_vals;
@@ -297,7 +297,7 @@ void test_reachability_map()
         {
             for (int64_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
             {
-                u_int64_t ref_val = test_grid.Get(x_index, y_index, z_index).first;
+                u_int64_t ref_val = test_grid.GetImmutable(x_index, y_index, z_index).first;
                 //std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
                 if (ref_val == check_vals[check_index])
                 {
@@ -336,7 +336,7 @@ void test_reachability_map()
         {
             for (int64_t z_index = 0; z_index < loaded_test_grid.GetNumZCells(); z_index++)
             {
-                u_int64_t ref_val = loaded_test_grid.Get(x_index, y_index, z_index).first;
+                u_int64_t ref_val = loaded_test_grid.GetImmutable(x_index, y_index, z_index).first;
                 //std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
                 if (ref_val == check_vals[loading_check_index])
                 {

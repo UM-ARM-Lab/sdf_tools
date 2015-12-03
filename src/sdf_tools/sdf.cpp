@@ -152,7 +152,7 @@ bool SignedDistanceField::LoadFromMessageRepresentation(sdf_tools::SDF& message)
     return true;
 }
 
-visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha)
+visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -233,7 +233,7 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha)
     return display_rep;
 }
 
-visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(float alpha)
+visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(float alpha) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -281,7 +281,7 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(fl
     return display_rep;
 }
 
-visualization_msgs::Marker SignedDistanceField::ExportForDebug(float alpha)
+visualization_msgs::Marker SignedDistanceField::ExportForDebug(float alpha) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;

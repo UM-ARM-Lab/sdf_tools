@@ -80,11 +80,11 @@ std::vector<REACHABILITY_MAP_CELL_TYPE> ReachabilityMapGrid::UnpackBinaryReprese
 {
     if ((packed.size() % sizeof(REACHABILITY_MAP_CELL_TYPE)) != 0)
     {
-        std::cerr << "Invalid binary representation - length is not a multiple of 8" << std::endl;
+        std::cerr << "Invalid binary representation - length is not a multiple of " << sizeof(REACHABILITY_MAP_CELL_TYPE) << std::endl;
         return std::vector<REACHABILITY_MAP_CELL_TYPE>();
     }
-    u_int64_t data_size = packed.size() / 8;
-    std::vector<REACHABILITY_MAP_CELL_TYPE> unpacked(data_size, 0u);
+    u_int64_t data_size = packed.size() / sizeof(REACHABILITY_MAP_CELL_TYPE);
+    std::vector<REACHABILITY_MAP_CELL_TYPE> unpacked(data_size);
     for (size_t field_idx = 0, binary_index = 0; field_idx < unpacked.size(); field_idx++, binary_index+=sizeof(REACHABILITY_MAP_CELL_TYPE))
     {
         std::vector<u_int8_t> binary_block(sizeof(REACHABILITY_MAP_CELL_TYPE));
@@ -113,7 +113,8 @@ sdf_tools::ReachabilityMap ReachabilityMapGrid::GetMessageRepresentation() const
     message_rep.dimensions.z = GetZSize();
     message_rep.cell_size = GetResolution();
     message_rep.initialized = initialized_;
-    std::vector<REACHABILITY_MAP_CELL_TYPE> raw_data = reachability_map_.GetRawData();
+    message_rep.default_value = ReachabilityToBinary(GetOOBValue());
+    const std::vector<REACHABILITY_MAP_CELL_TYPE>& raw_data = reachability_map_.GetRawData();
     std::vector<u_int8_t> binary_data = PackBinaryRepresentation(raw_data);
     message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
@@ -125,7 +126,8 @@ bool ReachabilityMapGrid::LoadFromMessageRepresentation(const sdf_tools::Reachab
     Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
     Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
     Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
-    VoxelGrid::VoxelGrid<REACHABILITY_MAP_CELL_TYPE> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, 0u);
+    REACHABILITY_MAP_CELL_TYPE default_value = ReachabilityFromBinary(message.default_value);
+    VoxelGrid::VoxelGrid<REACHABILITY_MAP_CELL_TYPE> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, default_value);
     // Unpack the binary data
     std::vector<u_int8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
     std::vector<REACHABILITY_MAP_CELL_TYPE> unpacked = UnpackBinaryRepresentation(binary_representation);

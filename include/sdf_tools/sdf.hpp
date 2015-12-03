@@ -401,11 +401,11 @@ namespace sdf_tools
 
         bool LoadFromMessageRepresentation(sdf_tools::SDF& message);
 
-        visualization_msgs::Marker ExportForDisplay(float alpha=0.01);
+        visualization_msgs::Marker ExportForDisplay(float alpha=0.01f) const;
 
-        visualization_msgs::Marker ExportForDisplayCollisionOnly(float alpha=0.01);
+        visualization_msgs::Marker ExportForDisplayCollisionOnly(float alpha=0.01f) const;
 
-        visualization_msgs::Marker ExportForDebug(float alpha=0.5);
+        visualization_msgs::Marker ExportForDebug(float alpha=0.5f) const;
 
         /*
          * The following function can be *VERY EXPENSIVE* to compute, since it performs gradient ascent across the SDF
