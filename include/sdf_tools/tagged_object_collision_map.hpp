@@ -20,12 +20,12 @@
 
 namespace sdf_tools
 {
-    constexpr float ColorChannelFromHex(u_int8_t hexval)
+    inline constexpr float ColorChannelFromHex(u_int8_t hexval)
     {
         return (float)hexval / 255.0;
     }
 
-    u_int8_t ColorChannelToHex(float colorval)
+    inline u_int8_t ColorChannelToHex(float colorval)
     {
         assert(colorval >= 0.0);
         assert(colorval <= 1.0);
@@ -48,7 +48,7 @@ namespace sdf_tools
 
         TAGGED_OBJECT_COLLISION_CELL(const float in_occupancy, const u_int32_t in_object_id, const u_int8_t in_r, const u_int8_t in_g, const u_int8_t in_b, const u_int8_t in_a) : occupancy(in_occupancy), component(0), object_id(in_object_id), r(in_r), g(in_g), b(in_b), a(in_a) {}
 
-        TAGGED_OBJECT_COLLISION_CELL(const float in_occupancy, const u_int32_t in_object_id, const u_int8_t in_r, const float in_g, const float in_b, const float in_a) : occupancy(in_occupancy), component(0), object_id(in_object_id), r(ColorChannelToHex(in_r)), g(ColorChannelToHex(in_g)), b(ColorChannelToHex(in_b)), a(ColorChannelToHex(in_a)) {}
+        TAGGED_OBJECT_COLLISION_CELL(const float in_occupancy, const u_int32_t in_object_id, const float in_r, const float in_g, const float in_b, const float in_a) : occupancy(in_occupancy), component(0), object_id(in_object_id), r(ColorChannelToHex(in_r)), g(ColorChannelToHex(in_g)), b(ColorChannelToHex(in_b)), a(ColorChannelToHex(in_a)) {}
 
         TAGGED_OBJECT_COLLISION_CELL(const float in_occupancy, const u_int32_t in_object_id, const u_int32_t in_component) : occupancy(in_occupancy), component(in_component), object_id(in_object_id), r(0u), g(0u), b(0u), a(0u) {}
 
@@ -332,9 +332,11 @@ namespace sdf_tools
 
         std_msgs::ColorRGBA GenerateComponentColor(const u_int32_t component) const;
 
+        std::vector<VoxelGrid::GRID_INDEX> CheckIfConvex(const VoxelGrid::GRID_INDEX& candidate_index, std::unordered_map<VoxelGrid::GRID_INDEX, int8_t>& explored_indices, const VoxelGrid::VoxelGrid<std::vector<u_int32_t>>& region_grid, const u_int32_t current_convex_region) const;
+
     public:
 
-        inline TaggedObjectCollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, TAGGED_OBJECT_COLLISION_CELL OOB_value) : initialized_(true)
+        inline TaggedObjectCollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(resolution, x_size, y_size, z_size, OOB_value);
@@ -343,7 +345,7 @@ namespace sdf_tools
             components_valid_ = false;
         }
 
-        inline TaggedObjectCollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, TAGGED_OBJECT_COLLISION_CELL OOB_value) : initialized_(true)
+        inline TaggedObjectCollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
@@ -607,6 +609,10 @@ namespace sdf_tools
             std::pair<double, double> extrema(max_distance, min_distance);
             return std::pair<SignedDistanceField, std::pair<double, double>>(new_sdf, extrema);
         }
+
+        VoxelGrid::VoxelGrid<std::vector<u_int32_t>> ComputeConvexRegions(const double max_check_radius) const;
+
+        void GrowConvexRegion(const VoxelGrid::GRID_INDEX& start_index, VoxelGrid::VoxelGrid<std::vector<u_int32_t>>& region_grid, const double max_check_radius, const u_int32_t current_convex_region) const;
 
         visualization_msgs::Marker ExportForDisplay() const;
 

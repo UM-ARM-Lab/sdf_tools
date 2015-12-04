@@ -11,6 +11,8 @@
 #include <list>
 #include <unordered_map>
 #include "arc_utilities/zlib_helpers.hpp"
+#include "arc_utilities/eigen_helpers.hpp"
+#include "arc_utilities/pretty_print.hpp"
 #include "sdf_tools/tagged_object_collision_map.hpp"
 #include "sdf_tools/TaggedObjectCollisionMap.h"
 
@@ -951,7 +953,7 @@ int32_t TaggedObjectCollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const
             // Loop from the queue
             while (working_queue.size() > 0)
             {
-                // Get the top of thw working queue
+                // Get the top of the working queue
                 VoxelGrid::GRID_INDEX current_vertex = working_queue.front();
                 working_queue.pop_front();
                 component_processed_vertices++;
@@ -1036,3 +1038,173 @@ int32_t TaggedObjectCollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const
     }
     return connected_components;
 }
+
+VoxelGrid::VoxelGrid<std::vector<u_int32_t>> TaggedObjectCollisionMapGrid::ComputeConvexRegions(const double max_check_radius) const
+{
+    VoxelGrid::VoxelGrid<std::vector<u_int32_t>> convex_region_grid(GetOriginTransform(), GetResolution(), GetXSize(), GetYSize(), GetZSize(), std::vector<u_int32_t>());
+    u_int32_t current_convex_region = 0;
+    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+            {
+                // Check if cell is empty
+                if (GetImmutable(x_index, y_index, z_index).first.occupancy < 0.5)
+                {
+                    // Check if we've already marked it once
+                    const std::vector<u_int32_t>& current_cell_regions = convex_region_grid.GetImmutable(x_index, y_index, z_index).first;
+                    if (current_cell_regions.empty())
+                    {
+                        current_convex_region++;
+                        std::cout << "Marking convex region " << current_convex_region << std::endl;
+                        GrowConvexRegion(VoxelGrid::GRID_INDEX(x_index, y_index, z_index), convex_region_grid, max_check_radius, current_convex_region);
+                    }
+                }
+            }
+        }
+    }
+    std::cout << "Marked " << current_convex_region << " convex regions" << std::endl;
+    return convex_region_grid;
+}
+
+std::vector<VoxelGrid::GRID_INDEX> TaggedObjectCollisionMapGrid::CheckIfConvex(const VoxelGrid::GRID_INDEX& candidate_index, std::unordered_map<VoxelGrid::GRID_INDEX, int8_t>& explored_indices, const VoxelGrid::VoxelGrid<std::vector<u_int32_t>>& region_grid, const u_int32_t current_convex_region) const
+{
+    std::vector<VoxelGrid::GRID_INDEX> convex_indices;
+    for (auto indices_itr = explored_indices.begin(); indices_itr != explored_indices.end(); ++indices_itr)
+    {
+        const VoxelGrid::GRID_INDEX& other_index = indices_itr->first;
+        const int8_t& other_status = indices_itr->second;
+        // We only care about indices that are already part of the convex set
+        if (other_status == 1)
+        {
+            // Walk from first index to second index. If any intervening cells are filled, return false
+            const Eigen::Vector3d start_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(other_index.x, other_index.y, other_index.z));
+            const Eigen::Vector3d end_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(candidate_index.x, candidate_index.y, candidate_index.z));
+            double distance = (end_location - start_location).norm();
+            u_int32_t num_steps = (u_int32_t)ceil(distance / (GetResolution() * 0.5));
+            for (u_int32_t step_num = 0; step_num <= num_steps; step_num++)
+            {
+                const double ratio = (double)step_num / (double)num_steps;
+                const Eigen::Vector3d interpolated_location = EigenHelpers::Interpolate(start_location, end_location, ratio);
+                std::vector<int64_t> raw_interpolated_index = region_grid.LocationToGridIndex(interpolated_location);
+                assert(raw_interpolated_index.size() == 3);
+                VoxelGrid::GRID_INDEX interpolated_index(raw_interpolated_index[0], raw_interpolated_index[1], raw_interpolated_index[2]);
+                // Grab the cell at that location
+                const TAGGED_OBJECT_COLLISION_CELL& intermediate_cell = GetImmutable(interpolated_index).first;
+                // Check for collision
+                if (intermediate_cell.occupancy >= 0.5)
+                {
+                    return convex_indices;
+                }
+                // Check if we've already explored it
+                if (explored_indices[interpolated_index] == 1)
+                {
+                    // Great
+                    ;
+                }
+                else if (explored_indices[interpolated_index] == -1)
+                {
+                    // We've already skipped it deliberately
+                    return convex_indices;
+                }
+                else
+                {
+                    if (interpolated_index == candidate_index)
+                    {
+                        // Great
+                        ;
+                    }
+                    else
+                    {
+                        // We have no idea, let's see if it is convex with our already-explored indices
+                        // Temporarily, we mark ourselves as successful
+                        explored_indices[candidate_index] = 1;
+                        // Call ourselves with the intermediate location
+                        std::vector<VoxelGrid::GRID_INDEX> intermediate_convex_indices = CheckIfConvex(interpolated_index, explored_indices, region_grid, current_convex_region);
+                        // Unmark ourselves since we don't really know
+                        explored_indices[candidate_index] = 0;
+                        // Save the intermediate index for addition
+                        convex_indices.insert(convex_indices.end(), intermediate_convex_indices.begin(), intermediate_convex_indices.end());
+                        // Check if the intermediate index is convex
+                        auto is_convex = std::find(convex_indices.begin(), convex_indices.end(), interpolated_index);
+                        if (is_convex == convex_indices.end())
+                        {
+                            // If not, we're done
+                            return convex_indices;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // If all indices were reachable, we are part of the convex set
+    convex_indices.push_back(candidate_index);
+    explored_indices[candidate_index] = 1;
+    return convex_indices;
+}
+
+void TaggedObjectCollisionMapGrid::GrowConvexRegion(const VoxelGrid::GRID_INDEX& start_index, VoxelGrid::VoxelGrid<std::vector<u_int32_t>>& region_grid, const double max_check_radius, const u_int32_t current_convex_region) const
+{
+    // Mark the region of the start index
+    region_grid.GetMutable(start_index).first.push_back(current_convex_region);
+    std::cout << "Added " << PrettyPrint::PrettyPrint(start_index) << " to region " << current_convex_region << std::endl;
+    const Eigen::Vector3d start_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(start_index.x, start_index.y, start_index.z));
+    std::list<VoxelGrid::GRID_INDEX> working_queue;
+    std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable;
+    working_queue.push_back(start_index);
+    queued_hashtable[start_index] = 1;
+    while (working_queue.size() > 0)
+    {
+        // Get the top of the working queue
+        VoxelGrid::GRID_INDEX current_index = working_queue.front();
+        // Remove from the queue
+        working_queue.pop_front();
+        // See if we can add the neighbors
+        std::vector<VoxelGrid::GRID_INDEX> potential_neighbors(6);
+        potential_neighbors[0] = VoxelGrid::GRID_INDEX(current_index.x - 1, current_index.y, current_index.z);
+        potential_neighbors[1] = VoxelGrid::GRID_INDEX(current_index.x + 1, current_index.y, current_index.z);
+        potential_neighbors[2] = VoxelGrid::GRID_INDEX(current_index.x, current_index.y - 1, current_index.z);
+        potential_neighbors[3] = VoxelGrid::GRID_INDEX(current_index.x, current_index.y + 1, current_index.z);
+        potential_neighbors[4] = VoxelGrid::GRID_INDEX(current_index.x, current_index.y, current_index.z - 1);
+        potential_neighbors[5] = VoxelGrid::GRID_INDEX(current_index.x, current_index.y, current_index.z + 1);
+        for (size_t idx = 0; idx < potential_neighbors.size(); idx++)
+        {
+            const VoxelGrid::GRID_INDEX& candidate_neighbor = potential_neighbors[idx];
+            // Make sure the candidate neighbor is in range
+            if ((candidate_neighbor.x >= 0) && (candidate_neighbor.y >= 0) && (candidate_neighbor.z >= 0) && (candidate_neighbor.x < GetNumXCells()) && (candidate_neighbor.y < GetNumYCells()) && (candidate_neighbor.z < GetNumZCells()))
+            {
+                // Make sure it's within the check radius
+                const Eigen::Vector3d current_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(candidate_neighbor.x, candidate_neighbor.y, candidate_neighbor.z));
+                double distance = (current_location - start_location).norm();
+                if (distance <= max_check_radius)
+                {
+                    // Make sure the candidate neighbor is empty
+                    if (GetImmutable(candidate_neighbor).first.occupancy < 0.5)
+                    {
+                        // Make sure we haven't already checked
+                        if (queued_hashtable[candidate_neighbor] == 0)
+                        {
+                            // Now, let's check if the current index forms a convex set with the indices marked already
+                            std::vector<VoxelGrid::GRID_INDEX> convex_indices = CheckIfConvex(candidate_neighbor, queued_hashtable, region_grid, current_convex_region);
+                            // Set this to false. If it really is convex, this will get changed in the next loop
+                            queued_hashtable[candidate_neighbor] = -1;
+                            // Add the new convex indices
+                            for (size_t cdx = 0; cdx < convex_indices.size(); cdx++)
+                            {
+                                const VoxelGrid::GRID_INDEX& convex_index = convex_indices[cdx];
+                                // Add to the queue
+                                working_queue.push_back(convex_index);
+                                queued_hashtable[convex_index] = 1;
+                                // Mark it
+                                region_grid.GetMutable(convex_index).first.push_back(current_convex_region);
+                                std::cout << "Added " << PrettyPrint::PrettyPrint(convex_index) << " to region " << current_convex_region << std::endl;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
