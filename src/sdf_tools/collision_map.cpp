@@ -10,9 +10,10 @@
 #include <ros/ros.h>
 #include <list>
 #include <unordered_map>
-#include "arc_utilities/zlib_helpers.hpp"
-#include "sdf_tools/collision_map.hpp"
-#include "sdf_tools/CollisionMap.h"
+#include <arc_utilities/eigen_helpers_conversions.hpp>
+#include <arc_utilities/zlib_helpers.hpp>
+#include <sdf_tools/collision_map.hpp>
+#include <sdf_tools/CollisionMap.h>
 
 using namespace sdf_tools;
 
@@ -175,6 +176,7 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(const std_msgs::Co
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
+    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -383,6 +385,7 @@ visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
+    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();

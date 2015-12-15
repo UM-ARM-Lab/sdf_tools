@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include "sdf_tools/SDF.h"
 #include "sdf_tools/sdf_builder.hpp"
+#include <arc_utilities/eigen_helpers_conversions.hpp>
 #include <time.h>
 
 visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<u_int8_t>& collision_map, std::string frame, float alpha)
@@ -16,6 +17,7 @@ visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<u_i
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
+    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
     display_rep.scale.x = collision_map.GetCellSizes()[0];
     display_rep.scale.y = collision_map.GetCellSizes()[1];
     display_rep.scale.z = collision_map.GetCellSizes()[2];

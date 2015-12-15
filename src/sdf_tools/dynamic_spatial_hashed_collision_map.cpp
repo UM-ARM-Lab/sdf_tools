@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <Eigen/Geometry>
 #include <visualization_msgs/Marker.h>
+#include <arc_utilities/eigen_helpers_conversions.hpp>
 #include <arc_utilities/voxel_grid.hpp>
 #include <arc_utilities/dynamic_spatial_hashed_voxel_grid.hpp>
 #include <sdf_tools/collision_map.hpp>
@@ -50,6 +51,7 @@ std::vector<visualization_msgs::Marker> DynamicSpatialHashedCollisionMapGrid::Ex
     chunks_display_rep.action = visualization_msgs::Marker::ADD;
     chunks_display_rep.lifetime = ros::Duration(0.0);
     chunks_display_rep.frame_locked = false;
+    chunks_display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
     std::vector<double> chunk_sizes = collision_field_.GetChunkSizes();
     chunks_display_rep.scale.x = chunk_sizes[0];
     chunks_display_rep.scale.y = chunk_sizes[1];
@@ -65,6 +67,7 @@ std::vector<visualization_msgs::Marker> DynamicSpatialHashedCollisionMapGrid::Ex
     cells_display_rep.action = visualization_msgs::Marker::ADD;
     cells_display_rep.lifetime = ros::Duration(0.0);
     cells_display_rep.frame_locked = false;
+    cells_display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
     std::vector<double> cell_sizes = collision_field_.GetCellSizes();
     cells_display_rep.scale.x = cell_sizes[0];
     cells_display_rep.scale.y = cell_sizes[1];

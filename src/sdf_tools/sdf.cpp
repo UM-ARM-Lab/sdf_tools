@@ -9,9 +9,10 @@
 #include <unordered_map>
 #include <zlib.h>
 #include <ros/ros.h>
-#include "arc_utilities/zlib_helpers.hpp"
-#include "sdf_tools/sdf.hpp"
-#include "sdf_tools/SDF.h"
+#include <arc_utilities/eigen_helpers_conversions.hpp>
+#include <arc_utilities/zlib_helpers.hpp>
+#include <sdf_tools/sdf.hpp>
+#include <sdf_tools/SDF.h>
 
 using namespace sdf_tools;
 
@@ -165,6 +166,7 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha) co
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
+    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -246,6 +248,7 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(fl
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
+    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -294,6 +297,7 @@ visualization_msgs::Marker SignedDistanceField::ExportForDebug(float alpha) cons
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
+    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
