@@ -81,8 +81,9 @@ namespace sdf_tools
 
         bool IsPartOfConvexSegment(const u_int32_t segment) const
         {
+            assert(segment >= 1);
             assert(segment <= 32);
-            const u_int32_t mask = arc_helpers::SetBit(0u, segment, true);
+            const u_int32_t mask = arc_helpers::SetBit(0u, segment - 1, true);
             if ((mask & convex_segment) > 0)
             {
                 return true;
@@ -95,14 +96,16 @@ namespace sdf_tools
 
         void AddToConvexSegment(const u_int32_t segment)
         {
+            assert(segment >= 1);
             assert(segment <= 32);
-            convex_segment = arc_helpers::SetBit(convex_segment, segment, true);
+            convex_segment = arc_helpers::SetBit(convex_segment, segment - 1, true);
         }
 
         void RemoveFromConvexSegment(const u_int32_t segment)
         {
+            assert(segment >= 1);
             assert(segment <= 32);
-            convex_segment = arc_helpers::SetBit(convex_segment, segment, false);
+            convex_segment = arc_helpers::SetBit(convex_segment, segment - 1, false);
         }
     };
 
@@ -521,6 +524,88 @@ namespace sdf_tools
         inline bool AreConvexSegmentsValid() const
         {
             return convex_segments_valid_;
+        }
+
+        inline std::pair<bool, bool> CheckIfCandidateCorner(const Eigen::Vector3d& location) const
+        {
+            const std::vector<int64_t> indices = collision_field_.LocationToGridIndex(location);
+            if (indices.size() == 3)
+            {
+                return CheckIfCandidateCorner(indices[0], indices[1], indices[2]);
+            }
+            else
+            {
+                return std::pair<bool, bool>(false, false);
+            }
+        }
+
+        inline std::pair<bool, bool> CheckIfCandidateCorner(const double x, const double y, const double z) const
+        {
+            const Eigen::Vector3d location(x, y, z);
+            return CheckIfCandidateCorner(location);
+        }
+
+        inline std::pair<bool, bool> CheckIfCandidateCorner(const VoxelGrid::GRID_INDEX& index) const
+        {
+            return CheckIfCandidateCorner(index.x, index.y, index.z);
+        }
+
+        inline std::pair<bool, bool> CheckIfCandidateCorner(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+        {
+            assert(components_valid_);
+            assert(convex_segments_valid_);
+            const std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> current_cell = GetImmutable(x_index, y_index, z_index);
+            if (current_cell.second)
+            {
+                // Grab the six neighbors ONLY if they belong to a different component
+                u_int32_t different_neighbors = 0u;
+                const std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> xm1yz_cell = GetImmutable(x_index - 1, y_index, z_index);
+                if (xm1yz_cell.second && (xm1yz_cell.first.component != current_cell.first.component))
+                {
+                    different_neighbors++;
+                }
+                const std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> xp1yz_cell = GetImmutable(x_index + 1, y_index, z_index);
+                if (xp1yz_cell.second && (xp1yz_cell.first.component != current_cell.first.component))
+                {
+                    different_neighbors++;
+                }
+                const std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> xym1z_cell = GetImmutable(x_index, y_index - 1, z_index);
+                if (xym1z_cell.second && (xym1z_cell.first.component != current_cell.first.component))
+                {
+                    different_neighbors++;
+                }
+                const std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> xyp1z_cell = GetImmutable(x_index, y_index + 1, z_index);
+                if (xyp1z_cell.second && (xyp1z_cell.first.component != current_cell.first.component))
+                {
+                    different_neighbors++;
+                }
+                const std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> xyzm1_cell = GetImmutable(x_index, y_index, z_index - 1);
+                if (xyzm1_cell.second && (xyzm1_cell.first.component != current_cell.first.component))
+                {
+                    different_neighbors++;
+                }
+                const std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> xyzp1_cell = GetImmutable(x_index, y_index, z_index + 1);
+                if (xyzp1_cell.second && (xyzp1_cell.first.component != current_cell.first.component))
+                {
+                    different_neighbors++;
+                }
+                // We now have between zero and six neighbors to work with
+                if (different_neighbors <= 1u)
+                {
+                    // If there is one or fewer neighbors to work with, we are clearly not a corner
+                    return std::pair<bool, bool>(false, true);
+                }
+                else
+                {
+                    // If there are 2 or more neighbors to work with, we are a candidate corner
+                    return std::pair<bool, bool>(true, true);
+                }
+            }
+            else
+            {
+                // Not in the grid
+                return std::pair<bool, bool>(false, false);
+            }
         }
 
         inline std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> GetImmutable(const Eigen::Vector3d& location) const

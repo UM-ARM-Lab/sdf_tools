@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <Eigen/Geometry>
 #include <visualization_msgs/Marker.h>
-#include "arc_utilities//voxel_grid.hpp"
+#include "arc_utilities/voxel_grid.hpp"
 #include "sdf_tools/ReachabilityMap.h"
 
 #ifndef REACHABILITY_MAP_HPP
