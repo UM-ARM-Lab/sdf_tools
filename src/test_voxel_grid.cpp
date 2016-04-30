@@ -196,7 +196,7 @@ void test_dsh_voxel_grid_locations()
 void test_float_binary_conversion(float test_val)
 {
     std::cout << "Initial value " << test_val << std::endl;
-    std::vector<u_int8_t> binary_value = FloatToBinary(test_val);
+    std::vector<uint8_t> binary_value = FloatToBinary(test_val);
     float final_val = FloatFromBinary(binary_value);
     std::cout << "Final value " << final_val << std::endl;
 }
@@ -274,8 +274,8 @@ void test_reachability_map()
 {
     sdf_tools::ReachabilityMapGrid test_grid("test_voxel_grid", 1.0, 20.0, 20.0, 20.0, 0u);
     // Load with special values
-    u_int64_t check_val = 1;
-    std::vector<u_int64_t> check_vals;
+    uint64_t check_val = 1;
+    std::vector<uint64_t> check_vals;
     for (int64_t x_index = 0; x_index < test_grid.GetNumXCells(); x_index++)
     {
         for (int64_t y_index = 0; y_index < test_grid.GetNumYCells(); y_index++)
@@ -289,7 +289,7 @@ void test_reachability_map()
         }
     }
     // Check the values
-    u_int64_t check_index = 0;
+    uint64_t check_index = 0;
     bool pass = true;
     for (int64_t x_index = 0; x_index < test_grid.GetNumXCells(); x_index++)
     {
@@ -297,7 +297,7 @@ void test_reachability_map()
         {
             for (int64_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
             {
-                u_int64_t ref_val = test_grid.GetImmutable(x_index, y_index, z_index).first;
+                uint64_t ref_val = test_grid.GetImmutable(x_index, y_index, z_index).first;
                 //std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
                 if (ref_val == check_vals[check_index])
                 {
@@ -328,7 +328,7 @@ void test_reachability_map()
     bool load_succeeded = loaded_test_grid.LoadFromFile(test_file_name);
     assert(load_succeeded);
     // Check the values
-    u_int64_t loading_check_index = 0;
+    uint64_t loading_check_index = 0;
     bool loading_pass = true;
     for (int64_t x_index = 0; x_index < loaded_test_grid.GetNumXCells(); x_index++)
     {
@@ -336,7 +336,7 @@ void test_reachability_map()
         {
             for (int64_t z_index = 0; z_index < loaded_test_grid.GetNumZCells(); z_index++)
             {
-                u_int64_t ref_val = loaded_test_grid.GetImmutable(x_index, y_index, z_index).first;
+                uint64_t ref_val = loaded_test_grid.GetImmutable(x_index, y_index, z_index).first;
                 //std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
                 if (ref_val == check_vals[loading_check_index])
                 {

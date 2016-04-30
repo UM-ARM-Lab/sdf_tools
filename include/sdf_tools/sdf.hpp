@@ -13,11 +13,11 @@
 #ifndef SDF_HPP
 #define SDF_HPP
 
-inline std::vector<u_int8_t> FloatToBinary(float value)
+inline std::vector<uint8_t> FloatToBinary(float value)
 {
-    u_int32_t binary_value = 0;
-    memcpy(&binary_value, &value, sizeof(u_int32_t));
-    std::vector<u_int8_t> binary(4);
+    uint32_t binary_value = 0;
+    memcpy(&binary_value, &value, sizeof(uint32_t));
+    std::vector<uint8_t> binary(4);
     // Copy byte 1, least-significant byte
     binary[3] = binary_value & 0x000000ff;
     // Copy byte 2
@@ -32,7 +32,7 @@ inline std::vector<u_int8_t> FloatToBinary(float value)
     return binary;
 }
 
-inline float FloatFromBinary(std::vector<u_int8_t>& binary)
+inline float FloatFromBinary(std::vector<uint8_t>& binary)
 {
     if (binary.size() != 4)
     {
@@ -41,7 +41,7 @@ inline float FloatFromBinary(std::vector<u_int8_t>& binary)
     }
     else
     {
-        u_int32_t binary_value = 0;
+        uint32_t binary_value = 0;
         // Copy in byte 4, most-significant byte
         binary_value = binary_value | binary[0];
         binary_value = binary_value << 8;
@@ -72,9 +72,9 @@ namespace sdf_tools
         std::string frame_;
         VoxelGrid::VoxelGrid<float> distance_field_;
 
-        std::vector<u_int8_t> GetInternalBinaryRepresentation(const std::vector<float> &field_data);
+        std::vector<uint8_t> GetInternalBinaryRepresentation(const std::vector<float> &field_data);
 
-        std::vector<float> UnpackFieldFromBinaryRepresentation(std::vector<u_int8_t>& binary);
+        std::vector<float> UnpackFieldFromBinaryRepresentation(std::vector<uint8_t>& binary);
 
         /*
          * You *MUST* provide valid indices to this function, hence why it is protected (there are safe wrappers available - use them!)

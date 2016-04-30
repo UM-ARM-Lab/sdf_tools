@@ -25,8 +25,8 @@ bool CollisionMapGrid::SaveToFile(const std::string &filepath)
     try
     {
         std::ofstream output_file(filepath.c_str(), std::ios::out|std::ios::binary);
-        u_int32_t serialized_size = ros::serialization::serializationLength(message_rep);
-        std::unique_ptr<u_int8_t> ser_buffer(new u_int8_t[serialized_size]);
+        uint32_t serialized_size = ros::serialization::serializationLength(message_rep);
+        std::unique_ptr<uint8_t> ser_buffer(new uint8_t[serialized_size]);
         ros::serialization::OStream ser_stream(ser_buffer.get(), serialized_size);
         ros::serialization::serialize(ser_stream, message_rep);
         output_file.write((char*)ser_buffer.get(), serialized_size);
@@ -49,8 +49,8 @@ bool CollisionMapGrid::LoadFromFile(const std::string& filepath)
         std::streampos end = input_file.tellg();
         input_file.seekg(0, std::ios::beg);
         std::streampos begin = input_file.tellg();
-        u_int32_t serialized_size = end - begin;
-        std::unique_ptr<u_int8_t> deser_buffer(new u_int8_t[serialized_size]);
+        uint32_t serialized_size = end - begin;
+        std::unique_ptr<uint8_t> deser_buffer(new uint8_t[serialized_size]);
         input_file.read((char*) deser_buffer.get(), serialized_size);
         ros::serialization::IStream deser_stream(deser_buffer.get(), serialized_size);
         sdf_tools::CollisionMap new_message;
@@ -65,13 +65,13 @@ bool CollisionMapGrid::LoadFromFile(const std::string& filepath)
     }
 }
 
-std::vector<u_int8_t> CollisionMapGrid::PackBinaryRepresentation(std::vector<COLLISION_CELL>& raw)
+std::vector<uint8_t> CollisionMapGrid::PackBinaryRepresentation(std::vector<COLLISION_CELL>& raw)
 {
-    std::vector<u_int8_t> packed(raw.size() * 8);
+    std::vector<uint8_t> packed(raw.size() * 8);
     for (size_t field_idx = 0, binary_index = 0; field_idx < raw.size(); field_idx++, binary_index+=8)
     {
         COLLISION_CELL raw_cell = raw[field_idx];
-        std::vector<u_int8_t> packed_cell = CollisionCellToBinary(raw_cell);
+        std::vector<uint8_t> packed_cell = CollisionCellToBinary(raw_cell);
         packed[binary_index] = packed_cell[0];
         packed[binary_index + 1] = packed_cell[1];
         packed[binary_index + 2] = packed_cell[2];
@@ -84,18 +84,18 @@ std::vector<u_int8_t> CollisionMapGrid::PackBinaryRepresentation(std::vector<COL
     return packed;
 }
 
-std::vector<COLLISION_CELL> CollisionMapGrid::UnpackBinaryRepresentation(std::vector<u_int8_t>& packed)
+std::vector<COLLISION_CELL> CollisionMapGrid::UnpackBinaryRepresentation(std::vector<uint8_t>& packed)
 {
     if ((packed.size() % 8) != 0)
     {
         std::cerr << "Invalid binary representation - length is not a multiple of 8" << std::endl;
         return std::vector<COLLISION_CELL>();
     }
-    u_int64_t data_size = packed.size() / 8;
+    uint64_t data_size = packed.size() / 8;
     std::vector<COLLISION_CELL> unpacked(data_size);
     for (size_t field_idx = 0, binary_index = 0; field_idx < unpacked.size(); field_idx++, binary_index+=8)
     {
-        std::vector<u_int8_t> binary_block{packed[binary_index], packed[binary_index + 1], packed[binary_index + 2], packed[binary_index + 3], packed[binary_index + 4], packed[binary_index + 5], packed[binary_index + 6], packed[binary_index + 7]};
+        std::vector<uint8_t> binary_block{packed[binary_index], packed[binary_index + 1], packed[binary_index + 2], packed[binary_index + 3], packed[binary_index + 4], packed[binary_index + 5], packed[binary_index + 6], packed[binary_index + 7]};
         unpacked[field_idx] = CollisionCellFromBinary(binary_block);
     }
     return unpacked;
@@ -125,7 +125,7 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
     message_rep.components_valid = components_valid_;
     message_rep.initialized = initialized_;
     std::vector<COLLISION_CELL> raw_data = collision_field_.GetRawData();
-    std::vector<u_int8_t> binary_data = PackBinaryRepresentation(raw_data);
+    std::vector<uint8_t> binary_data = PackBinaryRepresentation(raw_data);
     message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
 }
@@ -141,7 +141,7 @@ bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& me
     OOB_value.component = message.OOB_component_value;
     VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
     // Unpack the binary data
-    std::vector<u_int8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
+    std::vector<uint8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
     std::vector<COLLISION_CELL> unpacked = UnpackBinaryRepresentation(binary_representation);
     if (unpacked.empty())
     {
@@ -223,7 +223,7 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(const std_msgs::Co
     return display_rep;
 }
 
-std_msgs::ColorRGBA CollisionMapGrid::GenerateComponentColor(u_int32_t component) const
+std_msgs::ColorRGBA CollisionMapGrid::GenerateComponentColor(uint32_t component) const
 {
     // For component < 22, we pick from a table
     if (component == 0)
@@ -432,7 +432,7 @@ visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay
     return display_rep;
 }
 
-u_int32_t CollisionMapGrid::UpdateConnectedComponents()
+uint32_t CollisionMapGrid::UpdateConnectedComponents()
 {
     // If the connected components are already valid, skip computing them again
     if (components_valid_)
@@ -456,7 +456,7 @@ u_int32_t CollisionMapGrid::UpdateConnectedComponents()
     // Mark the components
     int64_t total_cells = collision_field_.GetNumXCells() * collision_field_.GetNumYCells() * collision_field_.GetNumZCells();
     int64_t marked_cells = 0;
-    u_int32_t connected_components = 0;
+    uint32_t connected_components = 0;
     // Sweep through the grid
     for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
     {
@@ -488,7 +488,7 @@ u_int32_t CollisionMapGrid::UpdateConnectedComponents()
     return connected_components;
 }
 
-int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_index, int64_t z_index, u_int32_t connected_component)
+int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_index, int64_t z_index, uint32_t connected_component)
 {
     // Make the working queue
     std::list<VoxelGrid::GRID_INDEX> working_queue;
@@ -592,7 +592,7 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
     return marked_cells;
 }
 
-std::map<u_int32_t, std::pair<int32_t, int32_t>> CollisionMapGrid::ComputeComponentTopology(bool ignore_empty_components, bool recompute_connected_components, bool verbose)
+std::map<uint32_t, std::pair<int32_t, int32_t>> CollisionMapGrid::ComputeComponentTopology(bool ignore_empty_components, bool recompute_connected_components, bool verbose)
 {
     // Recompute the connected components if need be
     if (recompute_connected_components)
@@ -600,23 +600,23 @@ std::map<u_int32_t, std::pair<int32_t, int32_t>> CollisionMapGrid::ComputeCompon
         UpdateConnectedComponents();
     }
     // Extract the surfaces of each connected component
-    std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>> component_surfaces = ExtractComponentSurfaces(ignore_empty_components);
+    std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> component_surfaces = ExtractComponentSurfaces(ignore_empty_components);
     // Compute the number of holes in each surface
-    std::map<u_int32_t, std::pair<int32_t, int32_t>> component_holes;
-    std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>>::iterator component_surfaces_itr;
+    std::map<uint32_t, std::pair<int32_t, int32_t>> component_holes;
+    std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>>::iterator component_surfaces_itr;
     for (component_surfaces_itr = component_surfaces.begin(); component_surfaces_itr != component_surfaces.end(); ++component_surfaces_itr)
     {
-        u_int32_t component_number = component_surfaces_itr->first;
-        std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& component_surface = component_surfaces_itr->second;
+        uint32_t component_number = component_surfaces_itr->first;
+        std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& component_surface = component_surfaces_itr->second;
         std::pair<int32_t, int32_t> number_of_holes_and_voids = ComputeHolesInSurface(component_number, component_surface, verbose);
         component_holes[component_number] = number_of_holes_and_voids;
     }
     return component_holes;
 }
 
-std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>> CollisionMapGrid::ExtractComponentSurfaces(const bool ignore_empty_components) const
+std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> CollisionMapGrid::ExtractComponentSurfaces(const bool ignore_empty_components) const
 {
-    std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>> component_surfaces;
+    std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> component_surfaces;
     // Loop through the grid and extract surface cells for each component
     for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
     {
@@ -650,7 +650,7 @@ std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>> Collisi
     return component_surfaces;
 }
 
-std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int32_t component, const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface, const bool verbose) const
+std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const uint32_t component, const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& surface, const bool verbose) const
 {
     // We have a list of all voxels with an exposed surface face
     // We loop through this list of voxels, and convert each voxel
@@ -689,12 +689,12 @@ std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int3
     // surface cells * 8
 #ifdef ENABLE_UNORDERED_MAP_SIZE_HINTS
     size_t surface_vertices_size_hint = surface.size() * 8;
-    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> surface_vertices(surface_vertices_size_hint);
+    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> surface_vertices(surface_vertices_size_hint);
 #else
-    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> surface_vertices;
+    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> surface_vertices;
 #endif
     // Loop through all the surface voxels and extract surface vertices
-    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::const_iterator surface_itr;
+    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::const_iterator surface_itr;
     for (surface_itr = surface.begin(); surface_itr != surface.end(); ++surface_itr)
     {
         const VoxelGrid::GRID_INDEX& current_index = surface_itr->first;
@@ -768,8 +768,8 @@ std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int3
     // real # of surface vertices
     // surface vertices
     size_t vertex_connectivity_size_hint = surface_vertices.size();
-    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> vertex_connectivity(vertex_connectivity_size_hint);
-    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::iterator surface_vertices_itr;
+    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> vertex_connectivity(vertex_connectivity_size_hint);
+    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::iterator surface_vertices_itr;
     for (surface_vertices_itr = surface_vertices.begin(); surface_vertices_itr != surface_vertices.end(); ++surface_vertices_itr)
     {
         VoxelGrid::GRID_INDEX key = surface_vertices_itr->first;
@@ -870,7 +870,7 @@ std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const u_int3
     return std::pair<int32_t, int32_t>(number_of_holes, number_of_voids);
 }
 
-int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface_vertex_connectivity) const
+int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& surface_vertex_connectivity) const
 {
     int32_t connected_components = 0;
     int64_t processed_vertices = 0;
@@ -880,12 +880,12 @@ int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unorde
     size_t vertex_components_size_hint = surface_vertex_connectivity.size();
     std::unordered_map<VoxelGrid::GRID_INDEX, int32_t> vertex_components(vertex_components_size_hint);
     // Iterate through the vertices
-    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::const_iterator surface_vertices_itr;
+    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::const_iterator surface_vertices_itr;
     for (surface_vertices_itr = surface_vertex_connectivity.begin(); surface_vertices_itr != surface_vertex_connectivity.end(); ++surface_vertices_itr)
     {
         VoxelGrid::GRID_INDEX key = surface_vertices_itr->first;
         VoxelGrid::GRID_INDEX location = key;
-        //const u_int8_t& connectivity = surface_vertices_itr->second.second;
+        //const uint8_t& connectivity = surface_vertices_itr->second.second;
         // First, check if the vertex has already been marked
         if (vertex_components[key] > 0)
         {
@@ -920,7 +920,7 @@ int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unorde
                 vertex_components[current_vertex] = connected_components;
                 // Check the six possibly-connected vertices and add them to the queue if they are connected
                 // Get the connectivity of our index
-                u_int8_t connectivity = surface_vertex_connectivity.at(current_vertex);
+                uint8_t connectivity = surface_vertex_connectivity.at(current_vertex);
                 // Go through the neighbors
                 if ((connectivity & 0b00000001) > 0)
                 {

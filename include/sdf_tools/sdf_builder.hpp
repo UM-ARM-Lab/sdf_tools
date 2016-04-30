@@ -19,15 +19,15 @@
 
 namespace sdf_tools
 {
-    static const u_int8_t USE_CACHED = 0x00;
-    static const u_int8_t USE_ONLY_OCTOMAP = 0x01;
-    static const u_int8_t USE_ONLY_COLLISION_OBJECTS = 0x02;
-    static const u_int8_t USE_FULL_PLANNING_SCENE = 0x03;
+    static const uint8_t USE_CACHED = 0x00;
+    static const uint8_t USE_ONLY_OCTOMAP = 0x01;
+    static const uint8_t USE_ONLY_COLLISION_OBJECTS = 0x02;
+    static const uint8_t USE_FULL_PLANNING_SCENE = 0x03;
 
     typedef struct
     {
-        u_int32_t location[3];
-        u_int32_t closest_point[3];
+        uint32_t location[3];
+        uint32_t closest_point[3];
         double distance_square;
         int32_t update_direction;
     } bucket_cell;
@@ -58,14 +58,14 @@ namespace sdf_tools
         double resolution_;
         float OOB_value_;
         SignedDistanceField cached_sdf_;
-        VoxelGrid::VoxelGrid<u_int8_t> cached_collmap_;
+        VoxelGrid::VoxelGrid<uint8_t> cached_collmap_;
         std::shared_ptr<planning_scene::PlanningScene> planning_scene_ptr_;
         ros::NodeHandle nh_;
         ros::ServiceClient planning_scene_client_;
 
         SignedDistanceField UpdateSDFFromPlanningScene();
 
-        VoxelGrid::VoxelGrid<u_int8_t> UpdateCollisionMapFromPlanningScene();
+        VoxelGrid::VoxelGrid<uint8_t> UpdateCollisionMapFromPlanningScene();
 
         bool BuildInternalPlanningScene();
 
@@ -98,13 +98,13 @@ namespace sdf_tools
 
         void UpdatePlanningSceneFromMessage(moveit_msgs::PlanningScene& planning_scene);
 
-        SignedDistanceField UpdateSDF(u_int8_t update_mode);
+        SignedDistanceField UpdateSDF(uint8_t update_mode);
 
         SignedDistanceField GetCachedSDF();
 
-        VoxelGrid::VoxelGrid<u_int8_t> UpdateCollisionMap(u_int8_t update_mode);
+        VoxelGrid::VoxelGrid<uint8_t> UpdateCollisionMap(uint8_t update_mode);
 
-        VoxelGrid::VoxelGrid<u_int8_t> GetCachedCollisionMap();
+        VoxelGrid::VoxelGrid<uint8_t> GetCachedCollisionMap();
 
     };
 

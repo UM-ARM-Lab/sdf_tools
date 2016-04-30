@@ -26,7 +26,7 @@ namespace sdf_tools
         bool initialized_;
         std::string frame_;
         VoxelGrid::DynamicSpatialHashedVoxelGrid<COLLISION_CELL> collision_field_;
-        u_int32_t number_of_components_;
+        uint32_t number_of_components_;
         bool components_valid_;
 
     public:

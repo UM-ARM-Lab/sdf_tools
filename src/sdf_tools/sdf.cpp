@@ -16,14 +16,14 @@
 
 using namespace sdf_tools;
 
-std::vector<u_int8_t> SignedDistanceField::GetInternalBinaryRepresentation(const std::vector<float>& field_data)
+std::vector<uint8_t> SignedDistanceField::GetInternalBinaryRepresentation(const std::vector<float>& field_data)
 {
-    std::vector<u_int8_t> raw_binary_data(field_data.size() * 4);
+    std::vector<uint8_t> raw_binary_data(field_data.size() * 4);
     for (size_t field_index = 0, binary_index = 0; field_index < field_data.size(); field_index++, binary_index+=4)
     {
         // Convert the float at the current index into 4 bytes and store them
         float field_value = field_data[field_index];
-        std::vector<u_int8_t> binary_value = FloatToBinary(field_value);
+        std::vector<uint8_t> binary_value = FloatToBinary(field_value);
         raw_binary_data[binary_index] = binary_value[0];
         raw_binary_data[binary_index + 1] = binary_value[1];
         raw_binary_data[binary_index + 2] = binary_value[2];
@@ -32,18 +32,18 @@ std::vector<u_int8_t> SignedDistanceField::GetInternalBinaryRepresentation(const
     return raw_binary_data;
 }
 
-std::vector<float> SignedDistanceField::UnpackFieldFromBinaryRepresentation(std::vector<u_int8_t>& binary)
+std::vector<float> SignedDistanceField::UnpackFieldFromBinaryRepresentation(std::vector<uint8_t>& binary)
 {
     if ((binary.size() % 4) != 0)
     {
         std::cerr << "Invalid binary representation - length is not a multiple of 4" << std::endl;
         return std::vector<float>();
     }
-    u_int64_t data_size = binary.size() / 4;
+    uint64_t data_size = binary.size() / 4;
     std::vector<float> field_data(data_size);
     for (size_t field_index = 0, binary_index = 0; field_index < field_data.size(); field_index++, binary_index+=4)
     {
-        std::vector<u_int8_t> binary_block{binary[binary_index], binary[binary_index + 1], binary[binary_index + 2], binary[binary_index + 3]};
+        std::vector<uint8_t> binary_block{binary[binary_index], binary[binary_index + 1], binary[binary_index + 2], binary[binary_index + 3]};
         field_data[field_index] = FloatFromBinary(binary_block);
     }
     return field_data;
@@ -57,8 +57,8 @@ bool SignedDistanceField::SaveToFile(const std::string& filepath)
     try
     {
         std::ofstream output_file(filepath.c_str(), std::ios::out|std::ios::binary);
-        u_int32_t serialized_size = ros::serialization::serializationLength(message_rep);
-        std::unique_ptr<u_int8_t> ser_buffer(new u_int8_t[serialized_size]);
+        uint32_t serialized_size = ros::serialization::serializationLength(message_rep);
+        std::unique_ptr<uint8_t> ser_buffer(new uint8_t[serialized_size]);
         ros::serialization::OStream ser_stream(ser_buffer.get(), serialized_size);
         ros::serialization::serialize(ser_stream, message_rep);
         output_file.write((char*)ser_buffer.get(), serialized_size);
@@ -81,8 +81,8 @@ bool SignedDistanceField::LoadFromFile(const std::string &filepath)
         std::streampos end = input_file.tellg();
         input_file.seekg(0, std::ios::beg);
         std::streampos begin = input_file.tellg();
-        u_int32_t serialized_size = end - begin;
-        std::unique_ptr<u_int8_t> deser_buffer(new u_int8_t[serialized_size]);
+        uint32_t serialized_size = end - begin;
+        std::unique_ptr<uint8_t> deser_buffer(new uint8_t[serialized_size]);
         input_file.read((char*) deser_buffer.get(), serialized_size);
         ros::serialization::IStream deser_stream(deser_buffer.get(), serialized_size);
         sdf_tools::SDF new_message;
@@ -119,7 +119,7 @@ sdf_tools::SDF SignedDistanceField::GetMessageRepresentation()
     message_rep.initialized = initialized_;
     message_rep.locked = locked_;
     const std::vector<float>& raw_data = distance_field_.GetRawData();
-    std::vector<u_int8_t> binary_data = GetInternalBinaryRepresentation(raw_data);
+    std::vector<uint8_t> binary_data = GetInternalBinaryRepresentation(raw_data);
     message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
 }
@@ -132,7 +132,7 @@ bool SignedDistanceField::LoadFromMessageRepresentation(sdf_tools::SDF& message)
     Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
     VoxelGrid::VoxelGrid<float> new_field(origin_transform, message.sdf_cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, message.OOB_value);
     // Unpack the binary data
-    std::vector<u_int8_t> binary_data = ZlibHelpers::DecompressBytes(message.data);
+    std::vector<uint8_t> binary_data = ZlibHelpers::DecompressBytes(message.data);
     std::vector<float> unpacked = UnpackFieldFromBinaryRepresentation(binary_data);
     if (unpacked.empty())
     {

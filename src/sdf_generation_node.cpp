@@ -4,7 +4,7 @@
 #include <arc_utilities/eigen_helpers_conversions.hpp>
 #include <time.h>
 
-visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<u_int8_t>& collision_map, std::string frame, float alpha)
+visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<uint8_t>& collision_map, std::string frame, float alpha)
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -29,7 +29,7 @@ visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<u_i
             for (int64_t z_index = 0; z_index < collision_map.GetNumZCells(); z_index++)
             {
                 // Check if the current cell is in collision
-                u_int8_t status = collision_map.GetImmutable(x_index, y_index, z_index).first;
+                uint8_t status = collision_map.GetImmutable(x_index, y_index, z_index).first;
                 if (status == 1)
                 {
                     // Convert cell indices into a real-world location
@@ -89,7 +89,7 @@ int main(int argc, char** argv)
     {
         /* Collision map visualization message publish */
         std::cout << "Generating a new Collision Map..." << std::endl;
-        VoxelGrid::VoxelGrid<u_int8_t> coll_map = sdf_builder.UpdateCollisionMap(sdf_tools::USE_FULL_PLANNING_SCENE);
+        VoxelGrid::VoxelGrid<uint8_t> coll_map = sdf_builder.UpdateCollisionMap(sdf_tools::USE_FULL_PLANNING_SCENE);
         std::cout << "...Collision Map with " << (coll_map.GetNumXCells() * coll_map.GetNumYCells() * coll_map.GetNumZCells()) << " cells generated - sending to RVIZ" << std::endl;
         viz_pub.publish(ExportCollisionMapForDisplay(coll_map, "base", 1.0));
         /* SDF visualization message publish */

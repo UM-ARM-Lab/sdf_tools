@@ -27,30 +27,30 @@
 
 namespace sdf_tools
 {
-    inline constexpr float ColorChannelFromHex(u_int8_t hexval)
+    inline constexpr float ColorChannelFromHex(uint8_t hexval)
     {
         return (float)hexval / 255.0;
     }
 
-    inline u_int8_t ColorChannelToHex(float colorval)
+    inline uint8_t ColorChannelToHex(float colorval)
     {
         assert(colorval >= 0.0);
         assert(colorval <= 1.0);
-        return (u_int8_t)round(colorval * 255.0);
+        return (uint8_t)round(colorval * 255.0);
     }
 
     struct TAGGED_OBJECT_COLLISION_CELL
     {
         float occupancy;
-        u_int32_t component;
-        u_int32_t object_id;
-        u_int32_t convex_segment;
+        uint32_t component;
+        uint32_t object_id;
+        uint32_t convex_segment;
 
         TAGGED_OBJECT_COLLISION_CELL() : occupancy(0.0), component(0u), object_id(0u), convex_segment(0u) {}
 
-        TAGGED_OBJECT_COLLISION_CELL(const float in_occupancy, const u_int32_t in_object_id) : occupancy(in_occupancy), component(0u), object_id(in_object_id), convex_segment(0u) {}
+        TAGGED_OBJECT_COLLISION_CELL(const float in_occupancy, const uint32_t in_object_id) : occupancy(in_occupancy), component(0u), object_id(in_object_id), convex_segment(0u) {}
 
-        TAGGED_OBJECT_COLLISION_CELL(const float in_occupancy, const u_int32_t in_object_id, const u_int32_t in_component, const u_int32_t in_convex_segment) : occupancy(in_occupancy), component(in_component), object_id(in_object_id), convex_segment(in_convex_segment) {}
+        TAGGED_OBJECT_COLLISION_CELL(const float in_occupancy, const uint32_t in_object_id, const uint32_t in_component, const uint32_t in_convex_segment) : occupancy(in_occupancy), component(in_component), object_id(in_object_id), convex_segment(in_convex_segment) {}
 
         bool SharesConvexSegment(const TAGGED_OBJECT_COLLISION_CELL& other) const
         {
@@ -64,11 +64,11 @@ namespace sdf_tools
             }
         }
 
-        std::vector<u_int32_t> GetListOfConvexSegments() const
+        std::vector<uint32_t> GetListOfConvexSegments() const
         {
-            u_int32_t temp_convex_segment = convex_segment;
-            std::vector<u_int32_t> convex_segments;
-            for (u_int32_t segment = 1; segment <= 32; segment++)
+            uint32_t temp_convex_segment = convex_segment;
+            std::vector<uint32_t> convex_segments;
+            for (uint32_t segment = 1; segment <= 32; segment++)
             {
                 if ((temp_convex_segment & 0x00000001) == 1)
                 {
@@ -79,11 +79,11 @@ namespace sdf_tools
             return convex_segments;
         }
 
-        bool IsPartOfConvexSegment(const u_int32_t segment) const
+        bool IsPartOfConvexSegment(const uint32_t segment) const
         {
             assert(segment >= 1);
             assert(segment <= 32);
-            const u_int32_t mask = arc_helpers::SetBit(0u, segment - 1, true);
+            const uint32_t mask = arc_helpers::SetBit(0u, segment - 1, true);
             if ((mask & convex_segment) > 0)
             {
                 return true;
@@ -94,14 +94,14 @@ namespace sdf_tools
             }
         }
 
-        void AddToConvexSegment(const u_int32_t segment)
+        void AddToConvexSegment(const uint32_t segment)
         {
             assert(segment >= 1);
             assert(segment <= 32);
             convex_segment = arc_helpers::SetBit(convex_segment, segment - 1, true);
         }
 
-        void RemoveFromConvexSegment(const u_int32_t segment)
+        void RemoveFromConvexSegment(const uint32_t segment)
         {
             assert(segment >= 1);
             assert(segment <= 32);
@@ -109,14 +109,14 @@ namespace sdf_tools
         }
     };
 
-    inline std::vector<u_int8_t> TaggedObjectCollisionCellToBinary(const TAGGED_OBJECT_COLLISION_CELL& value)
+    inline std::vector<uint8_t> TaggedObjectCollisionCellToBinary(const TAGGED_OBJECT_COLLISION_CELL& value)
     {
-        std::vector<u_int8_t> binary(sizeof(TAGGED_OBJECT_COLLISION_CELL));
+        std::vector<uint8_t> binary(sizeof(TAGGED_OBJECT_COLLISION_CELL));
         memcpy(&binary.front(), &value, sizeof(TAGGED_OBJECT_COLLISION_CELL));
         return binary;
     }
 
-    inline TAGGED_OBJECT_COLLISION_CELL TaggedObjectCollisionCellFromBinary(const std::vector<u_int8_t>& binary)
+    inline TAGGED_OBJECT_COLLISION_CELL TaggedObjectCollisionCellFromBinary(const std::vector<uint8_t>& binary)
     {
         if (binary.size() != sizeof(TAGGED_OBJECT_COLLISION_CELL))
         {
@@ -150,7 +150,7 @@ namespace sdf_tools
             }
             // If the cell is inside the grid, we check the neighbors
             // Note that we must check all 26 neighbors
-            u_int32_t our_component = GetImmutable(x_index, y_index, z_index).first.component;
+            uint32_t our_component = GetImmutable(x_index, y_index, z_index).first.component;
             // Check neighbor 1
             if (our_component != GetImmutable(x_index, y_index, z_index - 1).first.component)
             {
@@ -187,8 +187,8 @@ namespace sdf_tools
 
         struct bucket_cell
         {
-            u_int32_t location[3];
-            u_int32_t closest_point[3];
+            uint32_t location[3];
+            uint32_t closest_point[3];
             double distance_square;
             int32_t update_direction;
         };
@@ -373,15 +373,15 @@ namespace sdf_tools
         bool initialized_;
         std::string frame_;
         VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> collision_field_;
-        u_int32_t number_of_components_;
+        uint32_t number_of_components_;
         bool components_valid_;
         bool convex_segments_valid_;
 
-        std::vector<u_int8_t> PackBinaryRepresentation(const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw) const;
+        std::vector<uint8_t> PackBinaryRepresentation(const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw) const;
 
-        std::vector<TAGGED_OBJECT_COLLISION_CELL> UnpackBinaryRepresentation(const std::vector<u_int8_t>& packed) const;
+        std::vector<TAGGED_OBJECT_COLLISION_CELL> UnpackBinaryRepresentation(const std::vector<uint8_t>& packed) const;
 
-        int64_t MarkConnectedComponent(const int64_t x_index, const int64_t y_index, const int64_t z_index, const u_int32_t connected_component)
+        int64_t MarkConnectedComponent(const int64_t x_index, const int64_t y_index, const int64_t z_index, const uint32_t connected_component)
         {
             // Make the working queue
             std::list<VoxelGrid::GRID_INDEX> working_queue;
@@ -485,7 +485,7 @@ namespace sdf_tools
             return marked_cells;
         }
 
-        std::vector<VoxelGrid::GRID_INDEX> CheckIfConvex(const VoxelGrid::GRID_INDEX& candidate_index, std::unordered_map<VoxelGrid::GRID_INDEX, int8_t>& explored_indices, const VoxelGrid::VoxelGrid<std::vector<u_int32_t>>& region_grid, const u_int32_t current_convex_region) const;
+        std::vector<VoxelGrid::GRID_INDEX> CheckIfConvex(const VoxelGrid::GRID_INDEX& candidate_index, std::unordered_map<VoxelGrid::GRID_INDEX, int8_t>& explored_indices, const VoxelGrid::VoxelGrid<std::vector<uint32_t>>& region_grid, const uint32_t current_convex_region) const;
 
     public:
 
@@ -558,7 +558,7 @@ namespace sdf_tools
             if (current_cell.second)
             {
                 // Grab the six neighbors ONLY if they belong to a different component
-                u_int32_t different_neighbors = 0u;
+                uint32_t different_neighbors = 0u;
                 const std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> xm1yz_cell = GetImmutable(x_index - 1, y_index, z_index);
                 if (xm1yz_cell.second && (xm1yz_cell.first.component != current_cell.first.component))
                 {
@@ -754,9 +754,9 @@ namespace sdf_tools
             return frame_;
         }
 
-        inline std::pair<u_int32_t, bool> GetNumConnectedComponents() const
+        inline std::pair<uint32_t, bool> GetNumConnectedComponents() const
         {
-            return std::pair<u_int32_t, bool>(number_of_components_, components_valid_);
+            return std::pair<uint32_t, bool>(number_of_components_, components_valid_);
         }
 
         inline std::vector<int64_t> LocationToGridIndex(const double x, const double y, const double z) const
@@ -795,7 +795,7 @@ namespace sdf_tools
             return resampled;
         }
 
-        u_int32_t UpdateConnectedComponents()
+        uint32_t UpdateConnectedComponents()
         {
             // If the connected components are already valid, skip computing them again
             if (components_valid_)
@@ -817,7 +817,7 @@ namespace sdf_tools
             // Mark the components
             int64_t total_cells = GetNumXCells() * GetNumYCells() * GetNumZCells();
             int64_t marked_cells = 0;
-            u_int32_t connected_components = 0;
+            uint32_t connected_components = 0;
             // Sweep through the grid
             for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
             {
@@ -849,7 +849,7 @@ namespace sdf_tools
             return connected_components;
         }
 
-        std::map<u_int32_t, std::pair<int32_t, int32_t>> ComputeComponentTopology(const bool ignore_empty_components, const bool recompute_connected_components, const bool verbose)
+        std::map<uint32_t, std::pair<int32_t, int32_t>> ComputeComponentTopology(const bool ignore_empty_components, const bool recompute_connected_components, const bool verbose)
         {
             // Recompute the connected components if need be
             if (recompute_connected_components)
@@ -857,23 +857,23 @@ namespace sdf_tools
                 UpdateConnectedComponents();
             }
             // Extract the surfaces of each connected component
-            std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>> component_surfaces = ExtractComponentSurfaces(ignore_empty_components);
+            std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> component_surfaces = ExtractComponentSurfaces(ignore_empty_components);
             // Compute the number of holes in each surface
-            std::map<u_int32_t, std::pair<int32_t, int32_t>> component_holes;
-            std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>>::iterator component_surfaces_itr;
+            std::map<uint32_t, std::pair<int32_t, int32_t>> component_holes;
+            std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>>::iterator component_surfaces_itr;
             for (component_surfaces_itr = component_surfaces.begin(); component_surfaces_itr != component_surfaces.end(); ++component_surfaces_itr)
             {
-                u_int32_t component_number = component_surfaces_itr->first;
-                std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& component_surface = component_surfaces_itr->second;
+                uint32_t component_number = component_surfaces_itr->first;
+                std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& component_surface = component_surfaces_itr->second;
                 std::pair<int32_t, int32_t> number_of_holes_and_voids = ComputeHolesInSurface(component_number, component_surface, verbose);
                 component_holes[component_number] = number_of_holes_and_voids;
             }
             return component_holes;
         }
 
-        std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>> ExtractComponentSurfaces(const bool ignore_empty_components) const
+        std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> ExtractComponentSurfaces(const bool ignore_empty_components) const
         {
-            std::map<u_int32_t, std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>> component_surfaces;
+            std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> component_surfaces;
             // Loop through the grid and extract surface cells for each component
             for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
             {
@@ -909,7 +909,7 @@ namespace sdf_tools
 
         /* Extracts the active indices from a surface map as a vector, which is useful in contexts where a 1-dimensional index into the surface is needed
          */
-        std::vector<VoxelGrid::GRID_INDEX> ExtractStaticSurface(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& raw_surface) const
+        std::vector<VoxelGrid::GRID_INDEX> ExtractStaticSurface(const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& raw_surface) const
         {
             std::vector<VoxelGrid::GRID_INDEX> static_surface;
             // This may be larger than the actual surface we'll extrac
@@ -917,7 +917,7 @@ namespace sdf_tools
             for (auto itr = raw_surface.begin(); itr != raw_surface.end(); ++itr)
             {
                 const VoxelGrid::GRID_INDEX& index = itr->first;
-                const u_int8_t value = itr->second;
+                const uint8_t value = itr->second;
                 if (value == 1)
                 {
                     static_surface.push_back(index);
@@ -928,9 +928,9 @@ namespace sdf_tools
             return static_surface;
         }
 
-        std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> ConvertToDynamicSurface(const std::vector<VoxelGrid::GRID_INDEX>& static_surface) const
+        std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> ConvertToDynamicSurface(const std::vector<VoxelGrid::GRID_INDEX>& static_surface) const
         {
-            std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> dynamic_surface(static_surface.size());
+            std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> dynamic_surface(static_surface.size());
             for (size_t idx = 0; idx < static_surface.size(); idx++)
             {
                 const VoxelGrid::GRID_INDEX& grid_index = static_surface[idx];
@@ -950,7 +950,7 @@ namespace sdf_tools
             return dynamic_surface;
         }
 
-        std::pair<int32_t, int32_t> ComputeHolesInSurface(const u_int32_t component, const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface, const bool verbose) const
+        std::pair<int32_t, int32_t> ComputeHolesInSurface(const uint32_t component, const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& surface, const bool verbose) const
         {
             // We have a list of all voxels with an exposed surface face
             // We loop through this list of voxels, and convert each voxel
@@ -989,12 +989,12 @@ namespace sdf_tools
             // surface cells * 8
         #ifdef ENABLE_UNORDERED_MAP_SIZE_HINTS
             size_t surface_vertices_size_hint = surface.size() * 8;
-            std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> surface_vertices(surface_vertices_size_hint);
+            std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> surface_vertices(surface_vertices_size_hint);
         #else
-            std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> surface_vertices;
+            std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> surface_vertices;
         #endif
             // Loop through all the surface voxels and extract surface vertices
-            std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::const_iterator surface_itr;
+            std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::const_iterator surface_itr;
             for (surface_itr = surface.begin(); surface_itr != surface.end(); ++surface_itr)
             {
                 const VoxelGrid::GRID_INDEX& current_index = surface_itr->first;
@@ -1068,8 +1068,8 @@ namespace sdf_tools
             // real # of surface vertices
             // surface vertices
             size_t vertex_connectivity_size_hint = surface_vertices.size();
-            std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t> vertex_connectivity(vertex_connectivity_size_hint);
-            std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::iterator surface_vertices_itr;
+            std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> vertex_connectivity(vertex_connectivity_size_hint);
+            std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::iterator surface_vertices_itr;
             for (surface_vertices_itr = surface_vertices.begin(); surface_vertices_itr != surface_vertices.end(); ++surface_vertices_itr)
             {
                 VoxelGrid::GRID_INDEX key = surface_vertices_itr->first;
@@ -1170,7 +1170,7 @@ namespace sdf_tools
             return std::pair<int32_t, int32_t>(number_of_holes, number_of_voids);
         }
 
-        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface_vertex_connectivity) const
+        int32_t ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& surface_vertex_connectivity) const
         {
             int32_t connected_components = 0;
             int64_t processed_vertices = 0;
@@ -1180,12 +1180,12 @@ namespace sdf_tools
             size_t vertex_components_size_hint = surface_vertex_connectivity.size();
             std::unordered_map<VoxelGrid::GRID_INDEX, int32_t> vertex_components(vertex_components_size_hint);
             // Iterate through the vertices
-            std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::const_iterator surface_vertices_itr;
+            std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::const_iterator surface_vertices_itr;
             for (surface_vertices_itr = surface_vertex_connectivity.begin(); surface_vertices_itr != surface_vertex_connectivity.end(); ++surface_vertices_itr)
             {
                 VoxelGrid::GRID_INDEX key = surface_vertices_itr->first;
                 VoxelGrid::GRID_INDEX location = key;
-                //const u_int8_t& connectivity = surface_vertices_itr->second.second;
+                //const uint8_t& connectivity = surface_vertices_itr->second.second;
                 // First, check if the vertex has already been marked
                 if (vertex_components[key] > 0)
                 {
@@ -1220,7 +1220,7 @@ namespace sdf_tools
                         vertex_components[current_vertex] = connected_components;
                         // Check the six possibly-connected vertices and add them to the queue if they are connected
                         // Get the connectivity of our index
-                        u_int8_t connectivity = surface_vertex_connectivity.at(current_vertex);
+                        uint8_t connectivity = surface_vertex_connectivity.at(current_vertex);
                         // Go through the neighbors
                         if ((connectivity & 0b00000001) > 0)
                         {
@@ -1299,10 +1299,10 @@ namespace sdf_tools
             return connected_components;
         }
 
-        inline std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>> ExtractSignedDistanceField(const float oob_value, const std::vector<u_int32_t>& objects_to_use) const
+        inline std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>> ExtractSignedDistanceField(const float oob_value, const std::vector<uint32_t>& objects_to_use) const
         {
             // To make this faster, we put the objects to use into a map
-            std::map<u_int32_t, u_int8_t> object_use_map;
+            std::map<uint32_t, uint8_t> object_use_map;
             for (size_t idx = 0; idx < objects_to_use.size(); idx++)
             {
                 object_use_map[objects_to_use[idx]] = 1;
@@ -1372,11 +1372,11 @@ namespace sdf_tools
             return std::pair<SignedDistanceField, std::pair<double, double>>(new_sdf, extrema);
         }
 
-        VoxelGrid::VoxelGrid<std::vector<u_int32_t>> ComputeConvexRegions(const double max_check_radius) const;
+        VoxelGrid::VoxelGrid<std::vector<uint32_t>> ComputeConvexRegions(const double max_check_radius) const;
 
-        void GrowConvexRegion(const VoxelGrid::GRID_INDEX& start_index, VoxelGrid::VoxelGrid<std::vector<u_int32_t>>& region_grid, const double max_check_radius, const u_int32_t current_convex_region) const;
+        void GrowConvexRegion(const VoxelGrid::GRID_INDEX& start_index, VoxelGrid::VoxelGrid<std::vector<uint32_t>>& region_grid, const double max_check_radius, const uint32_t current_convex_region) const;
 
-        EigenHelpers::VectorVector3d GenerateRayPrimitiveVectors(const u_int32_t number_of_rays, const double cone_angle) const
+        EigenHelpers::VectorVector3d GenerateRayPrimitiveVectors(const uint32_t number_of_rays, const double cone_angle) const
         {
             (void)(number_of_rays);
             (void)(cone_angle);
@@ -1405,8 +1405,8 @@ namespace sdf_tools
 
         std::pair<std::vector<size_t>, std::vector<size_t>> CastSingleRay(const std::unordered_map<VoxelGrid::GRID_INDEX, size_t>& surface_index_map, const VoxelGrid::GRID_INDEX& current_surface_index, const Eigen::Vector3d& ray_unit_vector) const
         {
-            std::map<size_t, u_int8_t> line_of_sight_indices;
-            std::map<size_t, u_int8_t> non_line_of_sight_indices;
+            std::map<size_t, uint8_t> line_of_sight_indices;
+            std::map<size_t, uint8_t> non_line_of_sight_indices;
             Eigen::Vector3d current_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(current_surface_index.x, current_surface_index.y, current_surface_index.z));
             const double ray_step_size = GetResolution() * 0.5;
             const Eigen::Vector3d ray_step_vector = ray_unit_vector * ray_step_size;
@@ -1543,11 +1543,11 @@ namespace sdf_tools
             return std::pair<std::vector<size_t>, std::vector<size_t>>(line_of_sight_indices, non_line_of_sight_indices);
         }
 
-        //std::pair<Eigen::MatrixXd, std::pair<Eigen::SparseMatrix<double>, Eigen::SparseMatrix<double>>> ComputeSparseLineOfSight(const std::vector<VoxelGrid::GRID_INDEX>& static_surface, const u_int32_t number_of_rays, const double cone_angle) const
-        Eigen::MatrixXd ComputeSparseLineOfSight(const std::vector<VoxelGrid::GRID_INDEX>& static_surface, const u_int32_t number_of_rays, const double cone_angle) const
+        //std::pair<Eigen::MatrixXd, std::pair<Eigen::SparseMatrix<double>, Eigen::SparseMatrix<double>>> ComputeSparseLineOfSight(const std::vector<VoxelGrid::GRID_INDEX>& static_surface, const uint32_t number_of_rays, const double cone_angle) const
+        Eigen::MatrixXd ComputeSparseLineOfSight(const std::vector<VoxelGrid::GRID_INDEX>& static_surface, const uint32_t number_of_rays, const double cone_angle) const
         {
             // Make our signed distance field
-            sdf_tools::SignedDistanceField sdf = ExtractSignedDistanceField(INFINITY, std::vector<u_int32_t>()).first;
+            sdf_tools::SignedDistanceField sdf = ExtractSignedDistanceField(INFINITY, std::vector<uint32_t>()).first;
             // Make a dynamic surface map
             std::unordered_map<VoxelGrid::GRID_INDEX, size_t> dynamic_surface_map = BuildSurfaceIndexMap(static_surface);
             // Make the ray primitive vectors
@@ -1594,7 +1594,7 @@ namespace sdf_tools
             return line_of_sight_matrix;
         }
 
-        std::pair<Eigen::VectorXd, Eigen::MatrixXd> ExtractKLargestEigenvaluesAndEigenvectors(const Eigen::EigenSolver<Eigen::MatrixXd>::EigenvalueType& raw_eigenvalues, const Eigen::EigenSolver<Eigen::MatrixXd>::EigenvectorsType& raw_eigenvectors, const u_int32_t num_values) const
+        std::pair<Eigen::VectorXd, Eigen::MatrixXd> ExtractKLargestEigenvaluesAndEigenvectors(const Eigen::EigenSolver<Eigen::MatrixXd>::EigenvalueType& raw_eigenvalues, const Eigen::EigenSolver<Eigen::MatrixXd>::EigenvectorsType& raw_eigenvectors, const uint32_t num_values) const
         {
             assert((int64_t)num_values <= raw_eigenvalues.size());
             // Collect the eigenvalue + index pairs
@@ -1613,7 +1613,7 @@ namespace sdf_tools
             // Each column of this matrix is an eigenvector, so the # of rows corresponds to the number of datapoints, and the # of columns is the number of clusters
             Eigen::VectorXd k_largest_eigenvalues = Eigen::VectorXd::Zero(num_values);
             Eigen::MatrixXd k_largest_eigenvectors = Eigen::MatrixXd::Zero(raw_eigenvalues.rows(), num_values);
-            for (u_int32_t num_value = 0; num_value < num_values; num_value++)
+            for (uint32_t num_value = 0; num_value < num_values; num_value++)
             {
                 // Get the index of the ascending-sorted vector
                 const int64_t eigenvalue_index = (eigenvalue_index_pairs.size() - 1) - num_value;
@@ -1636,7 +1636,7 @@ namespace sdf_tools
             return std::pair<Eigen::VectorXd, Eigen::MatrixXd>(k_largest_eigenvalues, k_largest_eigenvectors);
         }
 
-        std::vector<u_int32_t> PerformKMeansSpectralClustering(const Eigen::EigenSolver<Eigen::MatrixXd>::EigenvalueType& raw_eigenvalues, const Eigen::EigenSolver<Eigen::MatrixXd>::EigenvectorsType& raw_eigenvectors, const u_int32_t num_clusters) const
+        std::vector<uint32_t> PerformKMeansSpectralClustering(const Eigen::EigenSolver<Eigen::MatrixXd>::EigenvalueType& raw_eigenvalues, const Eigen::EigenSolver<Eigen::MatrixXd>::EigenvectorsType& raw_eigenvectors, const uint32_t num_clusters) const
         {
             assert(num_clusters > 0);
             // Grab the num_clusters largest eigenvalues & corresponding eigenvectors
@@ -1656,18 +1656,18 @@ namespace sdf_tools
             }
             std::function<double(const Eigen::VectorXd&, const Eigen::VectorXd&)> distance_fn = [] (const Eigen::VectorXd& v1, const Eigen::VectorXd& v2) { return EigenHelpers::Distance(v1, v2); };
             std::function<Eigen::VectorXd(const std::vector<Eigen::VectorXd>&)> average_fn = [] (const std::vector<Eigen::VectorXd>& data) { return EigenHelpers::AverageEigenVectorXd(data); };
-            std::vector<u_int32_t> cluster_labels = simple_kmeans_clustering::SimpleKMeansClustering::Cluster(clustering_data, distance_fn, average_fn, num_clusters, true);
+            std::vector<uint32_t> cluster_labels = simple_kmeans_clustering::SimpleKMeansClustering::Cluster(clustering_data, distance_fn, average_fn, num_clusters, true);
             return cluster_labels;
         }
 
-        double ComputeConvexityMetric(const Eigen::MatrixXd& los_matrix, const std::vector<u_int32_t>& cluster_labels) const
+        double ComputeConvexityMetric(const Eigen::MatrixXd& los_matrix, const std::vector<uint32_t>& cluster_labels) const
         {
             const double alpha = 1.0; // This was used in the paper
             assert(los_matrix.rows() == los_matrix.cols());
             assert(cluster_labels.size() == (size_t)los_matrix.rows());
-            const u_int32_t num_clusters = *std::max_element(cluster_labels.begin(), cluster_labels.end()) + 1;
+            const uint32_t num_clusters = *std::max_element(cluster_labels.begin(), cluster_labels.end()) + 1;
             double total_convexity_metric = 0.0;
-            for (u_int32_t cluster = 0; cluster < num_clusters; cluster++)
+            for (uint32_t cluster = 0; cluster < num_clusters; cluster++)
             {
                 double intravisible = 0.0;
                 double interoccluded = 0.0;
@@ -1699,7 +1699,7 @@ namespace sdf_tools
             return total_convexity_metric;
         }
 
-        std::vector<std::vector<size_t>> ClusterSurfaceFromLOSMatrix(const Eigen::MatrixXd& los_matrix, const u_int32_t max_num_clusters) const
+        std::vector<std::vector<size_t>> ClusterSurfaceFromLOSMatrix(const Eigen::MatrixXd& los_matrix, const uint32_t max_num_clusters) const
         {
             assert(los_matrix.rows() == los_matrix.cols());
             assert(max_num_clusters > 0);
@@ -1716,15 +1716,15 @@ namespace sdf_tools
             Eigen::EigenSolver<Eigen::MatrixXd>::EigenvectorsType eigen_vectors = solver.eigenvectors();
             // Perform k-means clustering over a range of # of clusters
             double best_convexity = 0.0;
-            std::vector<u_int32_t> best_clustering;
-            for (u_int32_t num_clusters = 1; num_clusters <= max_num_clusters; num_clusters++)
+            std::vector<uint32_t> best_clustering;
+            for (uint32_t num_clusters = 1; num_clusters <= max_num_clusters; num_clusters++)
             {
-                if (num_clusters > (u_int32_t)los_matrix.rows())
+                if (num_clusters > (uint32_t)los_matrix.rows())
                 {
                     std::cerr << "Number of clusters is larger than elements in surface, stopping clustering process" << std::endl;
                     break;
                 }
-                std::vector<u_int32_t> cluster_labels = PerformKMeansSpectralClustering(eigen_values, eigen_vectors, num_clusters);
+                std::vector<uint32_t> cluster_labels = PerformKMeansSpectralClustering(eigen_values, eigen_vectors, num_clusters);
                 double convexity = ComputeConvexityMetric(los_matrix, cluster_labels);
                 std::cout << "K-means clustering at " << num_clusters << " clusters with convexity " << convexity << std::endl;
                 if (convexity > best_convexity)
@@ -1736,17 +1736,17 @@ namespace sdf_tools
             // Safety check
             assert(best_clustering.size() == (size_t)los_matrix.rows());
             // Turn the clustering labels into separate clusters
-            const u_int32_t num_clusters = *std::max_element(best_clustering.begin(), best_clustering.end()) + 1;
+            const uint32_t num_clusters = *std::max_element(best_clustering.begin(), best_clustering.end()) + 1;
             std::vector<std::vector<size_t>> clustered_surfaces(num_clusters);
             for (size_t idx = 0; idx < best_clustering.size(); idx++)
             {
-                const u_int32_t cluster_label = best_clustering[idx];
+                const uint32_t cluster_label = best_clustering[idx];
                 clustered_surfaces[cluster_label].push_back(idx);
             }
             return clustered_surfaces;
         }
 
-        std::vector<std::vector<VoxelGrid::GRID_INDEX>> ComputeWeaklyConvexSurfaceSegments(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface, const u_int32_t max_num_clusters) const
+        std::vector<std::vector<VoxelGrid::GRID_INDEX>> ComputeWeaklyConvexSurfaceSegments(const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& surface, const uint32_t max_num_clusters) const
         {
             std::vector<VoxelGrid::GRID_INDEX> static_surface = ExtractStaticSurface(surface);
             Eigen::MatrixXd LOS_matrix = ComputeSparseLineOfSight(static_surface, 30u, (M_PI_2 * 0.5)); // For now, these values are actually ignored
@@ -1770,23 +1770,46 @@ namespace sdf_tools
             return convex_surface_segments;
         }
 
-        void UpdateConvexSegments()
+        std::map<uint32_t, uint32_t> UpdateConvexSegments()
         {
             // Some day, we will do real work here. Until then, this is a dummy that does nothing
             convex_segments_valid_ = true;
+            // Return a map of object_id to # of convex segments in the object
+            std::map<uint32_t, uint32_t> convex_segment_counts;
+            for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+            {
+                for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+                {
+                    for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+                    {
+                        const TAGGED_OBJECT_COLLISION_CELL& cell = GetImmutable(x_index, y_index, z_index).first;
+                        const uint32_t cell_object_id = cell.object_id;
+                        const std::vector<uint32_t> cell_convex_segments = cell.GetListOfConvexSegments();
+                        if (cell_convex_segments.size() > 0)
+                        {
+                            const uint32_t max_segment_number = *std::max_element(cell_convex_segments.begin(), cell_convex_segments.end());
+                            if (max_segment_number > convex_segment_counts[cell_object_id])
+                            {
+                                convex_segment_counts[cell_object_id] = max_segment_number;
+                            }
+                        }
+                    }
+                }
+            }
+            return convex_segment_counts;
         }
 
-        std_msgs::ColorRGBA GenerateComponentColor(const u_int32_t component) const;
+        std_msgs::ColorRGBA GenerateComponentColor(const uint32_t component) const;
 
-        visualization_msgs::Marker ExportForDisplay(const std::map<u_int32_t, std_msgs::ColorRGBA>& object_color_map=std::map<u_int32_t, std_msgs::ColorRGBA>()) const;
+        visualization_msgs::Marker ExportForDisplay(const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map=std::map<uint32_t, std_msgs::ColorRGBA>()) const;
 
         visualization_msgs::Marker ExportForDisplayOccupancyOnly(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const;
 
         visualization_msgs::Marker ExportConnectedComponentsForDisplay(bool color_unknown_components) const;
 
-        visualization_msgs::Marker ExportConvexSegmentForDisplay(const u_int32_t object_id, const u_int32_t convex_segment) const;
+        visualization_msgs::Marker ExportConvexSegmentForDisplay(const uint32_t object_id, const uint32_t convex_segment) const;
 
-        visualization_msgs::Marker ExportSurfaceForDisplay(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface, const std_msgs::ColorRGBA& surface_color) const;
+        visualization_msgs::Marker ExportSurfaceForDisplay(const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& surface, const std_msgs::ColorRGBA& surface_color) const;
     };
 }
 

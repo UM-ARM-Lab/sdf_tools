@@ -16,19 +16,19 @@
 #define REACHABILITY_MAP_HPP
 
 #ifndef REACHABILITY_MAP_CELL_TYPE
-#define REACHABILITY_MAP_CELL_TYPE u_int64_t
+#define REACHABILITY_MAP_CELL_TYPE uint64_t
 #endif
 
 namespace sdf_tools
 {
-    inline std::vector<u_int8_t> ReachabilityToBinary(const REACHABILITY_MAP_CELL_TYPE& value)
+    inline std::vector<uint8_t> ReachabilityToBinary(const REACHABILITY_MAP_CELL_TYPE& value)
     {
-        std::vector<u_int8_t> binary(sizeof(REACHABILITY_MAP_CELL_TYPE));
+        std::vector<uint8_t> binary(sizeof(REACHABILITY_MAP_CELL_TYPE));
         memcpy(&binary.front(), &value, sizeof(REACHABILITY_MAP_CELL_TYPE));
         return binary;
     }
 
-    inline REACHABILITY_MAP_CELL_TYPE ReachabilityFromBinary(const std::vector<u_int8_t>& binary)
+    inline REACHABILITY_MAP_CELL_TYPE ReachabilityFromBinary(const std::vector<uint8_t>& binary)
     {
         if (binary.size() != sizeof(REACHABILITY_MAP_CELL_TYPE))
         {
@@ -51,9 +51,9 @@ namespace sdf_tools
         std::string frame_;
         VoxelGrid::VoxelGrid<REACHABILITY_MAP_CELL_TYPE> reachability_map_;
 
-        std::vector<u_int8_t> PackBinaryRepresentation(const std::vector<REACHABILITY_MAP_CELL_TYPE>& raw) const;
+        std::vector<uint8_t> PackBinaryRepresentation(const std::vector<REACHABILITY_MAP_CELL_TYPE>& raw) const;
 
-        std::vector<REACHABILITY_MAP_CELL_TYPE> UnpackBinaryRepresentation(const std::vector<u_int8_t>& packed) const;
+        std::vector<REACHABILITY_MAP_CELL_TYPE> UnpackBinaryRepresentation(const std::vector<uint8_t>& packed) const;
 
     public:
 

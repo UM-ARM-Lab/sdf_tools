@@ -27,8 +27,8 @@ bool TaggedObjectCollisionMapGrid::SaveToFile(const std::string &filepath) const
     try
     {
         std::ofstream output_file(filepath.c_str(), std::ios::out|std::ios::binary);
-        u_int32_t serialized_size = ros::serialization::serializationLength(message_rep);
-        std::unique_ptr<u_int8_t> ser_buffer(new u_int8_t[serialized_size]);
+        uint32_t serialized_size = ros::serialization::serializationLength(message_rep);
+        std::unique_ptr<uint8_t> ser_buffer(new uint8_t[serialized_size]);
         ros::serialization::OStream ser_stream(ser_buffer.get(), serialized_size);
         ros::serialization::serialize(ser_stream, message_rep);
         output_file.write((char*)ser_buffer.get(), serialized_size);
@@ -51,8 +51,8 @@ bool TaggedObjectCollisionMapGrid::LoadFromFile(const std::string& filepath)
         std::streampos end = input_file.tellg();
         input_file.seekg(0, std::ios::beg);
         std::streampos begin = input_file.tellg();
-        u_int32_t serialized_size = end - begin;
-        std::unique_ptr<u_int8_t> deser_buffer(new u_int8_t[serialized_size]);
+        uint32_t serialized_size = end - begin;
+        std::unique_ptr<uint8_t> deser_buffer(new uint8_t[serialized_size]);
         input_file.read((char*) deser_buffer.get(), serialized_size);
         ros::serialization::IStream deser_stream(deser_buffer.get(), serialized_size);
         sdf_tools::TaggedObjectCollisionMap new_message;
@@ -67,30 +67,30 @@ bool TaggedObjectCollisionMapGrid::LoadFromFile(const std::string& filepath)
     }
 }
 
-std::vector<u_int8_t> TaggedObjectCollisionMapGrid::PackBinaryRepresentation(const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw) const
+std::vector<uint8_t> TaggedObjectCollisionMapGrid::PackBinaryRepresentation(const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw) const
 {
-    std::vector<u_int8_t> packed(raw.size() * sizeof(TAGGED_OBJECT_COLLISION_CELL));
+    std::vector<uint8_t> packed(raw.size() * sizeof(TAGGED_OBJECT_COLLISION_CELL));
     for (size_t field_idx = 0, binary_index = 0; field_idx < raw.size(); field_idx++, binary_index+=sizeof(TAGGED_OBJECT_COLLISION_CELL))
     {
         const TAGGED_OBJECT_COLLISION_CELL& raw_cell = raw[field_idx];
-        std::vector<u_int8_t> packed_cell = TaggedObjectCollisionCellToBinary(raw_cell);
+        std::vector<uint8_t> packed_cell = TaggedObjectCollisionCellToBinary(raw_cell);
         memcpy(&packed[binary_index], &packed_cell.front(), sizeof(TAGGED_OBJECT_COLLISION_CELL));
     }
     return packed;
 }
 
-std::vector<TAGGED_OBJECT_COLLISION_CELL> TaggedObjectCollisionMapGrid::UnpackBinaryRepresentation(const std::vector<u_int8_t>& packed) const
+std::vector<TAGGED_OBJECT_COLLISION_CELL> TaggedObjectCollisionMapGrid::UnpackBinaryRepresentation(const std::vector<uint8_t>& packed) const
 {
     if ((packed.size() % sizeof(TAGGED_OBJECT_COLLISION_CELL)) != 0)
     {
         std::cerr << "Invalid binary representation - length is not a multiple of " << sizeof(TAGGED_OBJECT_COLLISION_CELL) << std::endl;
         return std::vector<TAGGED_OBJECT_COLLISION_CELL>();
     }
-    u_int64_t data_size = packed.size() / sizeof(TAGGED_OBJECT_COLLISION_CELL);
+    uint64_t data_size = packed.size() / sizeof(TAGGED_OBJECT_COLLISION_CELL);
     std::vector<TAGGED_OBJECT_COLLISION_CELL> unpacked(data_size);
     for (size_t field_idx = 0, binary_index = 0; field_idx < unpacked.size(); field_idx++, binary_index+=sizeof(TAGGED_OBJECT_COLLISION_CELL))
     {
-        std::vector<u_int8_t> binary_block(sizeof(TAGGED_OBJECT_COLLISION_CELL));
+        std::vector<uint8_t> binary_block(sizeof(TAGGED_OBJECT_COLLISION_CELL));
         memcpy(&binary_block.front(), &packed[binary_index], sizeof(TAGGED_OBJECT_COLLISION_CELL));
         unpacked[field_idx] = TaggedObjectCollisionCellFromBinary(binary_block);
     }
@@ -121,7 +121,7 @@ sdf_tools::TaggedObjectCollisionMap TaggedObjectCollisionMapGrid::GetMessageRepr
     message_rep.convex_segments_valid = convex_segments_valid_;
     message_rep.initialized = initialized_;
     const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw_data = collision_field_.GetRawData();
-    std::vector<u_int8_t> binary_data = PackBinaryRepresentation(raw_data);
+    std::vector<uint8_t> binary_data = PackBinaryRepresentation(raw_data);
     message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
 }
@@ -135,7 +135,7 @@ bool TaggedObjectCollisionMapGrid::LoadFromMessageRepresentation(const sdf_tools
     TAGGED_OBJECT_COLLISION_CELL OOB_value = TaggedObjectCollisionCellFromBinary(message.OOB_value);
     VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
     // Unpack the binary data
-    std::vector<u_int8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
+    std::vector<uint8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
     std::vector<TAGGED_OBJECT_COLLISION_CELL> unpacked = UnpackBinaryRepresentation(binary_representation);
     if (unpacked.empty())
     {
@@ -158,7 +158,7 @@ bool TaggedObjectCollisionMapGrid::LoadFromMessageRepresentation(const sdf_tools
     return true;
 }
 
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const std::map<u_int32_t, std_msgs::ColorRGBA>& object_color_map) const
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -271,7 +271,7 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplayOccupan
     return display_rep;
 }
 
-std_msgs::ColorRGBA TaggedObjectCollisionMapGrid::GenerateComponentColor(const u_int32_t component) const
+std_msgs::ColorRGBA TaggedObjectCollisionMapGrid::GenerateComponentColor(const uint32_t component) const
 {
     // For component < 22, we pick from a table
     if (component == 0)
@@ -480,7 +480,7 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportConnectedComponen
     return display_rep;
 }
 
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(const u_int32_t object_id, const u_int32_t convex_segment) const
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(const uint32_t object_id, const uint32_t convex_segment) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -524,7 +524,7 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportConvexSegmentForD
     return display_rep;
 }
 
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportSurfaceForDisplay(const std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>& surface, const std_msgs::ColorRGBA& surface_color) const
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportSurfaceForDisplay(const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& surface, const std_msgs::ColorRGBA& surface_color) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -542,7 +542,7 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportSurfaceForDisplay
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
     // Add all the cells of the surface
-    std::unordered_map<VoxelGrid::GRID_INDEX, u_int8_t>::const_iterator surface_itr;
+    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::const_iterator surface_itr;
     for (surface_itr = surface.begin(); surface_itr != surface.end(); ++surface_itr)
     {
         VoxelGrid::GRID_INDEX index = surface_itr->first;
@@ -562,10 +562,10 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportSurfaceForDisplay
     return display_rep;
 }
 
-VoxelGrid::VoxelGrid<std::vector<u_int32_t>> TaggedObjectCollisionMapGrid::ComputeConvexRegions(const double max_check_radius) const
+VoxelGrid::VoxelGrid<std::vector<uint32_t>> TaggedObjectCollisionMapGrid::ComputeConvexRegions(const double max_check_radius) const
 {
-    VoxelGrid::VoxelGrid<std::vector<u_int32_t>> convex_region_grid(GetOriginTransform(), GetResolution(), GetXSize(), GetYSize(), GetZSize(), std::vector<u_int32_t>());
-    u_int32_t current_convex_region = 0;
+    VoxelGrid::VoxelGrid<std::vector<uint32_t>> convex_region_grid(GetOriginTransform(), GetResolution(), GetXSize(), GetYSize(), GetZSize(), std::vector<uint32_t>());
+    uint32_t current_convex_region = 0;
     for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
     {
         for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
@@ -576,7 +576,7 @@ VoxelGrid::VoxelGrid<std::vector<u_int32_t>> TaggedObjectCollisionMapGrid::Compu
                 if (GetImmutable(x_index, y_index, z_index).first.occupancy < 0.5)
                 {
                     // Check if we've already marked it once
-                    const std::vector<u_int32_t>& current_cell_regions = convex_region_grid.GetImmutable(x_index, y_index, z_index).first;
+                    const std::vector<uint32_t>& current_cell_regions = convex_region_grid.GetImmutable(x_index, y_index, z_index).first;
                     if (current_cell_regions.empty())
                     {
                         current_convex_region++;
@@ -591,7 +591,7 @@ VoxelGrid::VoxelGrid<std::vector<u_int32_t>> TaggedObjectCollisionMapGrid::Compu
     return convex_region_grid;
 }
 
-std::vector<VoxelGrid::GRID_INDEX> TaggedObjectCollisionMapGrid::CheckIfConvex(const VoxelGrid::GRID_INDEX& candidate_index, std::unordered_map<VoxelGrid::GRID_INDEX, int8_t>& explored_indices, const VoxelGrid::VoxelGrid<std::vector<u_int32_t>>& region_grid, const u_int32_t current_convex_region) const
+std::vector<VoxelGrid::GRID_INDEX> TaggedObjectCollisionMapGrid::CheckIfConvex(const VoxelGrid::GRID_INDEX& candidate_index, std::unordered_map<VoxelGrid::GRID_INDEX, int8_t>& explored_indices, const VoxelGrid::VoxelGrid<std::vector<uint32_t>>& region_grid, const uint32_t current_convex_region) const
 {
     std::vector<VoxelGrid::GRID_INDEX> convex_indices;
     for (auto indices_itr = explored_indices.begin(); indices_itr != explored_indices.end(); ++indices_itr)
@@ -605,8 +605,8 @@ std::vector<VoxelGrid::GRID_INDEX> TaggedObjectCollisionMapGrid::CheckIfConvex(c
             const Eigen::Vector3d start_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(other_index.x, other_index.y, other_index.z));
             const Eigen::Vector3d end_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(candidate_index.x, candidate_index.y, candidate_index.z));
             double distance = (end_location - start_location).norm();
-            u_int32_t num_steps = (u_int32_t)ceil(distance / (GetResolution() * 0.5));
-            for (u_int32_t step_num = 0; step_num <= num_steps; step_num++)
+            uint32_t num_steps = (uint32_t)ceil(distance / (GetResolution() * 0.5));
+            for (uint32_t step_num = 0; step_num <= num_steps; step_num++)
             {
                 const double ratio = (double)step_num / (double)num_steps;
                 const Eigen::Vector3d interpolated_location = EigenHelpers::Interpolate(start_location, end_location, ratio);
@@ -667,7 +667,7 @@ std::vector<VoxelGrid::GRID_INDEX> TaggedObjectCollisionMapGrid::CheckIfConvex(c
     return convex_indices;
 }
 
-void TaggedObjectCollisionMapGrid::GrowConvexRegion(const VoxelGrid::GRID_INDEX& start_index, VoxelGrid::VoxelGrid<std::vector<u_int32_t>>& region_grid, const double max_check_radius, const u_int32_t current_convex_region) const
+void TaggedObjectCollisionMapGrid::GrowConvexRegion(const VoxelGrid::GRID_INDEX& start_index, VoxelGrid::VoxelGrid<std::vector<uint32_t>>& region_grid, const double max_check_radius, const uint32_t current_convex_region) const
 {
     // Mark the region of the start index
     region_grid.GetMutable(start_index).first.push_back(current_convex_region);

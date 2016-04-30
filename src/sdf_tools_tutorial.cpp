@@ -75,7 +75,7 @@ int main(int argc, char** argv)
     std::pair<sdf_tools::COLLISION_CELL, bool> location_query = collision_map.Get(x_location, y_location, z_location);
     std::cout << "Location query result - stored value " << location_query.first.occupancy << " (occupancy) " << location_query.first.component << " (component) was it in the grid? - " << location_query.second << std::endl;
     // Let's compute connected components
-    u_int32_t num_connected_components = collision_map.UpdateConnectedComponents();
+    uint32_t num_connected_components = collision_map.UpdateConnectedComponents();
     std::cout << " There are " << num_connected_components << " connected components in the grid" << std::endl;
     // Let's display the results to Rviz
     // First, the CollisionMap itself

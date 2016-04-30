@@ -117,7 +117,7 @@ std::string SDF_Builder::GenerateSDFComputeBotSRDFString()
     return srdf_string;
 }
 
-SignedDistanceField SDF_Builder::UpdateSDF(u_int8_t update_mode)
+SignedDistanceField SDF_Builder::UpdateSDF(uint8_t update_mode)
 {
     if (!initialized_)
     {
@@ -198,7 +198,7 @@ SignedDistanceField SDF_Builder::GetCachedSDF()
     }
 }
 
-VoxelGrid::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMap(u_int8_t update_mode)
+VoxelGrid::VoxelGrid<uint8_t> SDF_Builder::UpdateCollisionMap(uint8_t update_mode)
 {
     if (!initialized_)
     {
@@ -266,7 +266,7 @@ VoxelGrid::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMap(u_int8_t update_m
     }
 }
 
-VoxelGrid::VoxelGrid<u_int8_t> SDF_Builder::GetCachedCollisionMap()
+VoxelGrid::VoxelGrid<uint8_t> SDF_Builder::GetCachedCollisionMap()
 {
     if (has_cached_collmap_)
     {
@@ -279,10 +279,10 @@ VoxelGrid::VoxelGrid<u_int8_t> SDF_Builder::GetCachedCollisionMap()
     }
 }
 
-VoxelGrid::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMapFromPlanningScene()
+VoxelGrid::VoxelGrid<uint8_t> SDF_Builder::UpdateCollisionMapFromPlanningScene()
 {
     // Make a collision field for debugging
-    VoxelGrid::VoxelGrid<u_int8_t> collision_field(origin_transform_, resolution_, x_size_, y_size_, z_size_, 0);
+    VoxelGrid::VoxelGrid<uint8_t> collision_field(origin_transform_, resolution_, x_size_, y_size_, z_size_, 0);
     // Loop through the planning scene to populate the voxel grids
     std::string x_joint("virtual_x");
     std::string y_joint("virtual_y");
@@ -311,14 +311,14 @@ VoxelGrid::VoxelGrid<u_int8_t> SDF_Builder::UpdateCollisionMapFromPlanningScene(
                 {
                     // Mark as filled
                     //std::cout << "Collision" << std::endl;
-                    u_int8_t status = 1;
+                    uint8_t status = 1;
                     collision_field.SetValue(x_index, y_index, z_index, status);
                 }
                 else
                 {
                     // Mark as free space
                     //std::cout << "No collision" << std::endl;
-                    u_int8_t status = 0;
+                    uint8_t status = 0;
                     collision_field.SetValue(x_index, y_index, z_index, status);
                 }
             }
@@ -343,11 +343,11 @@ SignedDistanceField SDF_Builder::UpdateSDFFromPlanningScene()
     collision_detection::CollisionRequest col_req;
     collision_detection::CollisionResult col_res;
     robot_state::RobotState& sdf_compute_bot_state = planning_scene_ptr_->getCurrentStateNonConst();
-    for (u_int32_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
+    for (uint32_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
     {
-        for (u_int32_t y_index = 0; y_index < new_sdf.GetNumYCells(); y_index++)
+        for (uint32_t y_index = 0; y_index < new_sdf.GetNumYCells(); y_index++)
         {
-            for (u_int32_t z_index = 0; z_index < new_sdf.GetNumZCells(); z_index++)
+            for (uint32_t z_index = 0; z_index < new_sdf.GetNumZCells(); z_index++)
             {
                 // Convert SDF indices into a real-world location
                 std::vector<double> location = new_sdf.GridIndexToLocation(x_index, y_index, z_index);
