@@ -10,11 +10,11 @@
 #include <ros/ros.h>
 #include <list>
 #include <unordered_map>
+#include <sdf_tools/tagged_object_collision_map.hpp>
 #include <arc_utilities/zlib_helpers.hpp>
 #include <arc_utilities/eigen_helpers.hpp>
 #include <arc_utilities/eigen_helpers_conversions.hpp>
 #include <arc_utilities/pretty_print.hpp>
-#include <sdf_tools/tagged_object_collision_map.hpp>
 #include <sdf_tools/TaggedObjectCollisionMap.h>
 
 using namespace sdf_tools;
