@@ -4,10 +4,14 @@ project(sdf_tools)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs image_transport cv_bridge arc_utilities message_generation)
+find_package(catkin REQUIRED COMPONENTS rospy std_msgs sensor_msgs visualization_msgs image_transport cv_bridge arc_utilities message_generation)
 find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
 find_package(OpenCV REQUIRED)
+# MoveIt! isn't a required dependency
+find_package(moveit_msgs)
+find_package(moveit_core)
+find_package(moveit_ros_planning)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -39,7 +43,11 @@ generate_messages(DEPENDENCIES geometry_msgs std_msgs)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib Eigen OpenCV)
+if(moveit_core_FOUND)
+    catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib Eigen OpenCV)
+else()
+    catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs visualization_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib Eigen OpenCV)
+endif()
 
 ###########
 ## Build ##
@@ -47,36 +55,58 @@ catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS ros
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(include SYSTEM ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+if(moveit_core_FOUND)
+    include_directories(include SYSTEM ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${moveit_core_INCLUDE_DIRS} ${moveit_msgs_INCLUDE_DIRS} ${moveit_ros_planning_INCLUDE_DIRS})
+else()
+    include_directories(include SYSTEM ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+endif()
 
 set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Werror")
 
-# SDF library
-add_library(${PROJECT_NAME}
-    include/${PROJECT_NAME}/collision_map.hpp
-    include/${PROJECT_NAME}/tagged_object_collision_map.hpp
-    include/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.hpp
-    include/${PROJECT_NAME}/reachability_map.hpp
-    include/${PROJECT_NAME}/sdf.hpp
-    include/${PROJECT_NAME}/sdf_builder.hpp
-    src/${PROJECT_NAME}/collision_map.cpp
-    src/${PROJECT_NAME}/tagged_object_collision_map.cpp
-    src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
-    src/${PROJECT_NAME}/reachability_map.cpp
-    src/${PROJECT_NAME}/sdf.cpp
-    src/${PROJECT_NAME}/sdf_builder.cpp)
-add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+if(moveit_core_FOUND)
+    message(STATUS "MoveIt! found. Building SDF Tools library with MoveIt! integration.")
+    # SDF library
+    add_library(${PROJECT_NAME}
+        include/${PROJECT_NAME}/collision_map.hpp
+        include/${PROJECT_NAME}/tagged_object_collision_map.hpp
+        include/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.hpp
+        include/${PROJECT_NAME}/reachability_map.hpp
+        include/${PROJECT_NAME}/sdf.hpp
+        include/${PROJECT_NAME}/sdf_builder.hpp
+        src/${PROJECT_NAME}/collision_map.cpp
+        src/${PROJECT_NAME}/tagged_object_collision_map.cpp
+        src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
+        src/${PROJECT_NAME}/reachability_map.cpp
+        src/${PROJECT_NAME}/sdf.cpp
+        src/${PROJECT_NAME}/sdf_builder.cpp)
+    add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+    target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${moveit_core_LIBRARIES} ${moveit_msgs_LIBRARIES} ${moveit_ros_planning_LIBRARIES})
+    # SDF generation node
+    add_executable(sdf_generation_node src/sdf_generation_node.cpp)
+    add_dependencies(sdf_generation_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+    target_link_libraries(sdf_generation_node ${catkin_LIBRARIES} ${PROJECT_NAME} ${moveit_core_LIBRARIES} ${moveit_msgs_LIBRARIES} ${moveit_ros_planning_LIBRARIES})
+else()
+    message(STATUS "MoveIt! not found. Building SDF Tools library without MoveIt! integration.")
+    # SDF library
+    add_library(${PROJECT_NAME}
+        include/${PROJECT_NAME}/collision_map.hpp
+        include/${PROJECT_NAME}/tagged_object_collision_map.hpp
+        include/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.hpp
+        include/${PROJECT_NAME}/reachability_map.hpp
+        include/${PROJECT_NAME}/sdf.hpp
+        src/${PROJECT_NAME}/collision_map.cpp
+        src/${PROJECT_NAME}/tagged_object_collision_map.cpp
+        src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
+        src/${PROJECT_NAME}/reachability_map.cpp
+        src/${PROJECT_NAME}/sdf.cpp)
+    add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+    target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+endif()
 
 # Simple test node for voxel_grid
-add_executable(test_voxel_grid src/test_voxel_grid.cpp)
-add_dependencies(test_voxel_grid ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
-target_link_libraries(test_voxel_grid ${catkin_LIBRARIES} ${PROJECT_NAME})
-
-# SDF generation node
-add_executable(sdf_generation_node src/sdf_generation_node.cpp)
-add_dependencies(sdf_generation_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
-target_link_libraries(sdf_generation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+add_executable(voxel_grid_test src/test_voxel_grid.cpp)
+add_dependencies(voxel_grid_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(voxel_grid_test ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 # Image to SDF node
 add_executable(image_2d_sdf_node src/image_2d_sdf_node.cpp)

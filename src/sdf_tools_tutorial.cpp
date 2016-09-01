@@ -5,7 +5,6 @@
 #include "sdf_tools/CollisionMap.h"
 #include "sdf_tools/sdf.hpp"
 #include "sdf_tools/SDF.h"
-#include "sdf_tools/sdf_builder.hpp"
 
 int main(int argc, char** argv)
 {
