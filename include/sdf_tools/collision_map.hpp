@@ -368,7 +368,7 @@ namespace sdf_tools
 
     public:
 
-        inline CollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, COLLISION_CELL OOB_value) : initialized_(true)
+        inline CollisionMapGrid(const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(resolution, x_size, y_size, z_size, OOB_value);
@@ -377,7 +377,7 @@ namespace sdf_tools
             components_valid_ = false;
         }
 
-        inline CollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, COLLISION_CELL OOB_value) : initialized_(true)
+        inline CollisionMapGrid(const Eigen::Affine3d& origin_transform, const std::string& frame, const double resolution, const double x_size, double y_size, const double z_size, const COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);

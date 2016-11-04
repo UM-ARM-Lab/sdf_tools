@@ -7,8 +7,9 @@
 #include <stdexcept>
 #include <Eigen/Geometry>
 #include <visualization_msgs/Marker.h>
-#include "arc_utilities/voxel_grid.hpp"
-#include "sdf_tools/SDF.h"
+#include <arc_utilities/eigen_helpers.hpp>
+#include <arc_utilities/voxel_grid.hpp>
+#include <sdf_tools/SDF.h>
 
 #ifndef SDF_HPP
 #define SDF_HPP
@@ -267,21 +268,73 @@ namespace sdf_tools
             return distance_field_.GetNumZCells();
         }
 
-        inline std::vector<double> GetGradient(const Eigen::Vector3d& location, const bool enable_edge_gradients=false) const
+        /*
+         * Estimates the real distance of the provided point, comparing it with the cell center location and gradient vector
+         */
+        inline std::pair<double, bool> EstimateDistance(const double x, const double y, const double z) const
         {
-            return GetGradient(location.x(), location.y(), location.z(), enable_edge_gradients);
+            return EstimateDistance(Eigen::Vector3d(x, y, z));
+        }
+
+        inline std::pair<double, bool> EstimateDistance(const Eigen::Vector3d& location) const
+        {
+            const std::vector<int64_t> indices = LocationToGridIndex(location);
+            if (indices.size() == 3)
+            {
+                const Eigen::Vector3d gradient = EigenHelpers::StdVectorDoubleToEigenVector3d(GetGradient(indices[0], indices[1], indices[2], true));
+                const std::vector<double> cell_location = GridIndexToLocation(indices[0], indices[1], indices[2]);
+                const Eigen::Vector3d cell_location_to_our_location(location.x() - cell_location[0], location.y() - cell_location[1], location.z() - cell_location[2]);
+                const double nominal_distance = (double)distance_field_.GetImmutable(indices[0], indices[1], indices[2]).first;
+                const double corrected_nominal_distance = (nominal_distance >= 0.0) ? nominal_distance - (GetResolution() * 0.5) : nominal_distance + (GetResolution() * 0.5);
+                const double cell_location_to_our_location_dot_gradient = cell_location_to_our_location.dot(gradient);
+                //const double gradient_dot_gradient = gradient.dot(gradient); // == squared norm of gradient
+                //const Eigen::Vector3d cell_location_to_our_location_projected_on_gradient = (cell_location_to_our_location_dot_gradient / gradient.dot(gradient)) * gradient;
+                //const double distance_adjustment = cell_location_to_our_location_projected_on_gradient.norm();
+                const double distance_adjustment = cell_location_to_our_location_dot_gradient / gradient.norm();
+                const double distance_estimate = corrected_nominal_distance + distance_adjustment;
+                if ((corrected_nominal_distance >= 0.0) == (distance_estimate >= 0.0))
+                {
+                    return std::make_pair(distance_estimate, true);
+                }
+                else if (corrected_nominal_distance >= 0.0)
+                {
+                    const double fudge_distance = GetResolution() * 0.0625;
+                    return std::make_pair(fudge_distance, true);
+                }
+                else
+                {
+                    const double fudge_distance = GetResolution() * -0.0625;
+                    return std::make_pair(fudge_distance, true);
+                }
+//                else
+//                {
+//                    const double real_distance_adjustment = GetResolution() * 0.20710678118654757;
+//                    const double revised_corrected_nominal_distance = (nominal_distance >= 0.0) ? nominal_distance - real_distance_adjustment : nominal_distance + real_distance_adjustment;
+//                    const double revised_distance_estimate = revised_corrected_nominal_distance + distance_adjustment;
+//                    return std::make_pair(revised_distance_estimate, true);
+//                }
+            }
+            else
+            {
+                return std::make_pair((double)distance_field_.GetOOBValue(), false);
+            }
         }
 
         inline std::vector<double> GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients=false) const
         {
-            std::vector<int64_t> indices = LocationToGridIndex(x, y, z);
-            if (indices.size() != 3)
+            return GetGradient(Eigen::Vector3d(x, y, z), enable_edge_gradients);
+        }
+
+        inline std::vector<double> GetGradient(const Eigen::Vector3d& location, const bool enable_edge_gradients=false) const
+        {
+            const std::vector<int64_t> indices = LocationToGridIndex(location);
+            if (indices.size() == 3)
             {
-                return std::vector<double>();
+                return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
             }
             else
             {
-                return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
+                return std::vector<double>();
             }
         }
 

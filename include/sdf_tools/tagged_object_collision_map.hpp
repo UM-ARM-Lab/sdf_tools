@@ -38,7 +38,7 @@ namespace sdf_tools
         assert(colorval <= 1.0);
         return (uint8_t)round(colorval * 255.0);
     }
-    static inline std_msgs::ColorRGBA GenerateComponentColor(const uint32_t component)
+    static inline std_msgs::ColorRGBA GenerateComponentColor(const uint32_t component, const float alpha=1.0f)
     {
         // For component < 22, we pick from a table
         if (component == 0)
@@ -53,7 +53,7 @@ namespace sdf_tools
         else if (component <= 20)
         {
             std_msgs::ColorRGBA color;
-            color.a = 1.0;
+            color.a = alpha;
             if (component == 1)
             {
                 color.r = ColorChannelFromHex(0xff);
@@ -179,7 +179,7 @@ namespace sdf_tools
         else
         {
             std_msgs::ColorRGBA generated_color;
-            generated_color.a = 1.0;
+            generated_color.a = alpha;
             generated_color.r = 0.0;
             generated_color.g = 0.0;
             generated_color.b = 0.0;
@@ -637,7 +637,7 @@ namespace sdf_tools
 
     public:
 
-        inline TaggedObjectCollisionMapGrid(std::string frame, double resolution, double x_size, double y_size, double z_size, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
+        inline TaggedObjectCollisionMapGrid(const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(resolution, x_size, y_size, z_size, OOB_value);
@@ -647,7 +647,7 @@ namespace sdf_tools
             convex_segments_valid_ = false;
         }
 
-        inline TaggedObjectCollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
+        inline TaggedObjectCollisionMapGrid(const Eigen::Affine3d& origin_transform, const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
@@ -1946,6 +1946,8 @@ namespace sdf_tools
             }
             return convex_segment_counts;
         }
+
+        visualization_msgs::Marker ExportForDisplay(const float alpha) const;
 
         visualization_msgs::Marker ExportForDisplay(const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map=std::map<uint32_t, std_msgs::ColorRGBA>()) const;
 
