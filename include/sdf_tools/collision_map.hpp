@@ -9,9 +9,10 @@
 #include <stdexcept>
 #include <Eigen/Geometry>
 #include <visualization_msgs/Marker.h>
-#include "arc_utilities/voxel_grid.hpp"
-#include "sdf_tools/sdf.hpp"
-#include "sdf_tools/CollisionMap.h"
+#include <arc_utilities/arc_helpers.hpp>
+#include <arc_utilities/voxel_grid.hpp>
+#include <sdf_tools/sdf.hpp>
+#include <sdf_tools/CollisionMap.h>
 
 #ifndef COLLISION_MAP_HPP
 #define COLLISION_MAP_HPP
@@ -32,90 +33,36 @@ namespace sdf_tools
         COLLISION_CELL(const float in_occupancy, const uint32_t in_component) : occupancy(in_occupancy), component(in_component) {}
     };
 
-    inline std::vector<uint8_t> CollisionCellToBinary(COLLISION_CELL value)
+    inline std::vector<uint8_t> CollisionCellToBinary(const COLLISION_CELL& value)
     {
-        std::vector<uint8_t> binary(8);
-        uint32_t occupancy_binary_value = 0;
-        memcpy(&occupancy_binary_value, &value.occupancy, sizeof(uint32_t));
-        // Copy byte 1, least-significant byte
-        binary[3] = occupancy_binary_value & 0x000000ff;
-        // Copy byte 2
-        occupancy_binary_value = occupancy_binary_value >> 8;
-        binary[2] = occupancy_binary_value & 0x000000ff;
-        // Copy byte 3
-        occupancy_binary_value = occupancy_binary_value >> 8;
-        binary[1] = occupancy_binary_value & 0x000000ff;
-        // Copy byte 4, most-significant byte
-        occupancy_binary_value = occupancy_binary_value >> 8;
-        binary[0] = occupancy_binary_value & 0x000000ff;
-        uint32_t component_binary_value = value.component;
-        // Copy byte 1, least-significant byte
-        binary[7] = component_binary_value & 0x000000ff;
-        // Copy byte 2
-        component_binary_value = component_binary_value >> 8;
-        binary[6] = component_binary_value & 0x000000ff;
-        // Copy byte 3
-        component_binary_value = component_binary_value >> 8;
-        binary[5] = component_binary_value & 0x000000ff;
-        // Copy byte 4, most-significant byte
-        component_binary_value = component_binary_value >> 8;
-        binary[4] = component_binary_value & 0x000000ff;
+        std::vector<uint8_t> binary(sizeof(COLLISION_CELL));
+        memcpy(&binary.front(), &value, sizeof(COLLISION_CELL));
         return binary;
     }
 
-    inline COLLISION_CELL CollisionCellFromBinary(std::vector<uint8_t>& binary)
+    inline COLLISION_CELL CollisionCellFromBinary(const std::vector<uint8_t>& binary)
     {
-        if (binary.size() != 8)
+        if (binary.size() != sizeof(COLLISION_CELL))
         {
-            std::cerr << "Binary value is not 8 bytes" << std::endl;
-            COLLISION_CELL error_cell;
-            error_cell.component = 0;
-            error_cell.occupancy = NAN;
-            return error_cell;
+            std::cerr << "Binary value is not " << sizeof(COLLISION_CELL) << " bytes" << std::endl;
+            return COLLISION_CELL(NAN, 0u);
         }
         else
         {
             COLLISION_CELL loaded;
-            uint32_t occupancy_binary_value = 0;
-            // Copy in byte 4, most-significant byte
-            occupancy_binary_value = occupancy_binary_value | binary[0];
-            occupancy_binary_value = occupancy_binary_value << 8;
-            // Copy in byte 3
-            occupancy_binary_value = occupancy_binary_value | binary[1];
-            occupancy_binary_value = occupancy_binary_value << 8;
-            // Copy in byte 2
-            occupancy_binary_value = occupancy_binary_value | binary[2];
-            occupancy_binary_value = occupancy_binary_value << 8;
-            // Copy in byte 1, least-significant byte
-            occupancy_binary_value = occupancy_binary_value | binary[3];
-            // Convert binary to float and store
-            memcpy(&loaded.occupancy, &occupancy_binary_value, sizeof(float));
-            uint32_t component_binary_value = 0;
-            // Copy in byte 4, most-significant byte
-            component_binary_value = component_binary_value | binary[4];
-            component_binary_value = component_binary_value << 8;
-            // Copy in byte 3
-            component_binary_value = component_binary_value | binary[5];
-            component_binary_value = component_binary_value << 8;
-            // Copy in byte 2
-            component_binary_value = component_binary_value | binary[6];
-            component_binary_value = component_binary_value << 8;
-            // Copy in byte 1, least-significant byte
-            component_binary_value = component_binary_value | binary[7];
-            // Convert binary to float and store
-            loaded.component = component_binary_value;
+            memcpy(&loaded, &binary.front(), sizeof(COLLISION_CELL));
             return loaded;
         }
-    }
-
-    constexpr float ColorChannelFromHex(uint8_t hexval)
-    {
-        return (float)hexval / 255.0;
     }
 
     class CollisionMapGrid
     {
     protected:
+
+        inline static std_msgs::ColorRGBA GenerateComponentColor(const uint32_t component, const float alpha=1.0f)
+        {
+            return arc_helpers::GenerateUniqueColor<std_msgs::ColorRGBA>(component, alpha);
+        }
 
         inline bool IsSurfaceIndex(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
@@ -363,8 +310,6 @@ namespace sdf_tools
         std::vector<COLLISION_CELL> UnpackBinaryRepresentation(std::vector<uint8_t>& packed);
 
         int64_t MarkConnectedComponent(int64_t x_index, int64_t y_index, int64_t z_index, uint32_t connected_component);
-
-        std_msgs::ColorRGBA GenerateComponentColor(uint32_t component) const;
 
     public:
 

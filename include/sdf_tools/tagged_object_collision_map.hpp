@@ -27,166 +27,6 @@
 
 namespace sdf_tools
 {
-    static inline constexpr float ColorChannelFromHex(uint8_t hexval)
-    {
-        return (float)hexval / 255.0;
-    }
-
-    static inline uint8_t ColorChannelToHex(float colorval)
-    {
-        assert(colorval >= 0.0);
-        assert(colorval <= 1.0);
-        return (uint8_t)round(colorval * 255.0);
-    }
-    static inline std_msgs::ColorRGBA GenerateComponentColor(const uint32_t component, const float alpha=1.0f)
-    {
-        // For component < 22, we pick from a table
-        if (component == 0)
-        {
-            std_msgs::ColorRGBA default_color;
-            default_color.a = 0.0;
-            default_color.r = 1.0;
-            default_color.g = 1.0;
-            default_color.b = 1.0;
-            return default_color;
-        }
-        else if (component <= 20)
-        {
-            std_msgs::ColorRGBA color;
-            color.a = alpha;
-            if (component == 1)
-            {
-                color.r = ColorChannelFromHex(0xff);
-                color.b = ColorChannelFromHex(0xb3);
-                color.g = ColorChannelFromHex(0x00);
-            }
-            else if (component == 2)
-            {
-                color.r = ColorChannelFromHex(0x80);
-                color.b = ColorChannelFromHex(0x3e);
-                color.g = ColorChannelFromHex(0x75);
-            }
-            else if (component == 3)
-            {
-                color.r = ColorChannelFromHex(0xff);
-                color.b = ColorChannelFromHex(0x68);
-                color.g = ColorChannelFromHex(0x00);
-            }
-            else if (component == 4)
-            {
-                color.r = ColorChannelFromHex(0xa6);
-                color.b = ColorChannelFromHex(0xbd);
-                color.g = ColorChannelFromHex(0xd7);
-            }
-            else if (component == 5)
-            {
-                color.r = ColorChannelFromHex(0xc1);
-                color.b = ColorChannelFromHex(0x00);
-                color.g = ColorChannelFromHex(0x20);
-            }
-            else if (component == 6)
-            {
-                color.r = ColorChannelFromHex(0xce);
-                color.b = ColorChannelFromHex(0xa2);
-                color.g = ColorChannelFromHex(0x62);
-            }
-            else if (component == 7)
-            {
-                color.r = ColorChannelFromHex(0x81);
-                color.b = ColorChannelFromHex(0x70);
-                color.g = ColorChannelFromHex(0x66);
-            }
-            else if (component == 8)
-            {
-                color.r = ColorChannelFromHex(0x00);
-                color.b = ColorChannelFromHex(0x7d);
-                color.g = ColorChannelFromHex(0x34);
-            }
-            else if (component == 9)
-            {
-                color.r = ColorChannelFromHex(0xf6);
-                color.b = ColorChannelFromHex(0x76);
-                color.g = ColorChannelFromHex(0x8e);
-            }
-            else if (component == 10)
-            {
-                color.r = ColorChannelFromHex(0x00);
-                color.b = ColorChannelFromHex(0x53);
-                color.g = ColorChannelFromHex(0x8a);
-            }
-            else if (component == 11)
-            {
-                color.r = ColorChannelFromHex(0xff);
-                color.b = ColorChannelFromHex(0x7a);
-                color.g = ColorChannelFromHex(0x5c);
-            }
-            else if (component == 12)
-            {
-                color.r = ColorChannelFromHex(0x53);
-                color.b = ColorChannelFromHex(0x37);
-                color.g = ColorChannelFromHex(0x7a);
-            }
-            else if (component == 13)
-            {
-                color.r = ColorChannelFromHex(0xff);
-                color.b = ColorChannelFromHex(0x8e);
-                color.g = ColorChannelFromHex(0x00);
-            }
-            else if (component == 14)
-            {
-                color.r = ColorChannelFromHex(0xb3);
-                color.b = ColorChannelFromHex(0x28);
-                color.g = ColorChannelFromHex(0x51);
-            }
-            else if (component == 15)
-            {
-                color.r = ColorChannelFromHex(0xf4);
-                color.b = ColorChannelFromHex(0xc8);
-                color.g = ColorChannelFromHex(0x00);
-            }
-            else if (component == 16)
-            {
-                color.r = ColorChannelFromHex(0x7f);
-                color.b = ColorChannelFromHex(0x18);
-                color.g = ColorChannelFromHex(0x0d);
-            }
-            else if (component == 17)
-            {
-                color.r = ColorChannelFromHex(0x93);
-                color.b = ColorChannelFromHex(0xaa);
-                color.g = ColorChannelFromHex(0x00);
-            }
-            else if (component == 18)
-            {
-                color.r = ColorChannelFromHex(0x59);
-                color.b = ColorChannelFromHex(0x33);
-                color.g = ColorChannelFromHex(0x15);
-            }
-            else if (component == 19)
-            {
-                color.r = ColorChannelFromHex(0xf1);
-                color.b = ColorChannelFromHex(0x3a);
-                color.g = ColorChannelFromHex(0x13);
-            }
-            else
-            {
-                color.r = ColorChannelFromHex(0x23);
-                color.b = ColorChannelFromHex(0x2c);
-                color.g = ColorChannelFromHex(0x16);
-            }
-            return color;
-        }
-        else
-        {
-            std_msgs::ColorRGBA generated_color;
-            generated_color.a = alpha;
-            generated_color.r = 0.0;
-            generated_color.g = 0.0;
-            generated_color.b = 0.0;
-            return generated_color;
-        }
-    }
-
     struct TAGGED_OBJECT_COLLISION_CELL
     {
         float occupancy;
@@ -282,6 +122,11 @@ namespace sdf_tools
     class TaggedObjectCollisionMapGrid
     {
     protected:
+
+        inline static std_msgs::ColorRGBA GenerateComponentColor(const uint32_t component, const float alpha=1.0f)
+        {
+            return arc_helpers::GenerateUniqueColor<std_msgs::ColorRGBA>(component, alpha);
+        }
 
         inline bool IsSurfaceIndex(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
