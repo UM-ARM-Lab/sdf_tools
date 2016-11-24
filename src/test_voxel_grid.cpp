@@ -140,6 +140,61 @@ void test_voxel_grid_locations()
     }
 }
 
+void test_voxel_grid_serialization()
+{
+    VoxelGrid::VoxelGrid<int> test_grid(1.0, 20.0, 20.0, 20.0, 0);
+    // Load with special values
+    int check_val = 1;
+    std::vector<int> check_vals;
+    for (int64_t x_index = 0; x_index < test_grid.GetNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < test_grid.GetNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
+            {
+                test_grid.SetValue(x_index, y_index, z_index, check_val);
+                check_vals.push_back(check_val);
+                check_val++;
+            }
+        }
+    }
+    std::vector<uint8_t> buffer;
+    VoxelGrid::VoxelGrid<int>::Serialize(test_grid, buffer, arc_helpers::SerializeFixedSizePOD<int>);
+    const VoxelGrid::VoxelGrid<int> read_grid = VoxelGrid::VoxelGrid<int>::Deserialize(buffer, 0, arc_helpers::DeserializeFixedSizePOD<int>).first;
+    // Check the values
+    int check_index = 0;
+    bool pass = true;
+    for (int64_t x_index = 0; x_index < read_grid.GetNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < read_grid.GetNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < read_grid.GetNumZCells(); z_index++)
+            {
+                int ref_val = read_grid.GetImmutable(x_index, y_index, z_index).first;
+                //std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
+                if (ref_val == check_vals[check_index])
+                {
+                    //std::cout << "Check pass" << std::endl;
+                }
+                else
+                {
+                    std::cout << "Check fail" << std::endl;
+                    pass = false;
+                }
+                check_index++;
+            }
+        }
+    }
+    if (pass)
+    {
+        std::cout << "VG-I de/serialize - All checks pass" << std::endl;
+    }
+    else
+    {
+        std::cout << "*** VG-I de/serialize - Checks failed ***" << std::endl;
+    }
+}
+
 void test_dsh_voxel_grid_locations()
 {
     VoxelGrid::DynamicSpatialHashedVoxelGrid<int> test_grid(1.0, 4, 4, 4, 0);
@@ -371,6 +426,7 @@ int main(int argc, char** argv)
     ros::Publisher display_pub = nh.advertise<visualization_msgs::MarkerArray>("display_test_voxel_grid", 1, true);
     test_voxel_grid_indices();
     test_voxel_grid_locations();
+    test_voxel_grid_serialization();
     test_dsh_voxel_grid_locations();
     test_float_binary_conversion(5280.0);
     test_reachability_map();
