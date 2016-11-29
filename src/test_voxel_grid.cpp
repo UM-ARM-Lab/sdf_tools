@@ -1,7 +1,6 @@
 #include "arc_utilities/voxel_grid.hpp"
 #include "arc_utilities/pretty_print.hpp"
 #include "sdf_tools/collision_map.hpp"
-#include "sdf_tools/reachability_map.hpp"
 #include "arc_utilities/dynamic_spatial_hashed_voxel_grid.hpp"
 #include "sdf_tools/dynamic_spatial_hashed_collision_map.hpp"
 #include "sdf_tools/sdf.hpp"
@@ -325,96 +324,6 @@ visualization_msgs::MarkerArray test_dsh_collision_map(std::default_random_engin
     return display_rep;
 }
 
-void test_reachability_map()
-{
-    sdf_tools::ReachabilityMapGrid test_grid("test_voxel_grid", 1.0, 20.0, 20.0, 20.0, 0u);
-    // Load with special values
-    uint64_t check_val = 1;
-    std::vector<uint64_t> check_vals;
-    for (int64_t x_index = 0; x_index < test_grid.GetNumXCells(); x_index++)
-    {
-        for (int64_t y_index = 0; y_index < test_grid.GetNumYCells(); y_index++)
-        {
-            for (int64_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
-            {
-                test_grid.Set(x_index, y_index, z_index, check_val);
-                check_vals.push_back(check_val);
-                check_val++;
-            }
-        }
-    }
-    // Check the values
-    uint64_t check_index = 0;
-    bool pass = true;
-    for (int64_t x_index = 0; x_index < test_grid.GetNumXCells(); x_index++)
-    {
-        for (int64_t y_index = 0; y_index < test_grid.GetNumYCells(); y_index++)
-        {
-            for (int64_t z_index = 0; z_index < test_grid.GetNumZCells(); z_index++)
-            {
-                uint64_t ref_val = test_grid.GetImmutable(x_index, y_index, z_index).first;
-                //std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
-                if (ref_val == check_vals[check_index])
-                {
-                    //std::cout << "Check pass" << std::endl;
-                }
-                else
-                {
-                    std::cout << "Check fail" << std::endl;
-                    pass = false;
-                }
-                check_index++;
-            }
-        }
-    }
-    if (pass)
-    {
-        std::cout << "RMG - All checks pass" << std::endl;
-    }
-    else
-    {
-        std::cout << "*** RMG - Checks failed ***" << std::endl;
-    }
-    // Save and reload the reachability map
-    const std::string test_file_name = "/tmp/rmg_test.rmg";
-    bool save_succeeded = test_grid.SaveToFile(test_file_name);
-    assert(save_succeeded);
-    sdf_tools::ReachabilityMapGrid loaded_test_grid;
-    bool load_succeeded = loaded_test_grid.LoadFromFile(test_file_name);
-    assert(load_succeeded);
-    // Check the values
-    uint64_t loading_check_index = 0;
-    bool loading_pass = true;
-    for (int64_t x_index = 0; x_index < loaded_test_grid.GetNumXCells(); x_index++)
-    {
-        for (int64_t y_index = 0; y_index < loaded_test_grid.GetNumYCells(); y_index++)
-        {
-            for (int64_t z_index = 0; z_index < loaded_test_grid.GetNumZCells(); z_index++)
-            {
-                uint64_t ref_val = loaded_test_grid.GetImmutable(x_index, y_index, z_index).first;
-                //std::cout << "Value in grid: " << ref_val << " Value should be: " << check_vals[check_index] << std::endl;
-                if (ref_val == check_vals[loading_check_index])
-                {
-                    //std::cout << "Check pass" << std::endl;
-                }
-                else
-                {
-                    std::cout << "Check fail" << std::endl;
-                    loading_pass = false;
-                }
-                loading_check_index++;
-            }
-        }
-    }
-    if (loading_pass)
-    {
-        std::cout << "RMG-loaded - All checks pass" << std::endl;
-    }
-    else
-    {
-        std::cout << "*** RMG-loaded - Checks failed ***" << std::endl;
-    }
-}
 
 int main(int argc, char** argv)
 {
@@ -429,7 +338,6 @@ int main(int argc, char** argv)
     test_voxel_grid_serialization();
     test_dsh_voxel_grid_locations();
     test_float_binary_conversion(5280.0);
-    test_reachability_map();
     visualization_msgs::MarkerArray display_rep = test_dsh_collision_map(generator);
     display_pub.publish(display_rep);
     ros::spin();
