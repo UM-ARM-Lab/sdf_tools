@@ -1792,9 +1792,45 @@ namespace sdf_tools
             return convex_segment_counts;
         }
 
+        std::map<uint32_t, sdf_tools::SignedDistanceField> MakeObjectSDFs(const std::vector<uint32_t>& object_ids) const
+        {
+            std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs;
+            for (size_t idx = 0; idx < object_ids.size(); idx++)
+            {
+                const uint32_t object_id = object_ids[idx];
+                per_object_sdfs[object_id] = ExtractSignedDistanceField(std::numeric_limits<double>::infinity(), std::vector<uint32_t>{object_id}).first;
+            }
+            return per_object_sdfs;
+        }
+
+        std::map<uint32_t, sdf_tools::SignedDistanceField> MakeObjectSDFs() const
+        {
+            std::map<uint32_t, uint32_t> object_id_map;
+            for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+            {
+                for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+                {
+                    for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+                    {
+                        const TAGGED_OBJECT_COLLISION_CELL& cell = GetImmutable(x_index, y_index, z_index).first;
+                        const uint32_t cell_object_id = cell.object_id;
+                        if (cell_object_id > 0)
+                        {
+                            object_id_map[cell_object_id] = 1u;
+                        }
+                    }
+                }
+            }
+            return MakeObjectSDFs(arc_helpers::GetKeys(object_id_map));
+        }
+
         visualization_msgs::Marker ExportForDisplay(const float alpha) const;
 
         visualization_msgs::Marker ExportForDisplay(const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map=std::map<uint32_t, std_msgs::ColorRGBA>()) const;
+
+        visualization_msgs::Marker ExportContourOnlyForDisplay(const float alpha) const;
+
+        visualization_msgs::Marker ExportContourOnlyForDisplay(const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map=std::map<uint32_t, std_msgs::ColorRGBA>()) const;
 
         visualization_msgs::Marker ExportForDisplayOccupancyOnly(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const;
 

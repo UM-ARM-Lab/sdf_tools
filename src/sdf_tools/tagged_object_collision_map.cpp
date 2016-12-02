@@ -254,6 +254,124 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const 
     return display_rep;
 }
 
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(const float alpha) const
+{
+    // Make SDF
+    const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs = MakeObjectSDFs();
+    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
+    visualization_msgs::Marker display_rep;
+    // Populate the header
+    display_rep.header.frame_id = frame_;
+    // Populate the options
+    display_rep.ns = "tagged_object_collision_map_display";
+    display_rep.id = 1;
+    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+    display_rep.action = visualization_msgs::Marker::ADD;
+    display_rep.lifetime = ros::Duration(0.0);
+    display_rep.frame_locked = false;
+    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
+    display_rep.scale.x = GetResolution();
+    display_rep.scale.y = GetResolution();
+    display_rep.scale.z = GetResolution();
+    // Add all the cells of the SDF to the message
+    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+            {
+                // Convert grid indices into a real-world location
+                std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
+                geometry_msgs::Point new_point;
+                new_point.x = location[0];
+                new_point.y = location[1];
+                new_point.z = location[2];
+                const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
+                // Get the SDF for the current object
+                auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
+                if (sdf_found_itr != per_object_sdfs.end())
+                {
+                    const sdf_tools::SignedDistanceField& object_sdf = sdf_found_itr->second;
+                    const float distance = object_sdf.Get(new_point.x, new_point.y, new_point.z);
+                    // Check if we're on the surface of the object
+                    if (distance < 0.0 && distance > -GetResolution())
+                    {
+                        const std_msgs::ColorRGBA object_color = GenerateComponentColor(current_cell.object_id, alpha);
+                        if (object_color.a > 0.0)
+                        {
+                            display_rep.points.push_back(new_point);
+                            display_rep.colors.push_back(object_color);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return display_rep;
+}
+
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map) const
+{
+    // Make SDF
+    const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs = MakeObjectSDFs();
+    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
+    visualization_msgs::Marker display_rep;
+    // Populate the header
+    display_rep.header.frame_id = frame_;
+    // Populate the options
+    display_rep.ns = "tagged_object_collision_map_display";
+    display_rep.id = 1;
+    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+    display_rep.action = visualization_msgs::Marker::ADD;
+    display_rep.lifetime = ros::Duration(0.0);
+    display_rep.frame_locked = false;
+    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
+    display_rep.scale.x = GetResolution();
+    display_rep.scale.y = GetResolution();
+    display_rep.scale.z = GetResolution();
+    // Add all the cells of the SDF to the message
+    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+            {
+                // Convert grid indices into a real-world location
+                std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
+                geometry_msgs::Point new_point;
+                new_point.x = location[0];
+                new_point.y = location[1];
+                new_point.z = location[2];
+                const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
+                // Get the SDF for the current object
+                auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
+                if (sdf_found_itr != per_object_sdfs.end())
+                {
+                    const sdf_tools::SignedDistanceField& object_sdf = sdf_found_itr->second;
+                    const float distance = object_sdf.Get(new_point.x, new_point.y, new_point.z);
+                    // Check if we're on the surface of the object
+                    if (distance < 0.0 && distance > -GetResolution())
+                    {
+                        // Check if we've been given a color to work with
+                        auto found_itr = object_color_map.find(current_cell.object_id);
+                        std_msgs::ColorRGBA object_color;
+                        if (found_itr != object_color_map.end())
+                        {
+                            object_color = found_itr->second;
+                            if (object_color.a > 0.0)
+                            {
+                                display_rep.points.push_back(new_point);
+                                display_rep.colors.push_back(object_color);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return display_rep;
+}
+
 visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplayOccupancyOnly(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
