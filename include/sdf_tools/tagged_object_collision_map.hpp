@@ -1824,11 +1824,11 @@ namespace sdf_tools
             return MakeObjectSDFs(arc_helpers::GetKeys(object_id_map));
         }
 
-        visualization_msgs::Marker ExportForDisplay(const float alpha) const;
+        visualization_msgs::Marker ExportForDisplay(const float alpha, const std::vector<uint32_t>& objects_to_draw=std::vector<uint32_t>()) const;
 
         visualization_msgs::Marker ExportForDisplay(const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map=std::map<uint32_t, std_msgs::ColorRGBA>()) const;
 
-        visualization_msgs::Marker ExportContourOnlyForDisplay(const float alpha) const;
+        visualization_msgs::Marker ExportContourOnlyForDisplay(const float alpha, const std::vector<uint32_t>& objects_to_draw=std::vector<uint32_t>()) const;
 
         visualization_msgs::Marker ExportContourOnlyForDisplay(const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map=std::map<uint32_t, std_msgs::ColorRGBA>()) const;
 

@@ -158,8 +158,13 @@ bool TaggedObjectCollisionMapGrid::LoadFromMessageRepresentation(const sdf_tools
     return true;
 }
 
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const float alpha) const
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const float alpha, const std::vector<uint32_t>& objects_to_draw) const
 {
+    std::map<uint32_t, uint32_t> objects_to_draw_map;
+    for (size_t idx = 0; idx < objects_to_draw.size(); idx++)
+    {
+        objects_to_draw_map[objects_to_draw[idx]] = 1u;
+    }
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
     // Populate the header
@@ -189,11 +194,15 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const 
                 new_point.y = location[1];
                 new_point.z = location[2];
                 const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
-                const std_msgs::ColorRGBA object_color = GenerateComponentColor(current_cell.object_id, alpha);
-                if (object_color.a > 0.0)
+                const auto draw_found_itr = objects_to_draw_map.find(current_cell.object_id);
+                if (draw_found_itr != objects_to_draw_map.end() || objects_to_draw_map.size() == 0)
                 {
-                    display_rep.points.push_back(new_point);
-                    display_rep.colors.push_back(object_color);
+                    const std_msgs::ColorRGBA object_color = GenerateComponentColor(current_cell.object_id, alpha);
+                    if (object_color.a > 0.0)
+                    {
+                        display_rep.points.push_back(new_point);
+                        display_rep.colors.push_back(object_color);
+                    }
                 }
             }
         }
@@ -254,8 +263,13 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const 
     return display_rep;
 }
 
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(const float alpha) const
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(const float alpha, const std::vector<uint32_t>& objects_to_draw) const
 {
+    std::map<uint32_t, uint32_t> objects_to_draw_map;
+    for (size_t idx = 0; idx < objects_to_draw.size(); idx++)
+    {
+        objects_to_draw_map[objects_to_draw[idx]] = 1u;
+    }
     // Make SDF
     const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs = MakeObjectSDFs();
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
@@ -296,11 +310,15 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDis
                     // Check if we're on the surface of the object
                     if (distance < 0.0 && distance > -GetResolution())
                     {
-                        const std_msgs::ColorRGBA object_color = GenerateComponentColor(current_cell.object_id, alpha);
-                        if (object_color.a > 0.0)
+                        const auto draw_found_itr = objects_to_draw_map.find(current_cell.object_id);
+                        if (draw_found_itr != objects_to_draw_map.end() || objects_to_draw_map.size() == 0)
                         {
-                            display_rep.points.push_back(new_point);
-                            display_rep.colors.push_back(object_color);
+                            const std_msgs::ColorRGBA object_color = GenerateComponentColor(current_cell.object_id, alpha);
+                            if (object_color.a > 0.0)
+                            {
+                                display_rep.points.push_back(new_point);
+                                display_rep.colors.push_back(object_color);
+                            }
                         }
                     }
                 }
@@ -358,11 +376,15 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDis
                         if (found_itr != object_color_map.end())
                         {
                             object_color = found_itr->second;
-                            if (object_color.a > 0.0)
-                            {
-                                display_rep.points.push_back(new_point);
-                                display_rep.colors.push_back(object_color);
-                            }
+                        }
+                        else
+                        {
+                            object_color = GenerateComponentColor(current_cell.object_id);
+                        }
+                        if (object_color.a > 0.0)
+                        {
+                            display_rep.points.push_back(new_point);
+                            display_rep.colors.push_back(object_color);
                         }
                     }
                 }
