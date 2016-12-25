@@ -17,7 +17,8 @@ visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<uin
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(Eigen::Affine3d::Identity());
+    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
     display_rep.scale.x = collision_map.GetCellSizes()[0];
     display_rep.scale.y = collision_map.GetCellSizes()[1];
     display_rep.scale.z = collision_map.GetCellSizes()[2];

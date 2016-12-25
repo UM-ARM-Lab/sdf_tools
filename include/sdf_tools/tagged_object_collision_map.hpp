@@ -482,6 +482,8 @@ namespace sdf_tools
 
     public:
 
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
         inline TaggedObjectCollisionMapGrid(const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;

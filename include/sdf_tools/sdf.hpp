@@ -84,6 +84,8 @@ namespace sdf_tools
 
     public:
 
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
         inline SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
         {
             frame_ = frame;
