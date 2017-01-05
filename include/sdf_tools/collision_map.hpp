@@ -299,10 +299,10 @@ namespace sdf_tools
             return double((dx * dx) + (dy * dy) + (dz * dz));
         }
 
-        bool initialized_;
-        std::string frame_;
         VoxelGrid::VoxelGrid<COLLISION_CELL> collision_field_;
         uint32_t number_of_components_;
+        std::string frame_;
+        bool initialized_;
         bool components_valid_;
 
         std::vector<uint8_t> PackBinaryRepresentation(std::vector<COLLISION_CELL>& raw);
@@ -331,7 +331,7 @@ namespace sdf_tools
             components_valid_ = false;
         }
 
-        inline CollisionMapGrid() : initialized_(false), number_of_components_(0), components_valid_(false) {}
+        inline CollisionMapGrid() : number_of_components_(0), initialized_(false), components_valid_(false) {}
 
         inline bool IsInitialized() const
         {

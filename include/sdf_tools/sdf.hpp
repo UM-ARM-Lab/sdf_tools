@@ -68,10 +68,10 @@ namespace sdf_tools
     {
     protected:
 
+        VoxelGrid::VoxelGrid<float> distance_field_;
+        std::string frame_;
         bool initialized_;
         bool locked_;
-        std::string frame_;
-        VoxelGrid::VoxelGrid<float> distance_field_;
 
         std::vector<uint8_t> GetInternalBinaryRepresentation(const std::vector<float> &field_data);
 

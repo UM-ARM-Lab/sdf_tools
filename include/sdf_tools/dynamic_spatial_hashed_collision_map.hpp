@@ -23,10 +23,10 @@ namespace sdf_tools
     {
     protected:
 
-        bool initialized_;
-        std::string frame_;
         VoxelGrid::DynamicSpatialHashedVoxelGrid<COLLISION_CELL> collision_field_;
         uint32_t number_of_components_;
+        std::string frame_;
+        bool initialized_;
         bool components_valid_;
 
     public:
@@ -35,7 +35,7 @@ namespace sdf_tools
 
         DynamicSpatialHashedCollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, int64_t chunk_x_size, int64_t chunk_y_size, int64_t chunk_z_size, COLLISION_CELL OOB_value);
 
-        DynamicSpatialHashedCollisionMapGrid() : initialized_(false), number_of_components_(0), components_valid_(false) {}
+        DynamicSpatialHashedCollisionMapGrid() : number_of_components_(0), initialized_(false), components_valid_(false) {}
 
         inline bool IsInitialized() const
         {
