@@ -608,6 +608,11 @@ namespace sdf_tools
             return collision_field_.GetImmutable(location);
         }
 
+        inline std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> GetImmutable(const Eigen::Vector4d& location) const
+        {
+            return collision_field_.GetImmutable(location);
+        }
+
         inline std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> GetImmutable(const double x, const double y, const double z) const
         {
             return collision_field_.GetImmutable(x, y, z);
@@ -624,6 +629,11 @@ namespace sdf_tools
         }
 
         inline std::pair<TAGGED_OBJECT_COLLISION_CELL&, bool> GetMutable(const Eigen::Vector3d& location)
+        {
+            return collision_field_.GetMutable(location);
+        }
+
+        inline std::pair<TAGGED_OBJECT_COLLISION_CELL&, bool> GetMutable(const Eigen::Vector4d& location)
         {
             return collision_field_.GetMutable(location);
         }
@@ -657,6 +667,13 @@ namespace sdf_tools
             return collision_field_.SetValue(location, value);
         }
 
+        inline bool Set(const Eigen::Vector4d& location, const TAGGED_OBJECT_COLLISION_CELL& value)
+        {
+            components_valid_ = false;
+            convex_segments_valid_ = false;
+            return collision_field_.SetValue(location, value);
+        }
+
         inline bool Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, const TAGGED_OBJECT_COLLISION_CELL& value)
         {
             components_valid_ = false;
@@ -679,6 +696,13 @@ namespace sdf_tools
         }
 
         inline bool Set(const Eigen::Vector3d& location, TAGGED_OBJECT_COLLISION_CELL&& value)
+        {
+            components_valid_ = false;
+            convex_segments_valid_ = false;
+            return collision_field_.SetValue(location, value);
+        }
+
+        inline bool Set(const Eigen::Vector4d& location, TAGGED_OBJECT_COLLISION_CELL&& value)
         {
             components_valid_ = false;
             convex_segments_valid_ = false;
@@ -739,9 +763,14 @@ namespace sdf_tools
             return collision_field_.GetNumZCells();
         }
 
-        inline Eigen::Affine3d GetOriginTransform() const
+        inline const Eigen::Affine3d& GetOriginTransform() const
         {
             return collision_field_.GetOriginTransform();
+        }
+
+        inline const Eigen::Affine3d& GetInverseOriginTransform() const
+        {
+            return collision_field_.GetInverseOriginTransform();
         }
 
         inline std::string GetFrame() const
@@ -782,7 +811,9 @@ namespace sdf_tools
                     for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
                     {
                         const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
-                        const Eigen::Vector3d current_cell_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(x_index, y_index, z_index));
+                        const std::vector<double> raw_current_cell_location = GridIndexToLocation(x_index, y_index, z_index);
+                        assert(raw_current_cell_location.size() == 3);
+                        const Eigen::Vector3d current_cell_location(raw_current_cell_location[0], raw_current_cell_location[1], raw_current_cell_location[2]);
                         resampled.Set(current_cell_location, current_cell);
                     }
                 }

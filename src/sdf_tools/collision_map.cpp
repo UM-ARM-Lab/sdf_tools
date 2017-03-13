@@ -106,11 +106,11 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
     sdf_tools::CollisionMap message_rep;
     // Populate message
     message_rep.header.frame_id = frame_;
-    Eigen::Affine3d origin_transform = collision_field_.GetOriginTransform();
+    const Eigen::Affine3d& origin_transform = collision_field_.GetOriginTransform();
     message_rep.origin_transform.translation.x = origin_transform.translation().x();
     message_rep.origin_transform.translation.y = origin_transform.translation().y();
     message_rep.origin_transform.translation.z = origin_transform.translation().z();
-    Eigen::Quaterniond origin_transform_rotation(origin_transform.rotation());
+    const Eigen::Quaterniond origin_transform_rotation(origin_transform.rotation());
     message_rep.origin_transform.rotation.x = origin_transform_rotation.x();
     message_rep.origin_transform.rotation.y = origin_transform_rotation.y();
     message_rep.origin_transform.rotation.z = origin_transform_rotation.z();

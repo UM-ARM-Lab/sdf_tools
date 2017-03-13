@@ -427,9 +427,14 @@ namespace sdf_tools
             return collision_field_.GetNumZCells();
         }
 
-        inline Eigen::Affine3d GetOriginTransform() const
+        inline const Eigen::Affine3d& GetOriginTransform() const
         {
             return collision_field_.GetOriginTransform();
+        }
+
+        inline const Eigen::Affine3d& GetInverseOriginTransform() const
+        {
+            return collision_field_.GetInverseOriginTransform();
         }
 
         inline std::string GetFrame() const

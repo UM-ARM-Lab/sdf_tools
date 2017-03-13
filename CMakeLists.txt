@@ -6,7 +6,8 @@ project(sdf_tools)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS rospy std_msgs sensor_msgs visualization_msgs image_transport cv_bridge arc_utilities message_generation)
 find_package(cmake_modules REQUIRED)
-find_package(Eigen REQUIRED)
+find_package(Eigen3 REQUIRED)
+set(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 find_package(OpenCV REQUIRED)
 # MoveIt! isn't a required dependency
 find_package(moveit_msgs)
@@ -44,9 +45,9 @@ generate_messages(DEPENDENCIES geometry_msgs std_msgs)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 if(moveit_core_FOUND)
-    catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib Eigen OpenCV)
+    catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib Eigen3 OpenCV)
 else()
-    catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs visualization_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib Eigen OpenCV)
+    catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs visualization_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib Eigen3 OpenCV)
 endif()
 
 ###########
@@ -56,9 +57,9 @@ endif()
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 if(moveit_core_FOUND)
-    include_directories(include SYSTEM ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${moveit_core_INCLUDE_DIRS} ${moveit_msgs_INCLUDE_DIRS} ${moveit_ros_planning_INCLUDE_DIRS})
+    include_directories(include SYSTEM ${catkin_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${moveit_core_INCLUDE_DIRS} ${moveit_msgs_INCLUDE_DIRS} ${moveit_ros_planning_INCLUDE_DIRS})
 else()
-    include_directories(include SYSTEM ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+    include_directories(include SYSTEM ${catkin_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 endif()
 
 set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Werror")
