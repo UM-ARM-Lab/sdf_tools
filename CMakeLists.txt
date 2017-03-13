@@ -45,9 +45,9 @@ generate_messages(DEPENDENCIES geometry_msgs std_msgs)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 if(moveit_core_FOUND)
-    catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib Eigen3 OpenCV)
+    catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs moveit_core moveit_ros_planning visualization_msgs moveit_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS Eigen3 OpenCV)
 else()
-    catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs visualization_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS system_lib Eigen3 OpenCV)
+    catkin_package(INCLUDE_DIRS include LIBRARIES ${PROJECT_NAME} CATKIN_DEPENDS rospy std_msgs sensor_msgs visualization_msgs image_transport cv_bridge arc_utilities message_runtime DEPENDS Eigen3 OpenCV)
 endif()
 
 ###########
