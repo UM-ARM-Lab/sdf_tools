@@ -301,6 +301,168 @@ namespace sdf_tools
         /*
          * Estimates the real distance of the provided point, comparing it with the cell center location and gradient vector
          */
+
+    protected:
+
+        inline std::pair<Eigen::Vector3d, double> GetPrimaryComponentsVector(const Eigen::Vector3d& raw_vector) const
+        {
+            if (std::abs(raw_vector.x()) > std::abs(raw_vector.y()) && std::abs(raw_vector.x()) > std::abs(raw_vector.z()))
+            {
+                if (raw_vector.x() >= 0.0)
+                {
+                    return std::make_pair(Eigen::Vector3d(GetResolution() * 0.5, 0.0, 0.0), GetResolution() * 0.5);
+                }
+                else
+                {
+                    return std::make_pair(Eigen::Vector3d(GetResolution() * -0.5, 0.0, 0.0), GetResolution() * 0.5);
+                }
+            }
+            else if (std::abs(raw_vector.y()) > std::abs(raw_vector.x()) && std::abs(raw_vector.y()) > std::abs(raw_vector.z()))
+            {
+                if (raw_vector.y() >= 0.0)
+                {
+                    return std::make_pair(Eigen::Vector3d(0.0, GetResolution() * 0.5, 0.0), GetResolution() * 0.5);
+                }
+                else
+                {
+                    return std::make_pair(Eigen::Vector3d(0.0, GetResolution() * -0.5, 0.0), GetResolution() * 0.5);
+                }
+            }
+            else if (std::abs(raw_vector.z()) > std::abs(raw_vector.x()) && std::abs(raw_vector.z()) > std::abs(raw_vector.y()))
+            {
+                if (raw_vector.z() >= 0.0)
+                {
+                    return std::make_pair(Eigen::Vector3d(0.0, 0.0, GetResolution() * 0.5), GetResolution() * 0.5);
+                }
+                else
+                {
+                    return std::make_pair(Eigen::Vector3d(0.0, 0.0, GetResolution() * -0.5), GetResolution() * 0.5);
+                }
+            }
+            else if (std::abs(raw_vector.x()) == std::abs(raw_vector.y()))
+            {
+                const Eigen::Vector3d temp_vector(raw_vector.x(), raw_vector.y(), 0.0);
+                return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
+            }
+            else if (std::abs(raw_vector.y()) == std::abs(raw_vector.z()))
+            {
+                const Eigen::Vector3d temp_vector(0.0, raw_vector.y(), raw_vector.x());
+                return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
+            }
+            else if (std::abs(raw_vector.x()) == std::abs(raw_vector.z()))
+            {
+                const Eigen::Vector3d temp_vector(raw_vector.x(), 0.0, raw_vector.z());
+                return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
+            }
+            else
+            {
+                return std::make_pair((raw_vector / (raw_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 3.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 3.0));
+            }
+        }
+
+        inline double ComputeAxisMatch(const double axis_value, const double check_value) const
+        {
+            if ((axis_value >= 0.0) == (check_value >= 0.0))
+            {
+                return std::abs(check_value - axis_value);
+            }
+            else
+            {
+                return -std::abs(check_value - axis_value);
+            }
+        }
+
+        inline Eigen::Vector3d GetBestMatchSurfaceVector(const Eigen::Vector3d& possible_surfaces_vector, const Eigen::Vector3d& center_to_location_vector) const
+        {
+            const Eigen::Vector3d location_rejected_on_possible = EigenHelpers::VectorRejection(possible_surfaces_vector, center_to_location_vector);
+            // Find the axis with the best-match components
+            const double x_axis_match = ComputeAxisMatch(possible_surfaces_vector.x(), location_rejected_on_possible.x());
+            const double y_axis_match = ComputeAxisMatch(possible_surfaces_vector.y(), location_rejected_on_possible.y());
+            const double z_axis_match = ComputeAxisMatch(possible_surfaces_vector.z(), location_rejected_on_possible.z());
+            if ((x_axis_match > y_axis_match) && (x_axis_match > z_axis_match))
+            {
+                return Eigen::Vector3d(possible_surfaces_vector.x(), 0.0, 0.0);
+            }
+            else if ((y_axis_match > x_axis_match) && (y_axis_match > z_axis_match))
+            {
+                return Eigen::Vector3d(0.0, possible_surfaces_vector.y(), 0.0);
+            }
+            else if ((z_axis_match > x_axis_match) && (z_axis_match > y_axis_match))
+            {
+                return Eigen::Vector3d(0.0, 0.0, possible_surfaces_vector.z());
+            }
+            else
+            {
+                assert(false);
+                return possible_surfaces_vector;
+            }
+        }
+
+        inline std::pair<Eigen::Vector3d, double> GetPrimaryEntrySurfaceVector(const Eigen::Vector3d& boundary_direction_vector, const Eigen::Vector3d& center_to_location_vector) const
+        {
+            if (boundary_direction_vector.squaredNorm() > std::numeric_limits<double>::epsilon())
+            {
+                const std::pair<Eigen::Vector3d, double> primary_components_vector_query = GetPrimaryComponentsVector(boundary_direction_vector);
+                // If the cell is on a surface
+                if (primary_components_vector_query.second == (GetResolution() * 0.5))
+                {
+                    return primary_components_vector_query;
+                }
+                // If the cell is on an edge or surface
+                else
+                {
+                    // Pick the best-match of the two/three exposed surfaces
+                    return std::make_pair(GetBestMatchSurfaceVector(primary_components_vector_query.first, center_to_location_vector), GetResolution() * 0.5);
+                }
+            }
+            else
+            {
+                return GetPrimaryComponentsVector(center_to_location_vector);
+            }
+        }
+
+        inline double EstimateDistanceInternal(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
+        {
+            const std::vector<double> cell_center = GridIndexToLocation(x_idx, y_idx, z_idx);
+            const Eigen::Vector3d cell_center_to_location_vector(x - cell_center[0], y - cell_center[1], z - cell_center[2]);
+            const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
+            const std::vector<double> raw_gradient = GetGradient(x_idx, y_idx, z_idx, true);
+            const Eigen::Vector3d gradient(raw_gradient[0], raw_gradient[1], raw_gradient[2]);
+            const Eigen::Vector3d direction_to_boundary = (nominal_sdf_distance >= 0.0) ? -gradient : gradient;
+            // Needs special handling if there's no gradient to work with
+            const std::pair<Eigen::Vector3d, double> entry_surface_information = GetPrimaryEntrySurfaceVector(direction_to_boundary, cell_center_to_location_vector);
+            const Eigen::Vector3d& entry_surface_vector = entry_surface_information.first;
+            const double minimum_distance_magnitude = entry_surface_information.second;
+            const double center_adjusted_nominal_distance = (nominal_sdf_distance >= 0.0) ? nominal_sdf_distance - (GetResolution() * 0.5) : nominal_sdf_distance + (GetResolution() * 0.5);
+            double minimum_adjusted_distance = center_adjusted_nominal_distance;
+            if (center_adjusted_nominal_distance >= 0.0 && std::abs(center_adjusted_nominal_distance) < minimum_distance_magnitude)
+            {
+                minimum_adjusted_distance = minimum_distance_magnitude;
+            }
+            else if (center_adjusted_nominal_distance < 0.0 && std::abs(center_adjusted_nominal_distance) < minimum_distance_magnitude)
+            {
+                minimum_adjusted_distance = -minimum_distance_magnitude;
+            }
+            const double raw_distance_adjustment = EigenHelpers::VectorProjection(entry_surface_vector, cell_center_to_location_vector).norm();
+            const double real_distance_adjustment = (minimum_adjusted_distance >= 0.0) ? -raw_distance_adjustment: raw_distance_adjustment;
+            const double final_adjusted_distance = minimum_adjusted_distance + real_distance_adjustment;
+            if (std::abs(final_adjusted_distance) < GetResolution() * 0.001)
+            {
+                return 0.0;
+            }
+            if ((minimum_adjusted_distance >= 0.0) == (final_adjusted_distance >= 0.0))
+            {
+                return final_adjusted_distance;
+            }
+            else
+            {
+                std::cerr << "Center adjusted nominal distance " << minimum_adjusted_distance << " final adjusted_distance " << final_adjusted_distance << std::endl;
+                assert(false);
+            }
+        }
+
+    public:
+
         inline std::pair<double, bool> EstimateDistance(const double x, const double y, const double z) const
         {
             return EstimateDistance(Eigen::Vector4d(x, y, z, 1.0));
@@ -311,30 +473,7 @@ namespace sdf_tools
             const std::vector<int64_t> indices = LocationToGridIndex(location);
             if (indices.size() == 3)
             {
-                const std::vector<double> raw_gradient = GetGradient(indices[0], indices[1], indices[2], true);
-                assert(raw_gradient.size() == 3);
-                const Eigen::Vector3d gradient(raw_gradient[0], raw_gradient[1], raw_gradient[2]);
-                const std::vector<double> cell_location = GridIndexToLocation(indices[0], indices[1], indices[2]);
-                const Eigen::Vector3d cell_location_to_our_location(location.x() - cell_location[0], location.y() - cell_location[1], location.z() - cell_location[2]);
-                const double nominal_distance = (double)distance_field_.GetImmutable(indices[0], indices[1], indices[2]).first;
-                const double corrected_nominal_distance = (nominal_distance >= 0.0) ? nominal_distance - (GetResolution() * 0.5) : nominal_distance + (GetResolution() * 0.5);
-                const double cell_location_to_our_location_dot_gradient = cell_location_to_our_location.dot(gradient);
-                const double distance_adjustment = cell_location_to_our_location_dot_gradient / gradient.norm();
-                const double distance_estimate = corrected_nominal_distance + distance_adjustment;
-                if ((corrected_nominal_distance >= 0.0) == (distance_estimate >= 0.0))
-                {
-                    return std::make_pair(distance_estimate, true);
-                }
-                else if (corrected_nominal_distance >= 0.0)
-                {
-                    const double fudge_distance = GetResolution() * 0.0625;
-                    return std::make_pair(fudge_distance, true);
-                }
-                else
-                {
-                    const double fudge_distance = GetResolution() * -0.0625;
-                    return std::make_pair(fudge_distance, true);
-                }
+                return std::make_pair(EstimateDistanceInternal(location.x(), location.y(), location.z(), indices[0], indices[1], indices[2]), true);
             }
             else
             {
@@ -347,30 +486,7 @@ namespace sdf_tools
             const std::vector<int64_t> indices = LocationToGridIndex(location);
             if (indices.size() == 3)
             {
-                const std::vector<double> raw_gradient = GetGradient(indices[0], indices[1], indices[2], true);
-                assert(raw_gradient.size() == 3);
-                const Eigen::Vector3d gradient(raw_gradient[0], raw_gradient[1], raw_gradient[2]);
-                const std::vector<double> cell_location = GridIndexToLocation(indices[0], indices[1], indices[2]);
-                const Eigen::Vector3d cell_location_to_our_location(location(0) - cell_location[0], location(1) - cell_location[1], location(2) - cell_location[2]);
-                const double nominal_distance = (double)distance_field_.GetImmutable(indices[0], indices[1], indices[2]).first;
-                const double corrected_nominal_distance = (nominal_distance >= 0.0) ? nominal_distance - (GetResolution() * 0.5) : nominal_distance + (GetResolution() * 0.5);
-                const double cell_location_to_our_location_dot_gradient = cell_location_to_our_location.dot(gradient);
-                const double distance_adjustment = cell_location_to_our_location_dot_gradient / gradient.norm();
-                const double distance_estimate = corrected_nominal_distance + distance_adjustment;
-                if ((corrected_nominal_distance >= 0.0) == (distance_estimate >= 0.0))
-                {
-                    return std::make_pair(distance_estimate, true);
-                }
-                else if (corrected_nominal_distance >= 0.0)
-                {
-                    const double fudge_distance = GetResolution() * 0.0625;
-                    return std::make_pair(fudge_distance, true);
-                }
-                else
-                {
-                    const double fudge_distance = GetResolution() * -0.0625;
-                    return std::make_pair(fudge_distance, true);
-                }
+                return std::make_pair(EstimateDistanceInternal(location(0), location(1), location(2), indices[0], indices[1], indices[2]), true);
             }
             else
             {

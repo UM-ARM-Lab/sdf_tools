@@ -313,19 +313,37 @@ namespace sdf_tools
 
     public:
 
-        inline CollisionMapGrid(const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const COLLISION_CELL& OOB_value) : initialized_(true)
+        inline CollisionMapGrid(const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const COLLISION_CELL& default_value, const COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
-            VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(resolution, x_size, y_size, z_size, OOB_value);
+            VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(resolution, x_size, y_size, z_size, default_value, OOB_value);
             collision_field_ = new_field;
             number_of_components_ = 0;
             components_valid_ = false;
         }
 
-        inline CollisionMapGrid(const Eigen::Affine3d& origin_transform, const std::string& frame, const double resolution, const double x_size, double y_size, const double z_size, const COLLISION_CELL& OOB_value) : initialized_(true)
+        inline CollisionMapGrid(const Eigen::Affine3d& origin_transform, const std::string& frame, const double resolution, const double x_size, double y_size, const double z_size, const COLLISION_CELL& default_value, const COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
-            VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
+            VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, default_value, OOB_value);
+            collision_field_ = new_field;
+            number_of_components_ = 0;
+            components_valid_ = false;
+        }
+
+        inline CollisionMapGrid(const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const COLLISION_CELL& OOB_default_value) : initialized_(true)
+        {
+            frame_ = frame;
+            VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(resolution, x_size, y_size, z_size, OOB_default_value);
+            collision_field_ = new_field;
+            number_of_components_ = 0;
+            components_valid_ = false;
+        }
+
+        inline CollisionMapGrid(const Eigen::Affine3d& origin_transform, const std::string& frame, const double resolution, const double x_size, double y_size, const double z_size, const COLLISION_CELL& OOB_default_value) : initialized_(true)
+        {
+            frame_ = frame;
+            VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_default_value);
             collision_field_ = new_field;
             number_of_components_ = 0;
             components_valid_ = false;
@@ -407,9 +425,14 @@ namespace sdf_tools
             return collision_field_.GetCellSizes()[0];
         }
 
-        inline COLLISION_CELL GetOOBValue() const
+        inline COLLISION_CELL GetDefaultValue() const
         {
             return collision_field_.GetDefaultValue();
+        }
+
+        inline COLLISION_CELL GetOOBValue() const
+        {
+            return collision_field_.GetOOBValue();
         }
 
         inline int64_t GetNumXCells() const

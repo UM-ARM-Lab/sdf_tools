@@ -484,6 +484,26 @@ namespace sdf_tools
 
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+        inline TaggedObjectCollisionMapGrid(const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const TAGGED_OBJECT_COLLISION_CELL& default_value, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
+        {
+            frame_ = frame;
+            VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(resolution, x_size, y_size, z_size, default_value, OOB_value);
+            collision_field_ = new_field;
+            number_of_components_ = 0;
+            components_valid_ = false;
+            convex_segments_valid_ = false;
+        }
+
+        inline TaggedObjectCollisionMapGrid(const Eigen::Affine3d& origin_transform, const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const TAGGED_OBJECT_COLLISION_CELL& default_value, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
+        {
+            frame_ = frame;
+            VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, default_value, OOB_value);
+            collision_field_ = new_field;
+            number_of_components_ = 0;
+            components_valid_ = false;
+            convex_segments_valid_ = false;
+        }
+
         inline TaggedObjectCollisionMapGrid(const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
@@ -743,9 +763,14 @@ namespace sdf_tools
             return collision_field_.GetCellSizes()[0];
         }
 
-        inline TAGGED_OBJECT_COLLISION_CELL GetOOBValue() const
+        inline TAGGED_OBJECT_COLLISION_CELL GetDefaultValue() const
         {
             return collision_field_.GetDefaultValue();
+        }
+
+        inline TAGGED_OBJECT_COLLISION_CELL GetOOBValue() const
+        {
+            return collision_field_.GetOOBValue();
         }
 
         inline int64_t GetNumXCells() const
