@@ -127,14 +127,14 @@ namespace sdf_tools
             return distance_field_.GetImmutable(x, y, z).first;
         }
 
-        inline float Get(const Eigen::Vector3d& location) const
+        inline float Get3d(const Eigen::Vector3d& location) const
         {
-            return distance_field_.GetImmutable(location).first;
+            return distance_field_.GetImmutable3d(location).first;
         }
 
-        inline float Get(const Eigen::Vector4d& location) const
+        inline float Get4d(const Eigen::Vector4d& location) const
         {
-            return distance_field_.GetImmutable(location).first;
+            return distance_field_.GetImmutable4d(location).first;
         }
 
         inline float Get(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
@@ -147,14 +147,14 @@ namespace sdf_tools
             return distance_field_.GetImmutable(x, y, z);
         }
 
-        inline std::pair<float, bool> GetSafe(const Eigen::Vector3d& location) const
+        inline std::pair<float, bool> GetSafe3d(const Eigen::Vector3d& location) const
         {
-            return distance_field_.GetImmutable(location);
+            return distance_field_.GetImmutable3d(location);
         }
 
-        inline std::pair<float, bool> GetSafe(const Eigen::Vector4d& location) const
+        inline std::pair<float, bool> GetSafe4d(const Eigen::Vector4d& location) const
         {
-            return distance_field_.GetImmutable(location);
+            return distance_field_.GetImmutable4d(location);
         }
 
         inline std::pair<float, bool> GetSafe(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
@@ -181,11 +181,11 @@ namespace sdf_tools
             }
         }
 
-        inline bool Set(const Eigen::Vector3d& location, float value)
+        inline bool Set3d(const Eigen::Vector3d& location, float value)
         {
             if (!locked_)
             {
-                return distance_field_.SetValue(location, value);
+                return distance_field_.SetValue3d(location, value);
             }
             else
             {
@@ -194,11 +194,11 @@ namespace sdf_tools
             }
         }
 
-        inline bool Set(const Eigen::Vector4d& location, float value)
+        inline bool Set4d(const Eigen::Vector4d& location, float value)
         {
             if (!locked_)
             {
-                return distance_field_.SetValue(location, value);
+                return distance_field_.SetValue4d(location, value);
             }
             else
             {
@@ -233,14 +233,14 @@ namespace sdf_tools
             }
         }
 
-        inline bool CheckInBounds(const Eigen::Vector3d& location) const
+        inline bool CheckInBounds3d(const Eigen::Vector3d& location) const
         {
-            return distance_field_.GetImmutable(location).second;
+            return distance_field_.GetImmutable3d(location).second;
         }
 
-        inline bool CheckInBounds(const Eigen::Vector4d& location) const
+        inline bool CheckInBounds4d(const Eigen::Vector4d& location) const
         {
-            return distance_field_.GetImmutable(location).second;
+            return distance_field_.GetImmutable4d(location).second;
         }
 
         inline bool CheckInBounds(const double x, const double y, const double z) const
@@ -620,12 +620,12 @@ namespace sdf_tools
 
         inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector3d& location) const
         {
-            return distance_field_.LocationToGridIndex(location);
+            return distance_field_.LocationToGridIndex3d(location);
         }
 
         inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector4d& location) const
         {
-            return distance_field_.LocationToGridIndex(location);
+            return distance_field_.LocationToGridIndex4d(location);
         }
 
         inline std::vector<int64_t> LocationToGridIndex(const double x, const double y, const double z) const

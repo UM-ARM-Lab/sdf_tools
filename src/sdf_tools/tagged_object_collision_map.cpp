@@ -652,7 +652,7 @@ std::vector<VoxelGrid::GRID_INDEX> TaggedObjectCollisionMapGrid::CheckIfConvex(c
             {
                 const double ratio = (double)step_num / (double)num_steps;
                 const Eigen::Vector3d interpolated_location = EigenHelpers::Interpolate(start_location, end_location, ratio);
-                std::vector<int64_t> raw_interpolated_index = region_grid.LocationToGridIndex(interpolated_location);
+                std::vector<int64_t> raw_interpolated_index = region_grid.LocationToGridIndex3d(interpolated_location);
                 assert(raw_interpolated_index.size() == 3);
                 VoxelGrid::GRID_INDEX interpolated_index(raw_interpolated_index[0], raw_interpolated_index[1], raw_interpolated_index[2]);
                 // Grab the cell at that location

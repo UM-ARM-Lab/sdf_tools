@@ -541,9 +541,22 @@ namespace sdf_tools
             return convex_segments_valid_;
         }
 
-        inline std::pair<bool, bool> CheckIfCandidateCorner(const Eigen::Vector3d& location) const
+        inline std::pair<bool, bool> CheckIfCandidateCorner3d(const Eigen::Vector3d& location) const
         {
-            const std::vector<int64_t> indices = collision_field_.LocationToGridIndex(location);
+            const std::vector<int64_t> indices = collision_field_.LocationToGridIndex3d(location);
+            if (indices.size() == 3)
+            {
+                return CheckIfCandidateCorner(indices[0], indices[1], indices[2]);
+            }
+            else
+            {
+                return std::pair<bool, bool>(false, false);
+            }
+        }
+
+        inline std::pair<bool, bool> CheckIfCandidateCorner4d(const Eigen::Vector4d& location) const
+        {
+            const std::vector<int64_t> indices = collision_field_.LocationToGridIndex4d(location);
             if (indices.size() == 3)
             {
                 return CheckIfCandidateCorner(indices[0], indices[1], indices[2]);
@@ -556,8 +569,8 @@ namespace sdf_tools
 
         inline std::pair<bool, bool> CheckIfCandidateCorner(const double x, const double y, const double z) const
         {
-            const Eigen::Vector3d location(x, y, z);
-            return CheckIfCandidateCorner(location);
+            const Eigen::Vector4d location(x, y, z, 1.0);
+            return CheckIfCandidateCorner4d(location);
         }
 
         inline std::pair<bool, bool> CheckIfCandidateCorner(const VoxelGrid::GRID_INDEX& index) const
@@ -623,14 +636,14 @@ namespace sdf_tools
             }
         }
 
-        inline std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> GetImmutable(const Eigen::Vector3d& location) const
+        inline std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> GetImmutable3d(const Eigen::Vector3d& location) const
         {
-            return collision_field_.GetImmutable(location);
+            return collision_field_.GetImmutable3d(location);
         }
 
-        inline std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> GetImmutable(const Eigen::Vector4d& location) const
+        inline std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> GetImmutable4d(const Eigen::Vector4d& location) const
         {
-            return collision_field_.GetImmutable(location);
+            return collision_field_.GetImmutable4d(location);
         }
 
         inline std::pair<const TAGGED_OBJECT_COLLISION_CELL&, bool> GetImmutable(const double x, const double y, const double z) const
@@ -648,14 +661,14 @@ namespace sdf_tools
             return collision_field_.GetImmutable(x_index, y_index, z_index);
         }
 
-        inline std::pair<TAGGED_OBJECT_COLLISION_CELL&, bool> GetMutable(const Eigen::Vector3d& location)
+        inline std::pair<TAGGED_OBJECT_COLLISION_CELL&, bool> GetMutable3d(const Eigen::Vector3d& location)
         {
-            return collision_field_.GetMutable(location);
+            return collision_field_.GetMutable3d(location);
         }
 
-        inline std::pair<TAGGED_OBJECT_COLLISION_CELL&, bool> GetMutable(const Eigen::Vector4d& location)
+        inline std::pair<TAGGED_OBJECT_COLLISION_CELL&, bool> GetMutable4d(const Eigen::Vector4d& location)
         {
-            return collision_field_.GetMutable(location);
+            return collision_field_.GetMutable4d(location);
         }
 
         inline std::pair<TAGGED_OBJECT_COLLISION_CELL&, bool> GetMutable(const double x, const double y, const double z)
@@ -680,18 +693,18 @@ namespace sdf_tools
             return collision_field_.SetValue(x, y, z, value);
         }
 
-        inline bool Set(const Eigen::Vector3d& location, const TAGGED_OBJECT_COLLISION_CELL& value)
+        inline bool Set3d(const Eigen::Vector3d& location, const TAGGED_OBJECT_COLLISION_CELL& value)
         {
             components_valid_ = false;
             convex_segments_valid_ = false;
-            return collision_field_.SetValue(location, value);
+            return collision_field_.SetValue3d(location, value);
         }
 
-        inline bool Set(const Eigen::Vector4d& location, const TAGGED_OBJECT_COLLISION_CELL& value)
+        inline bool Set4d(const Eigen::Vector4d& location, const TAGGED_OBJECT_COLLISION_CELL& value)
         {
             components_valid_ = false;
             convex_segments_valid_ = false;
-            return collision_field_.SetValue(location, value);
+            return collision_field_.SetValue4d(location, value);
         }
 
         inline bool Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, const TAGGED_OBJECT_COLLISION_CELL& value)
@@ -715,18 +728,18 @@ namespace sdf_tools
             return collision_field_.SetValue(x, y, z, value);
         }
 
-        inline bool Set(const Eigen::Vector3d& location, TAGGED_OBJECT_COLLISION_CELL&& value)
+        inline bool Set3d(const Eigen::Vector3d& location, TAGGED_OBJECT_COLLISION_CELL&& value)
         {
             components_valid_ = false;
             convex_segments_valid_ = false;
-            return collision_field_.SetValue(location, value);
+            return collision_field_.SetValue3d(location, value);
         }
 
-        inline bool Set(const Eigen::Vector4d& location, TAGGED_OBJECT_COLLISION_CELL&& value)
+        inline bool Set4d(const Eigen::Vector4d& location, TAGGED_OBJECT_COLLISION_CELL&& value)
         {
             components_valid_ = false;
             convex_segments_valid_ = false;
-            return collision_field_.SetValue(location, value);
+            return collision_field_.SetValue4d(location, value);
         }
 
         inline bool Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, TAGGED_OBJECT_COLLISION_CELL&& value)
@@ -808,6 +821,16 @@ namespace sdf_tools
             return std::pair<uint32_t, bool>(number_of_components_, components_valid_);
         }
 
+        inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector3d& location) const
+        {
+            return collision_field_.LocationToGridIndex3d(location);
+        }
+
+        inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector4d& location) const
+        {
+            return collision_field_.LocationToGridIndex4d(location);
+        }
+
         inline std::vector<int64_t> LocationToGridIndex(const double x, const double y, const double z) const
         {
             return collision_field_.LocationToGridIndex(x, y, z);
@@ -838,8 +861,8 @@ namespace sdf_tools
                         const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
                         const std::vector<double> raw_current_cell_location = GridIndexToLocation(x_index, y_index, z_index);
                         assert(raw_current_cell_location.size() == 3);
-                        const Eigen::Vector3d current_cell_location(raw_current_cell_location[0], raw_current_cell_location[1], raw_current_cell_location[2]);
-                        resampled.Set(current_cell_location, current_cell);
+                        const Eigen::Vector4d current_cell_location(raw_current_cell_location[0], raw_current_cell_location[1], raw_current_cell_location[2], 1.0);
+                        resampled.Set4d(current_cell_location, current_cell);
                     }
                 }
             }

@@ -361,9 +361,14 @@ namespace sdf_tools
             return components_valid_;
         }
 
-        inline std::pair<COLLISION_CELL, bool> Get(const Eigen::Vector3d& location) const
+        inline std::pair<COLLISION_CELL, bool> Get3d(const Eigen::Vector3d& location) const
         {
-            return collision_field_.GetImmutable(location);
+            return collision_field_.GetImmutable3d(location);
+        }
+
+        inline std::pair<COLLISION_CELL, bool> Get4d(const Eigen::Vector4d& location) const
+        {
+            return collision_field_.GetImmutable4d(location);
         }
 
         inline std::pair<COLLISION_CELL, bool> Get(const double x, const double y, const double z) const
@@ -387,10 +392,16 @@ namespace sdf_tools
             return collision_field_.SetValue(x, y, z, value);
         }
 
-        inline bool Set(const Eigen::Vector3d& location, COLLISION_CELL value)
+        inline bool Set3d(const Eigen::Vector3d& location, COLLISION_CELL value)
         {
             components_valid_ = false;
-            return collision_field_.SetValue(location, value);
+            return collision_field_.SetValue3d(location, value);
+        }
+
+        inline bool Set4d(const Eigen::Vector4d& location, COLLISION_CELL value)
+        {
+            components_valid_ = false;
+            return collision_field_.SetValue4d(location, value);
         }
 
         inline bool Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, COLLISION_CELL value)
@@ -468,6 +479,16 @@ namespace sdf_tools
         inline std::pair<uint32_t, bool> GetNumConnectedComponents() const
         {
             return std::pair<uint32_t, bool>(number_of_components_, components_valid_);
+        }
+
+        inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector3d& location) const
+        {
+            return collision_field_.LocationToGridIndex3d(location);
+        }
+
+        inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector4d& location) const
+        {
+            return collision_field_.LocationToGridIndex4d(location);
         }
 
         inline std::vector<int64_t> LocationToGridIndex(double x, double y, double z) const
