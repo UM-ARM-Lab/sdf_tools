@@ -465,12 +465,12 @@ namespace sdf_tools
 
         inline std::pair<double, bool> EstimateDistance(const double x, const double y, const double z) const
         {
-            return EstimateDistance(Eigen::Vector4d(x, y, z, 1.0));
+            return EstimateDistance4d(Eigen::Vector4d(x, y, z, 1.0));
         }
 
-        inline std::pair<double, bool> EstimateDistance(const Eigen::Vector3d& location) const
+        inline std::pair<double, bool> EstimateDistance3d(const Eigen::Vector3d& location) const
         {
-            const std::vector<int64_t> indices = LocationToGridIndex(location);
+            const std::vector<int64_t> indices = LocationToGridIndex3d(location);
             if (indices.size() == 3)
             {
                 return std::make_pair(EstimateDistanceInternal(location.x(), location.y(), location.z(), indices[0], indices[1], indices[2]), true);
@@ -481,9 +481,9 @@ namespace sdf_tools
             }
         }
 
-        inline std::pair<double, bool> EstimateDistance(const Eigen::Vector4d& location) const
+        inline std::pair<double, bool> EstimateDistance4d(const Eigen::Vector4d& location) const
         {
-            const std::vector<int64_t> indices = LocationToGridIndex(location);
+            const std::vector<int64_t> indices = LocationToGridIndex4d(location);
             if (indices.size() == 3)
             {
                 return std::make_pair(EstimateDistanceInternal(location(0), location(1), location(2), indices[0], indices[1], indices[2]), true);
@@ -496,12 +496,12 @@ namespace sdf_tools
 
         inline std::vector<double> GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients=false) const
         {
-            return GetGradient(Eigen::Vector4d(x, y, z, 1.0), enable_edge_gradients);
+            return GetGradient4d(Eigen::Vector4d(x, y, z, 1.0), enable_edge_gradients);
         }
 
-        inline std::vector<double> GetGradient(const Eigen::Vector3d& location, const bool enable_edge_gradients=false) const
+        inline std::vector<double> GetGradient3d(const Eigen::Vector3d& location, const bool enable_edge_gradients=false) const
         {
-            const std::vector<int64_t> indices = LocationToGridIndex(location);
+            const std::vector<int64_t> indices = LocationToGridIndex3d(location);
             if (indices.size() == 3)
             {
                 return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
@@ -512,9 +512,9 @@ namespace sdf_tools
             }
         }
 
-        inline std::vector<double> GetGradient(const Eigen::Vector4d& location, const bool enable_edge_gradients=false) const
+        inline std::vector<double> GetGradient4d(const Eigen::Vector4d& location, const bool enable_edge_gradients=false) const
         {
-            const std::vector<int64_t> indices = LocationToGridIndex(location);
+            const std::vector<int64_t> indices = LocationToGridIndex4d(location);
             if (indices.size() == 3)
             {
                 return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
@@ -618,12 +618,12 @@ namespace sdf_tools
             return frame_;
         }
 
-        inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector3d& location) const
+        inline std::vector<int64_t> LocationToGridIndex3d(const Eigen::Vector3d& location) const
         {
             return distance_field_.LocationToGridIndex3d(location);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector4d& location) const
+        inline std::vector<int64_t> LocationToGridIndex4d(const Eigen::Vector4d& location) const
         {
             return distance_field_.LocationToGridIndex4d(location);
         }

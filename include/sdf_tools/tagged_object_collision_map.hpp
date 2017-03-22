@@ -821,12 +821,12 @@ namespace sdf_tools
             return std::pair<uint32_t, bool>(number_of_components_, components_valid_);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector3d& location) const
+        inline std::vector<int64_t> LocationToGridIndex3d(const Eigen::Vector3d& location) const
         {
             return collision_field_.LocationToGridIndex3d(location);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex(const Eigen::Vector4d& location) const
+        inline std::vector<int64_t> LocationToGridIndex4d(const Eigen::Vector4d& location) const
         {
             return collision_field_.LocationToGridIndex4d(location);
         }
