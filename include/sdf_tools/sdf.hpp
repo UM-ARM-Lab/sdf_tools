@@ -605,18 +605,18 @@ namespace sdf_tools
             }
         }
 
-        inline Eigen::Vector3d ProjectOutOfCollision(const double x, const double y, const double z, const double stepsize_multiplier) const
+        inline Eigen::Vector3d ProjectOutOfCollision(const double x, const double y, const double z, const double stepsize_multiplier = 1.0 / 10.0) const
         {
             const Eigen::Vector4d result = ProjectOutOfCollision4d(Eigen::Vector4d(x, y, z, 1.0), stepsize_multiplier);
             return result.head<3>();
         }
 
-        inline Eigen::Vector3d ProjectOutOfCollision3d(const Eigen::Vector3d& location, const double stepsize_multiplier) const
+        inline Eigen::Vector3d ProjectOutOfCollision3d(const Eigen::Vector3d& location, const double stepsize_multiplier = 1.0 / 10.0) const
         {
             return ProjectOutOfCollision(location.x(), location.y(), location.z(), stepsize_multiplier);
         }
 
-        inline Eigen::Vector4d ProjectOutOfCollision4d(const Eigen::Vector4d& location, const double stepsize_multiplier) const
+        inline Eigen::Vector4d ProjectOutOfCollision4d(const Eigen::Vector4d& location, const double stepsize_multiplier = 1.0 / 10.0) const
         {
             Eigen::Vector4d mutable_location = location;
             const bool enable_edge_gradients = true;
