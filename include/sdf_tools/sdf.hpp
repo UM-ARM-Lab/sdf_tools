@@ -297,7 +297,7 @@ namespace sdf_tools
             return distance_field_.GetNumZCells();
         }
 
-        protected:
+    protected:
 
         inline std::pair<Eigen::Vector3d, double> GetPrimaryComponentsVector(const Eigen::Vector3d& raw_vector) const
         {
