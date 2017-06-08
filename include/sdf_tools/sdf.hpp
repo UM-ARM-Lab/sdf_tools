@@ -611,27 +611,45 @@ namespace sdf_tools
             return result.head<3>();
         }
 
+        inline Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance(const double x, const double y, const double z, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
+        {
+            const Eigen::Vector4d result = ProjectOutOfCollisionToMinimumDistance4d(Eigen::Vector4d(x, y, z, 1.0), minimum_distance, stepsize_multiplier);
+            return result.head<3>();
+        }
+
         inline Eigen::Vector3d ProjectOutOfCollision3d(const Eigen::Vector3d& location, const double stepsize_multiplier = 1.0 / 10.0) const
         {
             return ProjectOutOfCollision(location.x(), location.y(), location.z(), stepsize_multiplier);
         }
 
+        inline Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance3d(const Eigen::Vector3d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
+        {
+            return ProjectOutOfCollisionToMinimumDistance(location.x(), location.y(), location.z(), minimum_distance, stepsize_multiplier);
+        }
+
         inline Eigen::Vector4d ProjectOutOfCollision4d(const Eigen::Vector4d& location, const double stepsize_multiplier = 1.0 / 10.0) const
+        {
+            return ProjectOutOfCollisionToMinimumDistance4d(location, 0.0, stepsize_multiplier);
+        }
+
+        inline Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
         {
             Eigen::Vector4d mutable_location = location;
             const bool enable_edge_gradients = true;
+
             float sdf_dist = Get4d(mutable_location);
-            if (sdf_dist < 0.0 && CheckInBounds4d(location))
-
-            while (sdf_dist < 0.0)
+            if (sdf_dist < minimum_distance && CheckInBounds4d(location))
             {
-                const std::vector<double> gradient = GetGradient4d(mutable_location, enable_edge_gradients);
-                const Eigen::Vector3d grad_eigen = EigenHelpers::StdVectorDoubleToEigenVector3d(gradient);
+                while (sdf_dist < minimum_distance)
+                {
+                    const std::vector<double> gradient = GetGradient4d(mutable_location, enable_edge_gradients);
+                    const Eigen::Vector3d grad_eigen = EigenHelpers::StdVectorDoubleToEigenVector3d(gradient);
 
-                assert(grad_eigen.norm() > GetResolution() / 4.0); // Sanity check
-                mutable_location.head<3>() += grad_eigen.normalized() * GetResolution() * stepsize_multiplier;
+                    assert(grad_eigen.norm() > GetResolution() / 4.0); // Sanity check
+                    mutable_location.head<3>() += grad_eigen.normalized() * GetResolution() * stepsize_multiplier;
 
-                sdf_dist = Get4d(mutable_location);
+                    sdf_dist = Get4d(mutable_location);
+                }
             }
 
             return mutable_location;
