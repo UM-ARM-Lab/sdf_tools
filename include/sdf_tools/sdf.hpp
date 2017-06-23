@@ -99,7 +99,7 @@ namespace sdf_tools
             distance_field_ = new_field;
         }
 
-        inline SignedDistanceField()  : initialized_(false), locked_(false) {}
+        inline SignedDistanceField() : initialized_(false), locked_(false) {}
 
         inline bool IsInitialized() const
         {
@@ -637,7 +637,7 @@ namespace sdf_tools
             Eigen::Vector4d mutable_location = location;
             const bool enable_edge_gradients = true;
 
-            float sdf_dist = Get4d(mutable_location);
+            double sdf_dist = EstimateDistance4d(mutable_location).first;
             if (sdf_dist < minimum_distance && CheckInBounds4d(location))
             {
                 while (sdf_dist < minimum_distance)
@@ -648,7 +648,7 @@ namespace sdf_tools
                     assert(grad_eigen.norm() > GetResolution() / 4.0); // Sanity check
                     mutable_location.head<3>() += grad_eigen.normalized() * GetResolution() * stepsize_multiplier;
 
-                    sdf_dist = Get4d(mutable_location);
+                    sdf_dist = EstimateDistance4d(mutable_location).first;
                 }
             }
 
@@ -703,11 +703,11 @@ namespace sdf_tools
 
         bool LoadFromMessageRepresentation(sdf_tools::SDF& message);
 
-        visualization_msgs::Marker ExportForDisplay(float alpha=0.01f) const;
+        visualization_msgs::Marker ExportForDisplay(float alpha = 0.01f) const;
 
-        visualization_msgs::Marker ExportForDisplayCollisionOnly(float alpha=0.01f) const;
+        visualization_msgs::Marker ExportForDisplayCollisionOnly(float alpha = 0.01f) const;
 
-        visualization_msgs::Marker ExportForDebug(float alpha=0.5f) const;
+        visualization_msgs::Marker ExportForDebug(float alpha = 0.5f) const;
 
         /*
          * The following function can be *VERY EXPENSIVE* to compute, since it performs gradient ascent across the SDF
