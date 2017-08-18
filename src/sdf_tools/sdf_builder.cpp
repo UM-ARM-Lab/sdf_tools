@@ -14,7 +14,7 @@
 
 using namespace sdf_tools;
 
-SDF_Builder::SDF_Builder(ros::NodeHandle& nh, Eigen::Affine3d origin_transform, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service) : nh_(nh)
+SDF_Builder::SDF_Builder(ros::NodeHandle& nh, Eigen::Isometry3d origin_transform, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service) : nh_(nh)
 {
     origin_transform_ = origin_transform;
     frame_ = frame;

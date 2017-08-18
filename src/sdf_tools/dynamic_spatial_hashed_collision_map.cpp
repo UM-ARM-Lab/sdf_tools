@@ -26,7 +26,7 @@ DynamicSpatialHashedCollisionMapGrid::DynamicSpatialHashedCollisionMapGrid(std::
     components_valid_ = false;
 }
 
-DynamicSpatialHashedCollisionMapGrid::DynamicSpatialHashedCollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, int64_t chunk_x_size, int64_t chunk_y_size, int64_t chunk_z_size, COLLISION_CELL OOB_value)
+DynamicSpatialHashedCollisionMapGrid::DynamicSpatialHashedCollisionMapGrid(Eigen::Isometry3d origin_transform, std::string frame, double resolution, int64_t chunk_x_size, int64_t chunk_y_size, int64_t chunk_z_size, COLLISION_CELL OOB_value)
 {
     frame_ = frame;
     VoxelGrid::DynamicSpatialHashedVoxelGrid<COLLISION_CELL> new_field(origin_transform, resolution, chunk_x_size, chunk_y_size, chunk_z_size, OOB_value);
@@ -51,8 +51,8 @@ std::vector<visualization_msgs::Marker> DynamicSpatialHashedCollisionMapGrid::Ex
     chunks_display_rep.action = visualization_msgs::Marker::ADD;
     chunks_display_rep.lifetime = ros::Duration(0.0);
     chunks_display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    chunks_display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    chunks_display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     std::vector<double> chunk_sizes = collision_field_.GetChunkSizes();
     chunks_display_rep.scale.x = chunk_sizes[0];
     chunks_display_rep.scale.y = chunk_sizes[1];
@@ -68,13 +68,13 @@ std::vector<visualization_msgs::Marker> DynamicSpatialHashedCollisionMapGrid::Ex
     cells_display_rep.action = visualization_msgs::Marker::ADD;
     cells_display_rep.lifetime = ros::Duration(0.0);
     cells_display_rep.frame_locked = false;
-    cells_display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    cells_display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     std::vector<double> cell_sizes = collision_field_.GetCellSizes();
     cells_display_rep.scale.x = cell_sizes[0];
     cells_display_rep.scale.y = cell_sizes[1];
     cells_display_rep.scale.z = cell_sizes[2];
     // Now, go through the chunks and add everything to the message
-    const Eigen::Affine3d& grid_transform = GetOriginTransform();
+    const Eigen::Isometry3d& grid_transform = GetOriginTransform();
     const std::unordered_map<VoxelGrid::CHUNK_REGION, VoxelGrid::DynamicSpatialHashedVoxelGridChunk<COLLISION_CELL>>& raw_chunks = collision_field_.GetInternalChunks();
     std::unordered_map<VoxelGrid::CHUNK_REGION, VoxelGrid::DynamicSpatialHashedVoxelGridChunk<COLLISION_CELL>>::const_iterator raw_chunks_itr;
     for (raw_chunks_itr = raw_chunks.begin(); raw_chunks_itr != raw_chunks.end(); ++raw_chunks_itr)

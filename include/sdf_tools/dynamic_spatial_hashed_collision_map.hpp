@@ -33,7 +33,7 @@ namespace sdf_tools
 
         DynamicSpatialHashedCollisionMapGrid(std::string frame, double resolution, int64_t chunk_x_size, int64_t chunk_y_size, int64_t chunk_z_size, COLLISION_CELL OOB_value);
 
-        DynamicSpatialHashedCollisionMapGrid(Eigen::Affine3d origin_transform, std::string frame, double resolution, int64_t chunk_x_size, int64_t chunk_y_size, int64_t chunk_z_size, COLLISION_CELL OOB_value);
+        DynamicSpatialHashedCollisionMapGrid(Eigen::Isometry3d origin_transform, std::string frame, double resolution, int64_t chunk_x_size, int64_t chunk_y_size, int64_t chunk_z_size, COLLISION_CELL OOB_value);
 
         DynamicSpatialHashedCollisionMapGrid() : number_of_components_(0), initialized_(false), components_valid_(false) {}
 
@@ -77,7 +77,7 @@ namespace sdf_tools
             return collision_field_.SetChunkValue(location, value);
         }
 
-        inline Eigen::Affine3d GetOriginTransform() const
+        inline Eigen::Isometry3d GetOriginTransform() const
         {
             return collision_field_.GetOriginTransform();
         }

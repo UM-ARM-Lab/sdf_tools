@@ -17,8 +17,8 @@ visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<uin
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = collision_map.GetCellSizes()[0];
     display_rep.scale.y = collision_map.GetCellSizes()[1];
     display_rep.scale.z = collision_map.GetCellSizes()[2];
@@ -78,7 +78,7 @@ int main(int argc, char** argv)
     Eigen::Translation3d origin_translation(0.1, -1.0, -0.3);
     Eigen::Quaterniond origin_rotation;
     origin_rotation.setIdentity();
-    Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
+    Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
     sdf_tools::SDF_Builder sdf_builder(nh, origin_transform, frame, x_size, y_size, z_size, resolution, INFINITY, "get_planning_scene");
     ROS_INFO("...startup complete");
     ////////////////////

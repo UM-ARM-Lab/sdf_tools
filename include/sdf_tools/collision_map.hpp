@@ -322,7 +322,7 @@ namespace sdf_tools
             components_valid_ = false;
         }
 
-        inline CollisionMapGrid(const Eigen::Affine3d& origin_transform, const std::string& frame, const double resolution, const double x_size, double y_size, const double z_size, const COLLISION_CELL& default_value, const COLLISION_CELL& OOB_value) : initialized_(true)
+        inline CollisionMapGrid(const Eigen::Isometry3d& origin_transform, const std::string& frame, const double resolution, const double x_size, double y_size, const double z_size, const COLLISION_CELL& default_value, const COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, default_value, OOB_value);
@@ -340,7 +340,7 @@ namespace sdf_tools
             components_valid_ = false;
         }
 
-        inline CollisionMapGrid(const Eigen::Affine3d& origin_transform, const std::string& frame, const double resolution, const double x_size, double y_size, const double z_size, const COLLISION_CELL& OOB_default_value) : initialized_(true)
+        inline CollisionMapGrid(const Eigen::Isometry3d& origin_transform, const std::string& frame, const double resolution, const double x_size, double y_size, const double z_size, const COLLISION_CELL& OOB_default_value) : initialized_(true)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_default_value);
@@ -461,12 +461,12 @@ namespace sdf_tools
             return collision_field_.GetNumZCells();
         }
 
-        inline const Eigen::Affine3d& GetOriginTransform() const
+        inline const Eigen::Isometry3d& GetOriginTransform() const
         {
             return collision_field_.GetOriginTransform();
         }
 
-        inline const Eigen::Affine3d& GetInverseOriginTransform() const
+        inline const Eigen::Isometry3d& GetInverseOriginTransform() const
         {
             return collision_field_.GetInverseOriginTransform();
         }

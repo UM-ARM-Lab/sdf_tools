@@ -50,7 +50,7 @@ namespace sdf_tools
         bool has_cached_sdf_;
         bool has_cached_collmap_;
         bool has_planning_scene_;
-        Eigen::Affine3d origin_transform_;
+        Eigen::Isometry3d origin_transform_;
         std::string frame_;
         double x_size_;
         double y_size_;
@@ -84,7 +84,7 @@ namespace sdf_tools
 
     public:
 
-        SDF_Builder(ros::NodeHandle& nh, Eigen::Affine3d origin_transform, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service);
+        SDF_Builder(ros::NodeHandle& nh, Eigen::Isometry3d origin_transform, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service);
 
         SDF_Builder(ros::NodeHandle& nh, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service);
 

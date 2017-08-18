@@ -106,7 +106,7 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
     sdf_tools::CollisionMap message_rep;
     // Populate message
     message_rep.header.frame_id = frame_;
-    const Eigen::Affine3d& origin_transform = collision_field_.GetOriginTransform();
+    const Eigen::Isometry3d& origin_transform = collision_field_.GetOriginTransform();
     message_rep.origin_transform.translation.x = origin_transform.translation().x();
     message_rep.origin_transform.translation.y = origin_transform.translation().y();
     message_rep.origin_transform.translation.z = origin_transform.translation().z();
@@ -135,7 +135,7 @@ bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& me
     // Make a new voxel grid inside
     Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
     Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
-    Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
+    Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
     COLLISION_CELL OOB_value;
     OOB_value.occupancy = message.OOB_occupancy_value;
     OOB_value.component = message.OOB_component_value;
@@ -176,8 +176,8 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(const std_msgs::Co
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -237,8 +237,8 @@ visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
