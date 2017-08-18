@@ -63,7 +63,6 @@ inline float FloatFromBinary(std::vector<uint8_t>& binary)
 
 namespace sdf_tools
 {
-
     class SignedDistanceField
     {
     protected:
@@ -100,7 +99,7 @@ namespace sdf_tools
             distance_field_ = new_field;
         }
 
-        inline SignedDistanceField()  : initialized_(false), locked_(false) {}
+        inline SignedDistanceField() : initialized_(false), locked_(false) {}
 
         inline bool IsInitialized() const
         {
@@ -298,10 +297,6 @@ namespace sdf_tools
             return distance_field_.GetNumZCells();
         }
 
-        /*
-         * Estimates the real distance of the provided point, comparing it with the cell center location and gradient vector
-         */
-
     protected:
 
         inline std::pair<Eigen::Vector3d, double> GetPrimaryComponentsVector(const Eigen::Vector3d& raw_vector) const
@@ -413,6 +408,12 @@ namespace sdf_tools
             }
         }
 
+        /**
+         * @brief GetPrimaryEntrySurfaceVector Estimates the real distance of the provided point, comparing it with the cell center location and gradient vector
+         * @param boundary_direction_vector
+         * @param center_to_location_vector
+         * @return vector from center of voxel to primary entry surface, and magnitude of that vector
+         */
         inline std::pair<Eigen::Vector3d, double> GetPrimaryEntrySurfaceVector(const Eigen::Vector3d& boundary_direction_vector, const Eigen::Vector3d& center_to_location_vector) const
         {
             if (boundary_direction_vector.squaredNorm() > std::numeric_limits<double>::epsilon())
@@ -441,26 +442,27 @@ namespace sdf_tools
             const std::vector<double> cell_center = GridIndexToLocation(x_idx, y_idx, z_idx);
             const Eigen::Vector3d cell_center_to_location_vector(x - cell_center[0], y - cell_center[1], z - cell_center[2]);
             const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
+
+            // Determine vector from "entry surface" to center of voxel
+            // TODO: Needs special handling if there's no gradient to work with
             const std::vector<double> raw_gradient = GetGradient(x_idx, y_idx, z_idx, true);
-            const Eigen::Vector3d gradient(raw_gradient[0], raw_gradient[1], raw_gradient[2]);
+            const Eigen::Vector3d gradient = EigenHelpers::StdVectorDoubleToEigenVector3d(raw_gradient);
             const Eigen::Vector3d direction_to_boundary = (nominal_sdf_distance >= 0.0) ? -gradient : gradient;
-            // Needs special handling if there's no gradient to work with
             const std::pair<Eigen::Vector3d, double> entry_surface_information = GetPrimaryEntrySurfaceVector(direction_to_boundary, cell_center_to_location_vector);
             const Eigen::Vector3d& entry_surface_vector = entry_surface_information.first;
             const double minimum_distance_magnitude = entry_surface_information.second;
+
+            // Adjust for calculating distance to boundary of voxels instead of center of voxels
             const double center_adjusted_nominal_distance = (nominal_sdf_distance >= 0.0) ? nominal_sdf_distance - (GetResolution() * 0.5) : nominal_sdf_distance + (GetResolution() * 0.5);
-            double minimum_adjusted_distance = center_adjusted_nominal_distance;
-            if (center_adjusted_nominal_distance >= 0.0 && std::abs(center_adjusted_nominal_distance) < minimum_distance_magnitude)
-            {
-                minimum_adjusted_distance = minimum_distance_magnitude;
-            }
-            else if (center_adjusted_nominal_distance < 0.0 && std::abs(center_adjusted_nominal_distance) < minimum_distance_magnitude)
-            {
-                minimum_adjusted_distance = -minimum_distance_magnitude;
-            }
+            const double minimum_adjusted_distance = arc_helpers::SpreadValue(center_adjusted_nominal_distance, -minimum_distance_magnitude, 0.0, minimum_distance_magnitude);
+
+            // Account for target location being not at the exact center of the voxel
             const double raw_distance_adjustment = EigenHelpers::VectorProjection(entry_surface_vector, cell_center_to_location_vector).norm();
             const double real_distance_adjustment = (minimum_adjusted_distance >= 0.0) ? -raw_distance_adjustment: raw_distance_adjustment;
             const double final_adjusted_distance = minimum_adjusted_distance + real_distance_adjustment;
+
+            // Perform minimum distance thresholding and error checking
+            // TODO: do we need to address this magic number somehow?
             if (std::abs(final_adjusted_distance) < GetResolution() * 0.001)
             {
                 return 0.0;
@@ -472,7 +474,7 @@ namespace sdf_tools
             else
             {
                 std::cerr << "Center adjusted nominal distance " << minimum_adjusted_distance << " final adjusted_distance " << final_adjusted_distance << std::endl;
-                assert(false);
+                assert(false && "Mismatched minimum and final adjusted distance signs");
             }
         }
 
@@ -618,6 +620,52 @@ namespace sdf_tools
             }
         }
 
+        inline Eigen::Vector3d ProjectOutOfCollision(const double x, const double y, const double z, const double stepsize_multiplier = 1.0 / 10.0) const
+        {
+            const Eigen::Vector4d result = ProjectOutOfCollision4d(Eigen::Vector4d(x, y, z, 1.0), stepsize_multiplier);
+            return result.head<3>();
+        }
+
+        inline Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance(const double x, const double y, const double z, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
+        {
+            const Eigen::Vector4d result = ProjectOutOfCollisionToMinimumDistance4d(Eigen::Vector4d(x, y, z, 1.0), minimum_distance, stepsize_multiplier);
+            return result.head<3>();
+        }
+
+        inline Eigen::Vector3d ProjectOutOfCollision3d(const Eigen::Vector3d& location, const double stepsize_multiplier = 1.0 / 10.0) const
+        {
+            return ProjectOutOfCollision(location.x(), location.y(), location.z(), stepsize_multiplier);
+        }
+
+        inline Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance3d(const Eigen::Vector3d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
+        {
+            return ProjectOutOfCollisionToMinimumDistance(location.x(), location.y(), location.z(), minimum_distance, stepsize_multiplier);
+        }
+
+        inline Eigen::Vector4d ProjectOutOfCollision4d(const Eigen::Vector4d& location, const double stepsize_multiplier = 1.0 / 10.0) const
+        {
+            return ProjectOutOfCollisionToMinimumDistance4d(location, 0.0, stepsize_multiplier);
+        }
+
+        inline Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
+        {
+            Eigen::Vector4d mutable_location = location;
+            const bool enable_edge_gradients = true;
+            double sdf_dist = EstimateDistance4d(mutable_location).first;
+            if (sdf_dist < minimum_distance && CheckInBounds4d(location))
+            {
+                while (sdf_dist < minimum_distance)
+                {
+                    const std::vector<double> gradient = GetGradient4d(mutable_location, enable_edge_gradients);
+                    const Eigen::Vector3d grad_eigen = EigenHelpers::StdVectorDoubleToEigenVector3d(gradient);
+                    assert(grad_eigen.norm() > GetResolution() / 4.0); // Sanity check
+                    mutable_location.head<3>() += grad_eigen.normalized() * GetResolution() * stepsize_multiplier;
+                    sdf_dist = EstimateDistance4d(mutable_location).first;
+                }
+            }
+            return mutable_location;
+        }
+
         inline const Eigen::Isometry3d& GetOriginTransform() const
         {
             return distance_field_.GetOriginTransform();
@@ -666,11 +714,11 @@ namespace sdf_tools
 
         bool LoadFromMessageRepresentation(sdf_tools::SDF& message);
 
-        visualization_msgs::Marker ExportForDisplay(float alpha=0.01f) const;
+        visualization_msgs::Marker ExportForDisplay(float alpha = 0.01f) const;
 
-        visualization_msgs::Marker ExportForDisplayCollisionOnly(float alpha=0.01f) const;
+        visualization_msgs::Marker ExportForDisplayCollisionOnly(float alpha = 0.01f) const;
 
-        visualization_msgs::Marker ExportForDebug(float alpha=0.5f) const;
+        visualization_msgs::Marker ExportForDebug(float alpha = 0.5f) const;
 
         /*
          * The following function can be *VERY EXPENSIVE* to compute, since it performs gradient ascent across the SDF
