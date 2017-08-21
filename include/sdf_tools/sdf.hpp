@@ -652,7 +652,7 @@ namespace sdf_tools
             Eigen::Vector4d mutable_location = location;
             const bool enable_edge_gradients = true;
             double sdf_dist = EstimateDistance4d(mutable_location).first;
-            if (sdf_dist < minimum_distance && CheckInBounds4d(location))
+            if (sdf_dist < minimum_distance && CheckInBounds4d(mutable_location))
             {
                 while (sdf_dist < minimum_distance)
                 {
