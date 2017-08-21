@@ -92,7 +92,7 @@ namespace sdf_tools
             distance_field_ = new_field;
         }
 
-        inline SignedDistanceField(Eigen::Affine3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
+        inline SignedDistanceField(Eigen::Isometry3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<float> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
@@ -374,6 +374,7 @@ namespace sdf_tools
             const double x_axis_match = ComputeAxisMatch(possible_surfaces_vector.x(), location_rejected_on_possible.x());
             const double y_axis_match = ComputeAxisMatch(possible_surfaces_vector.y(), location_rejected_on_possible.y());
             const double z_axis_match = ComputeAxisMatch(possible_surfaces_vector.z(), location_rejected_on_possible.z());
+            // Cases where one is better
             if ((x_axis_match > y_axis_match) && (x_axis_match > z_axis_match))
             {
                 return Eigen::Vector3d(possible_surfaces_vector.x(), 0.0, 0.0);
@@ -386,9 +387,23 @@ namespace sdf_tools
             {
                 return Eigen::Vector3d(0.0, 0.0, possible_surfaces_vector.z());
             }
+            // Cases where two are equally good
+            else if ((x_axis_match < y_axis_match) && (x_axis_match < z_axis_match))
+            {
+                return Eigen::Vector3d(0.0, possible_surfaces_vector.y(), possible_surfaces_vector.z());
+            }
+            else if ((y_axis_match < x_axis_match) && (y_axis_match < z_axis_match))
+            {
+                return Eigen::Vector3d(possible_surfaces_vector.x(), 0.0, possible_surfaces_vector.z());
+            }
+            else if ((z_axis_match < x_axis_match) && (z_axis_match < y_axis_match))
+            {
+                return Eigen::Vector3d(possible_surfaces_vector.x(), possible_surfaces_vector.y(), 0.0);
+            }
+            // When all are equally good
             else
             {
-                assert(false);
+                std::cerr << "Possible surfaces vector " << possible_surfaces_vector << " simple match failed: " << x_axis_match << ", " << y_axis_match << ", " << z_axis_match << " (x, y, z)" << std::endl;
                 return possible_surfaces_vector;
             }
         }
@@ -636,7 +651,6 @@ namespace sdf_tools
         {
             Eigen::Vector4d mutable_location = location;
             const bool enable_edge_gradients = true;
-
             double sdf_dist = EstimateDistance4d(mutable_location).first;
             if (sdf_dist < minimum_distance && CheckInBounds4d(location))
             {
@@ -644,23 +658,20 @@ namespace sdf_tools
                 {
                     const std::vector<double> gradient = GetGradient4d(mutable_location, enable_edge_gradients);
                     const Eigen::Vector3d grad_eigen = EigenHelpers::StdVectorDoubleToEigenVector3d(gradient);
-
                     assert(grad_eigen.norm() > GetResolution() / 4.0); // Sanity check
                     mutable_location.head<3>() += grad_eigen.normalized() * GetResolution() * stepsize_multiplier;
-
                     sdf_dist = EstimateDistance4d(mutable_location).first;
                 }
             }
-
             return mutable_location;
         }
 
-        inline const Eigen::Affine3d& GetOriginTransform() const
+        inline const Eigen::Isometry3d& GetOriginTransform() const
         {
             return distance_field_.GetOriginTransform();
         }
 
-        inline const Eigen::Affine3d& GetInverseOriginTransform() const
+        inline const Eigen::Isometry3d& GetInverseOriginTransform() const
         {
             return distance_field_.GetInverseOriginTransform();
         }

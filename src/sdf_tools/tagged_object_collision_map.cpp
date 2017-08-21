@@ -102,7 +102,7 @@ sdf_tools::TaggedObjectCollisionMap TaggedObjectCollisionMapGrid::GetMessageRepr
     sdf_tools::TaggedObjectCollisionMap message_rep;
     // Populate message
     message_rep.header.frame_id = frame_;
-    Eigen::Affine3d origin_transform = GetOriginTransform();
+    Eigen::Isometry3d origin_transform = GetOriginTransform();
     message_rep.origin_transform.translation.x = origin_transform.translation().x();
     message_rep.origin_transform.translation.y = origin_transform.translation().y();
     message_rep.origin_transform.translation.z = origin_transform.translation().z();
@@ -131,7 +131,7 @@ bool TaggedObjectCollisionMapGrid::LoadFromMessageRepresentation(const sdf_tools
     // Make a new voxel grid inside
     Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
     Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
-    Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
+    Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
     TAGGED_OBJECT_COLLISION_CELL OOB_value = TaggedObjectCollisionCellFromBinary(message.OOB_value);
     VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
     // Unpack the binary data
@@ -176,8 +176,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const 
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -224,8 +224,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const 
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -285,8 +285,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDis
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -346,8 +346,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDis
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -411,8 +411,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplayOccupan
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -472,8 +472,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportConnectedComponen
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -533,8 +533,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportConvexSegmentForD
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -578,8 +578,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportSurfaceForDisplay
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();

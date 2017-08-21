@@ -27,7 +27,7 @@ int main(int argc, char** argv)
     // Let's center the grid around the origin
     Eigen::Translation3d origin_translation(-5.0, -5.0, -5.0);
     Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
-    Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
+    Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
     std::string frame = "tutorial_frame";
     ///////////////////////////////////
     //// Let's make a CollisionMap ////

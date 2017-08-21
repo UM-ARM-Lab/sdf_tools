@@ -494,7 +494,7 @@ namespace sdf_tools
             convex_segments_valid_ = false;
         }
 
-        inline TaggedObjectCollisionMapGrid(const Eigen::Affine3d& origin_transform, const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const TAGGED_OBJECT_COLLISION_CELL& default_value, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
+        inline TaggedObjectCollisionMapGrid(const Eigen::Isometry3d& origin_transform, const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const TAGGED_OBJECT_COLLISION_CELL& default_value, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, default_value, OOB_value);
@@ -514,7 +514,7 @@ namespace sdf_tools
             convex_segments_valid_ = false;
         }
 
-        inline TaggedObjectCollisionMapGrid(const Eigen::Affine3d& origin_transform, const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
+        inline TaggedObjectCollisionMapGrid(const Eigen::Isometry3d& origin_transform, const std::string& frame, const double resolution, const double x_size, const double y_size, const double z_size, const TAGGED_OBJECT_COLLISION_CELL& OOB_value) : initialized_(true)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
@@ -801,12 +801,12 @@ namespace sdf_tools
             return collision_field_.GetNumZCells();
         }
 
-        inline const Eigen::Affine3d& GetOriginTransform() const
+        inline const Eigen::Isometry3d& GetOriginTransform() const
         {
             return collision_field_.GetOriginTransform();
         }
 
-        inline const Eigen::Affine3d& GetInverseOriginTransform() const
+        inline const Eigen::Isometry3d& GetInverseOriginTransform() const
         {
             return collision_field_.GetInverseOriginTransform();
         }

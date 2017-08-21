@@ -102,7 +102,7 @@ sdf_tools::SDF SignedDistanceField::GetMessageRepresentation()
     sdf_tools::SDF message_rep;
     // Populate message
     message_rep.header.frame_id = frame_;
-    const Eigen::Affine3d& origin_transform = distance_field_.GetOriginTransform();
+    const Eigen::Isometry3d& origin_transform = distance_field_.GetOriginTransform();
     message_rep.origin_transform.translation.x = origin_transform.translation().x();
     message_rep.origin_transform.translation.y = origin_transform.translation().y();
     message_rep.origin_transform.translation.z = origin_transform.translation().z();
@@ -129,7 +129,7 @@ bool SignedDistanceField::LoadFromMessageRepresentation(sdf_tools::SDF& message)
     // Make a new voxel grid inside
     Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
     Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
-    Eigen::Affine3d origin_transform = origin_translation * origin_rotation;
+    Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
     VoxelGrid::VoxelGrid<float> new_field(origin_transform, message.sdf_cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, message.OOB_value);
     // Unpack the binary data
     std::vector<uint8_t> binary_data = ZlibHelpers::DecompressBytes(message.data);
@@ -166,8 +166,8 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha) co
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -249,8 +249,8 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(fl
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
@@ -299,8 +299,8 @@ visualization_msgs::Marker SignedDistanceField::ExportForDebug(float alpha) cons
     display_rep.action = visualization_msgs::Marker::ADD;
     display_rep.lifetime = ros::Duration(0.0);
     display_rep.frame_locked = false;
-    const Eigen::Affine3d base_transform = Eigen::Affine3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenAffine3dToGeometryPose(base_transform);
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
     display_rep.scale.x = GetResolution();
     display_rep.scale.y = GetResolution();
     display_rep.scale.z = GetResolution();
