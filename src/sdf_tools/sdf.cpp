@@ -32,7 +32,7 @@ std::vector<uint8_t> SignedDistanceField::GetInternalBinaryRepresentation(const 
     return raw_binary_data;
 }
 
-std::vector<float> SignedDistanceField::UnpackFieldFromBinaryRepresentation(std::vector<uint8_t>& binary)
+std::vector<float> SignedDistanceField::UnpackFieldFromBinaryRepresentation(const std::vector<uint8_t>& binary)
 {
     if ((binary.size() % 4) != 0)
     {
@@ -124,7 +124,7 @@ sdf_tools::SDF SignedDistanceField::GetMessageRepresentation()
     return message_rep;
 }
 
-bool SignedDistanceField::LoadFromMessageRepresentation(sdf_tools::SDF& message)
+bool SignedDistanceField::LoadFromMessageRepresentation(const SDF& message)
 {
     // Make a new voxel grid inside
     Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
@@ -153,7 +153,7 @@ bool SignedDistanceField::LoadFromMessageRepresentation(sdf_tools::SDF& message)
     return true;
 }
 
-visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha) const
+visualization_msgs::Marker SignedDistanceField::ExportForDisplay(const float alpha) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -236,7 +236,7 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha) co
     return display_rep;
 }
 
-visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(float alpha) const
+visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(const float alpha) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
@@ -286,7 +286,7 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(fl
     return display_rep;
 }
 
-visualization_msgs::Marker SignedDistanceField::ExportForDebug(float alpha) const
+visualization_msgs::Marker SignedDistanceField::ExportForDebug(const float alpha) const
 {
     // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
     visualization_msgs::Marker display_rep;
