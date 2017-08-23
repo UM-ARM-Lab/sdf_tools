@@ -85,21 +85,24 @@ namespace sdf_tools
 
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-        inline SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
+        inline SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
+            : initialized_(true), locked_(false)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<float> new_field(resolution, x_size, y_size, z_size, OOB_value);
             distance_field_ = new_field;
         }
 
-        inline SignedDistanceField(Eigen::Isometry3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value) : initialized_(true), locked_(false)
+        inline SignedDistanceField(Eigen::Isometry3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
+            : initialized_(true), locked_(false)
         {
             frame_ = frame;
             VoxelGrid::VoxelGrid<float> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
             distance_field_ = new_field;
         }
 
-        inline SignedDistanceField() : initialized_(false), locked_(false) {}
+        inline SignedDistanceField()
+            : initialized_(false), locked_(false) {}
 
         inline bool IsInitialized() const
         {
@@ -511,12 +514,12 @@ namespace sdf_tools
             }
         }
 
-        inline std::vector<double> GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients=false) const
+        inline std::vector<double> GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients = false) const
         {
             return GetGradient4d(Eigen::Vector4d(x, y, z, 1.0), enable_edge_gradients);
         }
 
-        inline std::vector<double> GetGradient3d(const Eigen::Vector3d& location, const bool enable_edge_gradients=false) const
+        inline std::vector<double> GetGradient3d(const Eigen::Vector3d& location, const bool enable_edge_gradients  =false) const
         {
             const std::vector<int64_t> indices = LocationToGridIndex3d(location);
             if (indices.size() == 3)
@@ -529,7 +532,7 @@ namespace sdf_tools
             }
         }
 
-        inline std::vector<double> GetGradient4d(const Eigen::Vector4d& location, const bool enable_edge_gradients=false) const
+        inline std::vector<double> GetGradient4d(const Eigen::Vector4d& location, const bool enable_edge_gradients = false) const
         {
             const std::vector<int64_t> indices = LocationToGridIndex4d(location);
             if (indices.size() == 3)
@@ -542,12 +545,12 @@ namespace sdf_tools
             }
         }
 
-        inline std::vector<double> GetGradient(const VoxelGrid::GRID_INDEX& index, const bool enable_edge_gradients=false) const
+        inline std::vector<double> GetGradient(const VoxelGrid::GRID_INDEX& index, const bool enable_edge_gradients = false) const
         {
             return GetGradient(index.x, index.y, index.z, enable_edge_gradients);
         }
 
-        inline std::vector<double> GetGradient(const int64_t x_index, const int64_t y_index, const int64_t z_index, const bool enable_edge_gradients=false) const
+        inline std::vector<double> GetGradient(const int64_t x_index, const int64_t y_index, const int64_t z_index, const bool enable_edge_gradients = false) const
         {
             // Make sure the index is inside bounds
             if ((x_index >= 0) && (y_index >= 0) && (z_index >= 0) && (x_index < GetNumXCells()) && (y_index < GetNumYCells()) && (z_index < GetNumZCells()))
@@ -620,34 +623,34 @@ namespace sdf_tools
             }
         }
 
-        inline Eigen::Vector3d ProjectOutOfCollision(const double x, const double y, const double z, const double stepsize_multiplier = 1.0 / 10.0) const
+        inline Eigen::Vector3d ProjectOutOfCollision(const double x, const double y, const double z, const double stepsize_multiplier = 1.0 / 8.0) const
         {
             const Eigen::Vector4d result = ProjectOutOfCollision4d(Eigen::Vector4d(x, y, z, 1.0), stepsize_multiplier);
             return result.head<3>();
         }
 
-        inline Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance(const double x, const double y, const double z, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
+        inline Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance(const double x, const double y, const double z, const double minimum_distance, const double stepsize_multiplier = 1.0 / 8.0) const
         {
             const Eigen::Vector4d result = ProjectOutOfCollisionToMinimumDistance4d(Eigen::Vector4d(x, y, z, 1.0), minimum_distance, stepsize_multiplier);
             return result.head<3>();
         }
 
-        inline Eigen::Vector3d ProjectOutOfCollision3d(const Eigen::Vector3d& location, const double stepsize_multiplier = 1.0 / 10.0) const
+        inline Eigen::Vector3d ProjectOutOfCollision3d(const Eigen::Vector3d& location, const double stepsize_multiplier = 1.0 / 8.0) const
         {
             return ProjectOutOfCollision(location.x(), location.y(), location.z(), stepsize_multiplier);
         }
 
-        inline Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance3d(const Eigen::Vector3d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
+        inline Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance3d(const Eigen::Vector3d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 8.0) const
         {
             return ProjectOutOfCollisionToMinimumDistance(location.x(), location.y(), location.z(), minimum_distance, stepsize_multiplier);
         }
 
-        inline Eigen::Vector4d ProjectOutOfCollision4d(const Eigen::Vector4d& location, const double stepsize_multiplier = 1.0 / 10.0) const
+        inline Eigen::Vector4d ProjectOutOfCollision4d(const Eigen::Vector4d& location, const double stepsize_multiplier = 1.0 / 8.0) const
         {
             return ProjectOutOfCollisionToMinimumDistance4d(location, 0.0, stepsize_multiplier);
         }
 
-        inline Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
+        inline Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 8.0) const
         {
             // To avoid potential problems with alignment, we need to pass location by reference, so we make a local copy
             // here that we can change. https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
