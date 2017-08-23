@@ -647,28 +647,33 @@ namespace sdf_tools
             return ProjectOutOfCollisionToMinimumDistance4d(location, 0.0, stepsize_multiplier);
         }
 
-        inline Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4d(Eigen::Vector4d location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
+        inline Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
         {
-            // Add a small collision margin to account for rounding and similar
-            const double minimum_distance_with_margin = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
-            const bool enable_edge_gradients = true;
+            // To avoid potential problems with alignment, we need to pass location by reference, so we make a local copy
+            // here that we can change. https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
+            Eigen::Vector4d mutable_location = location;
 
             // If we are in bounds, start the projection process, otherwise return the location unchanged
-            if (CheckInBounds4d(location))
+            if (CheckInBounds4d(mutable_location))
             {
-                double sdf_dist = EstimateDistance4d(location).first;
+                // Add a small collision margin to account for rounding and similar
+                const double minimum_distance_with_margin = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
+                const double max_stepsize = GetResolution() * stepsize_multiplier;
+                const bool enable_edge_gradients = true;
+
+                double sdf_dist = EstimateDistance4d(mutable_location).first;
                 while (sdf_dist <= minimum_distance)
                 {
-                    const std::vector<double> gradient = GetGradient4d(location, enable_edge_gradients);
+                    const std::vector<double> gradient = GetGradient4d(mutable_location, enable_edge_gradients);
                     const Eigen::Vector3d grad_eigen = EigenHelpers::StdVectorDoubleToEigenVector3d(gradient);
                     assert(grad_eigen.norm() > GetResolution() / 4.0); // Sanity check
-                    // Only step to the very edge of the grid cell
-                    const double step_distance = std::min(GetResolution() * stepsize_multiplier, minimum_distance_with_margin - sdf_dist);
-                    location.head<3>() += grad_eigen.normalized() * step_distance;
-                    sdf_dist = EstimateDistance4d(location).first;
+                    // Don't step any farther than is needed
+                    const double step_distance = std::min(max_stepsize, minimum_distance_with_margin - sdf_dist);
+                    mutable_location.head<3>() += grad_eigen.normalized() * step_distance;
+                    sdf_dist = EstimateDistance4d(mutable_location).first;
                 }
             }
-            return location;
+            return mutable_location;
         }
 
         inline const Eigen::Isometry3d& GetOriginTransform() const
