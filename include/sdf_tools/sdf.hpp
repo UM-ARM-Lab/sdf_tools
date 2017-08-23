@@ -74,7 +74,7 @@ namespace sdf_tools
 
         std::vector<uint8_t> GetInternalBinaryRepresentation(const std::vector<float> &field_data);
 
-        std::vector<float> UnpackFieldFromBinaryRepresentation(std::vector<uint8_t>& binary);
+        std::vector<float> UnpackFieldFromBinaryRepresentation(const std::vector<uint8_t>& binary);
 
         /*
          * You *MUST* provide valid indices to this function, hence why it is protected (there are safe wrappers available - use them!)
@@ -668,11 +668,12 @@ namespace sdf_tools
                 while (sdf_dist <= minimum_distance)
                 {
                     const std::vector<double> gradient = GetGradient4d(mutable_location, enable_edge_gradients);
-                    const Eigen::Vector3d grad_eigen = EigenHelpers::StdVectorDoubleToEigenVector3d(gradient);
-                    assert(grad_eigen.norm() > GetResolution() / 4.0); // Sanity check
+                    assert(gradient.size() == 3);
+                    const Eigen::Vector4d grad_eigen(gradient[0], gradient[1], gradient[2], 0.0);
+                    assert(grad_eigen.norm() > GetResolution() * 0.25); // Sanity check
                     // Don't step any farther than is needed
                     const double step_distance = std::min(max_stepsize, minimum_distance_with_margin - sdf_dist);
-                    mutable_location.head<3>() += grad_eigen.normalized() * step_distance;
+                    mutable_location += grad_eigen.normalized() * step_distance;
                     sdf_dist = EstimateDistance4d(mutable_location).first;
                 }
             }
@@ -725,13 +726,13 @@ namespace sdf_tools
 
         sdf_tools::SDF GetMessageRepresentation();
 
-        bool LoadFromMessageRepresentation(sdf_tools::SDF& message);
+        bool LoadFromMessageRepresentation(const sdf_tools::SDF& message);
 
-        visualization_msgs::Marker ExportForDisplay(float alpha = 0.01f) const;
+        visualization_msgs::Marker ExportForDisplay(const float alpha = 0.01f) const;
 
-        visualization_msgs::Marker ExportForDisplayCollisionOnly(float alpha = 0.01f) const;
+        visualization_msgs::Marker ExportForDisplayCollisionOnly(const float alpha = 0.01f) const;
 
-        visualization_msgs::Marker ExportForDebug(float alpha = 0.5f) const;
+        visualization_msgs::Marker ExportForDebug(const float alpha = 0.5f) const;
 
         /*
          * The following function can be *VERY EXPENSIVE* to compute, since it performs gradient ascent across the SDF
