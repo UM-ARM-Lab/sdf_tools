@@ -250,8 +250,8 @@ void test_dsh_voxel_grid_locations()
 void test_float_binary_conversion(float test_val)
 {
     std::cout << "Initial value " << test_val << std::endl;
-    std::vector<uint8_t> binary_value = FloatToBinary(test_val);
-    float final_val = FloatFromBinary(binary_value);
+    std::vector<uint8_t> binary_value = sdf_tools::FloatToBinary(test_val);
+    float final_val = sdf_tools::FloatFromBinary(binary_value);
     std::cout << "Final value " << final_val << std::endl;
 }
 
