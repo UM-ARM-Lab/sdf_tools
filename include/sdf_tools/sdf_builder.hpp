@@ -1,10 +1,6 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include <vector>
 #include <string>
-#include <sstream>
-#include <iostream>
-#include <stdexcept>
 #include <Eigen/Geometry>
 #include <ros/ros.h>
 #include <moveit_msgs/GetPlanningScene.h>
@@ -34,13 +30,7 @@ namespace sdf_tools
 
     typedef VoxelGrid::VoxelGrid<bucket_cell> DistanceField;
 
-    inline double ComputeDistanceSquared(int32_t x1, int32_t y1, int32_t z1, int32_t x2, int32_t y2, int32_t z2)
-    {
-        int32_t dx = x1 - x2;
-        int32_t dy = y1 - y2;
-        int32_t dz = z1 - z2;
-        return double((dx * dx) + (dy * dy) + (dz * dz));
-    }
+    double ComputeDistanceSquared(int32_t x1, int32_t y1, int32_t z1, int32_t x2, int32_t y2, int32_t z2);
 
     class SDF_Builder
     {
@@ -73,10 +63,7 @@ namespace sdf_tools
 
         std::vector<std::vector<std::vector<std::vector<int>>>> MakeNeighborhoods();
 
-        inline int GetDirectionNumber(int dx, int dy, int dz)
-        {
-            return ((dx + 1) * 9) + ((dy + 1) * 3) + (dz + 1);
-        }
+        static int GetDirectionNumber(int dx, int dy, int dz);
 
         std::string GenerateSDFComputeBotURDFString();
 
@@ -88,13 +75,7 @@ namespace sdf_tools
 
         SDF_Builder(ros::NodeHandle& nh, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service);
 
-        SDF_Builder()
-        {
-            initialized_ = false;
-            has_cached_sdf_ = false;
-            has_cached_collmap_ = false;
-            has_planning_scene_ = false;
-        }
+        SDF_Builder();
 
         void UpdatePlanningSceneFromMessage(moveit_msgs::PlanningScene& planning_scene);
 
