@@ -158,8 +158,8 @@ void test_voxel_grid_serialization()
         }
     }
     std::vector<uint8_t> buffer;
-    VoxelGrid::VoxelGrid<int>::Serialize(test_grid, buffer, arc_helpers::SerializeFixedSizePOD<int>);
-    const VoxelGrid::VoxelGrid<int> read_grid = VoxelGrid::VoxelGrid<int>::Deserialize(buffer, 0, arc_helpers::DeserializeFixedSizePOD<int>).first;
+    VoxelGrid::VoxelGrid<int>::Serialize(test_grid, buffer, arc_utilities::SerializeFixedSizePOD<int>);
+    const VoxelGrid::VoxelGrid<int> read_grid = VoxelGrid::VoxelGrid<int>::Deserialize(buffer, 0, arc_utilities::DeserializeFixedSizePOD<int>).first;
     // Check the values
     int check_index = 0;
     bool pass = true;

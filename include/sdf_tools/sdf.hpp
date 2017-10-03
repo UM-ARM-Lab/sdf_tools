@@ -743,7 +743,7 @@ namespace sdf_tools
         {
             // A gradient is at a local maxima if the absolute value of all components (x,y,z) are less than 1/2 SDF resolution
             double half_resolution = GetResolution() * 0.5;
-            if (fabs(gradient.x()) <= half_resolution && fabs(gradient.y()) <= half_resolution && fabs(gradient.z()) <= half_resolution)
+            if (std::fabs(gradient.x()) <= half_resolution && std::fabs(gradient.y()) <= half_resolution && std::fabs(gradient.z()) <= half_resolution)
             {
                 return true;
             }
