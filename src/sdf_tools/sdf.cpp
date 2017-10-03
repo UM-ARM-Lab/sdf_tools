@@ -214,14 +214,14 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(const float alp
                 if (distance > 0.0)
                 {
                     new_color.b = 0.0;
-                    new_color.g = (fabs(distance / max_distance) * 0.8) + 0.2;
+                    new_color.g = (std::fabs(distance / max_distance) * 0.8) + 0.2;
                     new_color.r = 0.0;
                 }
                 else if (distance < 0.0)
                 {
                     new_color.b = 0.0;
                     new_color.g = 0.0;
-                    new_color.r = (fabs(distance / min_distance) * 0.8) + 0.2;
+                    new_color.r = (std::fabs(distance / min_distance) * 0.8) + 0.2;
                 }
                 else
                 {
