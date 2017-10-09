@@ -1,12 +1,6 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include <vector>
 #include <string>
-#include <functional>
-#include <unordered_map>
-#include <sstream>
-#include <iostream>
-#include <stdexcept>
 #include <Eigen/Geometry>
 #include <visualization_msgs/Marker.h>
 #include <arc_utilities/voxel_grid.hpp>
@@ -18,7 +12,6 @@
 
 namespace sdf_tools
 {
-
     class DynamicSpatialHashedCollisionMapGrid
     {
     protected:
@@ -35,56 +28,28 @@ namespace sdf_tools
 
         DynamicSpatialHashedCollisionMapGrid(Eigen::Isometry3d origin_transform, std::string frame, double resolution, int64_t chunk_x_size, int64_t chunk_y_size, int64_t chunk_z_size, COLLISION_CELL OOB_value);
 
-        DynamicSpatialHashedCollisionMapGrid() : number_of_components_(0), initialized_(false), components_valid_(false) {}
+        DynamicSpatialHashedCollisionMapGrid();
 
-        inline bool IsInitialized() const
-        {
-            return initialized_;
-        }
+        bool IsInitialized() const;
 
-        inline bool AreComponentsValid() const
-        {
-            return components_valid_;
-        }
+        bool AreComponentsValid() const;
 
-        inline std::pair<COLLISION_CELL, VoxelGrid::FOUND_STATUS> Get(const double x, const double y, const double z) const
-        {
-            return collision_field_.GetImmutable(x, y, z);
-        }
+        std::pair<COLLISION_CELL, VoxelGrid::FOUND_STATUS> Get(const double x, const double y, const double z) const;
 
-        inline std::pair<COLLISION_CELL, VoxelGrid::FOUND_STATUS> Get(const Eigen::Vector3d& location) const
-        {
-            return collision_field_.GetImmutable(location);
-        }
+        std::pair<COLLISION_CELL, VoxelGrid::FOUND_STATUS> Get(const Eigen::Vector3d& location) const;
 
-        inline VoxelGrid::SET_STATUS SetCell(const double x, const double y, const double z, COLLISION_CELL value)
-        {
-            return collision_field_.SetCellValue(x, y, z, value);
-        }
+        VoxelGrid::SET_STATUS SetCell(const double x, const double y, const double z, COLLISION_CELL value);
 
-        inline VoxelGrid::SET_STATUS SetCell(const Eigen::Vector3d& location, COLLISION_CELL value)
-        {
-            return collision_field_.SetCellValue(location, value);
-        }
+        VoxelGrid::SET_STATUS SetCell(const Eigen::Vector3d& location, COLLISION_CELL value);
 
-        inline VoxelGrid::SET_STATUS SetChunk(const double x, const double y, const double z, COLLISION_CELL value)
-        {
-            return collision_field_.SetChunkValue(x, y, z, value);
-        }
+        VoxelGrid::SET_STATUS SetChunk(const double x, const double y, const double z, COLLISION_CELL value);
 
-        inline VoxelGrid::SET_STATUS SetChunk(const Eigen::Vector3d& location, COLLISION_CELL value)
-        {
-            return collision_field_.SetChunkValue(location, value);
-        }
+        VoxelGrid::SET_STATUS SetChunk(const Eigen::Vector3d& location, COLLISION_CELL value);
 
-        inline Eigen::Isometry3d GetOriginTransform() const
-        {
-            return collision_field_.GetOriginTransform();
-        }
+        Eigen::Isometry3d GetOriginTransform() const;
 
         std::vector<visualization_msgs::Marker> ExportForDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const;
     };
-
 }
 
 #endif // DYNAMIC_SPATIAL_HASHED_COLLISION_MAP_HPP
