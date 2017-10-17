@@ -165,6 +165,18 @@ namespace sdf_tools
 
         Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 8.0) const;
 
+        Eigen::Vector3d ProjectIntoValidVolume(const double x, const double y, const double z) const;
+
+        Eigen::Vector3d ProjectIntoValidVolumeToMinimumDistance(const double x, const double y, const double z, const double minimum_distance) const;
+
+        Eigen::Vector3d ProjectIntoValidVolume3d(const Eigen::Vector3d& location) const;
+
+        Eigen::Vector3d ProjectIntoValidVolumeToMinimumDistance3d(const Eigen::Vector3d& location, const double minimum_distance) const;
+
+        Eigen::Vector4d ProjectIntoValidVolume4d(const Eigen::Vector4d& location) const;
+
+        Eigen::Vector4d ProjectIntoValidVolumeToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance) const;
+
         const Eigen::Isometry3d& GetOriginTransform() const;
 
         const Eigen::Isometry3d& GetInverseOriginTransform() const;

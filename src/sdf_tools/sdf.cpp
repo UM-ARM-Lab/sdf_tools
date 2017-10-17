@@ -794,6 +794,7 @@ namespace sdf_tools
         // If we are in bounds, start the projection process, otherwise return the location unchanged
         if (distance_check.second)
         {
+            // TODO: make this additional margin configurable
             // Add a small collision margin to account for rounding and similar
             const double minimum_distance_with_margin = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
             const double max_stepsize = GetResolution() * stepsize_multiplier;
@@ -825,6 +826,44 @@ namespace sdf_tools
             }
         }
         return mutable_location;
+    }
+
+    Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolume(const double x, const double y, const double z) const
+    {
+        const Eigen::Vector4d result = ProjectIntoValidVolume4d(Eigen::Vector4d(x, y, z, 1.0));
+        return result.head<3>();
+    }
+
+    Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolumeToMinimumDistance(const double x, const double y, const double z, const double minimum_distance) const
+    {
+        const Eigen::Vector4d result = ProjectIntoValidVolumeToMinimumDistance4d(Eigen::Vector4d(x, y, z, 1.0), minimum_distance);
+        return result.head<3>();
+    }
+
+    Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolume3d(const Eigen::Vector3d& location) const
+    {
+        return ProjectIntoValidVolume(location.x(), location.y(), location.z());
+    }
+
+    Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolumeToMinimumDistance3d(const Eigen::Vector3d& location, const double minimum_distance) const
+    {
+        return ProjectIntoValidVolumeToMinimumDistance(location.x(), location.y(), location.z(), minimum_distance);
+    }
+
+    Eigen::Vector4d SignedDistanceField::ProjectIntoValidVolume4d(const Eigen::Vector4d& location) const
+    {
+        return ProjectIntoValidVolumeToMinimumDistance4d(location, 0.0);
+    }
+
+    Eigen::Vector4d SignedDistanceField::ProjectIntoValidVolumeToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance) const
+    {
+        // TODO: make this additional margin configurable
+        const double minimum_distance_with_margin = minimum_distance + GetResolution() * 1e-4;
+        const Eigen::Vector4d point_in_grid_frame = GetInverseOriginTransform() * location;
+        const double x = arc_helpers::ClampValue(point_in_grid_frame(0), minimum_distance_with_margin, GetXSize() - minimum_distance_with_margin);
+        const double y = arc_helpers::ClampValue(point_in_grid_frame(1), minimum_distance_with_margin, GetYSize() - minimum_distance_with_margin);
+        const double z = arc_helpers::ClampValue(point_in_grid_frame(2), minimum_distance_with_margin, GetZSize() - minimum_distance_with_margin);
+        return GetOriginTransform() * Eigen::Vector4d(x, y, z, 1.0);
     }
 
     const Eigen::Isometry3d& SignedDistanceField::GetOriginTransform() const
