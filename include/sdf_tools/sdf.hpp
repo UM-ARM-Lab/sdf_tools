@@ -136,6 +136,13 @@ namespace sdf_tools
 
         std::pair<double, bool> EstimateDistance4d(const Eigen::Vector4d& location) const;
 
+        // Estimate the distance between the given point and the outer boundary of the SDF
+        std::pair<double, bool> DistanceToBoundary(const double x, const double y, const double z) const;
+
+        std::pair<double, bool> DistanceToBoundary3d(const Eigen::Vector3d& location) const;
+
+        std::pair<double, bool> DistanceToBoundary4d(const Eigen::Vector4d& location) const;
+
         std::vector<double> GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients = false) const;
 
         std::vector<double> GetGradient3d(const Eigen::Vector3d& location, const bool enable_edge_gradients = false) const;
