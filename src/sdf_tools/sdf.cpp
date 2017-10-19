@@ -630,7 +630,7 @@ namespace sdf_tools
         const auto x_size = distance_field_.GetXSize();
         const auto y_size = distance_field_.GetYSize();
         const auto z_size = distance_field_.GetZSize();
-        const Eigen::Array3d displacements(
+        const auto displacements = Eigen::Array3d(
                     point_in_grid_frame(0) <= x_size * 0.5 ? point_in_grid_frame(0) : x_size - point_in_grid_frame(0),
                     point_in_grid_frame(1) <= y_size * 0.5 ? point_in_grid_frame(1) : y_size - point_in_grid_frame(1),
                     point_in_grid_frame(2) <= z_size * 0.5 ? point_in_grid_frame(2) : z_size - point_in_grid_frame(2));
@@ -857,13 +857,29 @@ namespace sdf_tools
 
     Eigen::Vector4d SignedDistanceField::ProjectIntoValidVolumeToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance) const
     {
+        const auto inverse_origin_transform = distance_field_.GetInverseOriginTransform();
+        const auto point_in_grid_frame = inverse_origin_transform * location;
+        const auto x_size = distance_field_.GetXSize();
+        const auto y_size = distance_field_.GetYSize();
+        const auto z_size = distance_field_.GetZSize();
         // TODO: make this additional margin configurable
         const double minimum_distance_with_margin = minimum_distance + GetResolution() * 1e-4;
-        const Eigen::Vector4d point_in_grid_frame = GetInverseOriginTransform() * location;
-        const double x = arc_helpers::ClampValue(point_in_grid_frame(0), minimum_distance_with_margin, GetXSize() - minimum_distance_with_margin);
-        const double y = arc_helpers::ClampValue(point_in_grid_frame(1), minimum_distance_with_margin, GetYSize() - minimum_distance_with_margin);
-        const double z = arc_helpers::ClampValue(point_in_grid_frame(2), minimum_distance_with_margin, GetZSize() - minimum_distance_with_margin);
-        return GetOriginTransform() * Eigen::Vector4d(x, y, z, 1.0);
+        const double x = arc_helpers::ClampValue(point_in_grid_frame(0), minimum_distance_with_margin, x_size - minimum_distance_with_margin);
+        const double y = arc_helpers::ClampValue(point_in_grid_frame(1), minimum_distance_with_margin, y_size - minimum_distance_with_margin);
+        const double z = arc_helpers::ClampValue(point_in_grid_frame(2), minimum_distance_with_margin, z_size - minimum_distance_with_margin);
+        // To avoid numerical problems, only return a modified location if we actually had to change something
+        bool change_made = false;
+        change_made |= (x != point_in_grid_frame(0));
+        change_made |= (y != point_in_grid_frame(1));
+        change_made |= (z != point_in_grid_frame(2));
+        if (change_made)
+        {
+            return GetOriginTransform() * Eigen::Vector4d(x, y, z, 1.0);
+        }
+        else
+        {
+            return location;
+        }
     }
 
     const Eigen::Isometry3d& SignedDistanceField::GetOriginTransform() const
