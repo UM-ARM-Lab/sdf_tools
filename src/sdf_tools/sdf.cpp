@@ -546,39 +546,31 @@ namespace sdf_tools
         const std::vector<double> cell_center = GridIndexToLocation(x_idx, y_idx, z_idx);
         const Eigen::Vector3d cell_center_to_location_vector(x - cell_center[0], y - cell_center[1], z - cell_center[2]);
         const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
+        const bool querry_in_freespace = nominal_sdf_distance > 0.0;
 
-        // Determine vector from "entry surface" to center of voxel
-        // TODO: Needs special handling if there's no gradient to work with
-        const std::vector<double> raw_gradient = GetGradient(x_idx, y_idx, z_idx, true);
-        const Eigen::Vector3d gradient = EigenHelpers::StdVectorDoubleToEigenVector3d(raw_gradient);
-        const Eigen::Vector3d direction_to_boundary = (nominal_sdf_distance >= 0.0) ? -gradient : gradient;
-        const std::pair<Eigen::Vector3d, double> entry_surface_information = GetPrimaryEntrySurfaceVector(direction_to_boundary, cell_center_to_location_vector);
-        const Eigen::Vector3d& entry_surface_vector = entry_surface_information.first;
-        const double minimum_distance_magnitude = entry_surface_information.second;
-
-        // Adjust for calculating distance to boundary of voxels instead of center of voxels
-        const double center_adjusted_nominal_distance = (nominal_sdf_distance >= 0.0) ? nominal_sdf_distance - (GetResolution() * 0.5) : nominal_sdf_distance + (GetResolution() * 0.5);
-        const double minimum_adjusted_distance = arc_helpers::SpreadValue(center_adjusted_nominal_distance, -minimum_distance_magnitude, 0.0, minimum_distance_magnitude);
-
-        // Account for target location being not at the exact center of the voxel
-        const double raw_distance_adjustment = EigenHelpers::VectorProjection(entry_surface_vector, cell_center_to_location_vector).norm();
-        const double real_distance_adjustment = (minimum_adjusted_distance >= 0.0) ? -raw_distance_adjustment: raw_distance_adjustment;
-        const double final_adjusted_distance = minimum_adjusted_distance + real_distance_adjustment;
-
-        // Perform minimum distance thresholding and error checking
-        // TODO: do we need to address this magic number somehow?
-        if (std::abs(final_adjusted_distance) < GetResolution() * 0.001)
+        // If we are more than 1 cell from the boundary, just subtract a margin and move on.
+        const double res = GetResolution();
+        if (std::fabs(nominal_sdf_distance) > res)
         {
-            return 0.0;
+            // Assign a smaller distance as a "buffer"
+            const double adjustment = (querry_in_freespace ? -res : res) / std::sqrt(2.0);
+            return nominal_sdf_distance + adjustment;
         }
-        if ((minimum_adjusted_distance >= 0.0) == (final_adjusted_distance >= 0.0))
-        {
-            return final_adjusted_distance;
-        }
+        // Otherwise, measure the distance to the nearest boundary directly
         else
         {
-            std::cerr << "Center adjusted nominal distance " << minimum_adjusted_distance << " final adjusted_distance " << final_adjusted_distance << std::endl;
-            assert(false && "Mismatched minimum and final adjusted distance signs");
+            // Determine vector from "entry surface" to center of voxel
+            // TODO: Needs special handling if there's no gradient to work with
+            const std::vector<double> raw_gradient = GetGradient(x_idx, y_idx, z_idx, true);
+            const Eigen::Vector3d gradient = EigenHelpers::StdVectorDoubleToEigenVector3d(raw_gradient);
+            const Eigen::Vector3d direction_to_boundary = querry_in_freespace ? -gradient : gradient;
+
+            // Measure how far into the cell the querry is, along the direction defined by the primary entry surface vector
+            const std::pair<Eigen::Vector3d, double> entry_surface_information = GetPrimaryEntrySurfaceVector(direction_to_boundary, cell_center_to_location_vector);
+            const Eigen::Vector3d& entry_surface_vector = entry_surface_information.first;
+            const double raw_distance = EigenHelpers::VectorProjection(entry_surface_vector, cell_center_to_location_vector).norm();
+            const double signed_distance = querry_in_freespace ? raw_distance : -raw_distance;
+            return signed_distance;
         }
     }
 
