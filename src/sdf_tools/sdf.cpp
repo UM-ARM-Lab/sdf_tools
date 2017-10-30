@@ -544,14 +544,13 @@ namespace sdf_tools
     double SignedDistanceField::EstimateDistanceInternal(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
     {
         const Eigen::Vector3d location(x, y, z);
-        const Eigen::Vector3d cell_center = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(x_idx, y_idx, z_idx));
-        const Eigen::Vector3d cell_center_to_location_vector = location - cell_center;
         const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
         const bool querry_in_freespace = nominal_sdf_distance > 0.0;
 
         // If we are more than 1 cell from the boundary, just subtract a margin and move on.
+        // 1.8 comes from being larger than sqrt(3) to handle the "diagonal" cases
         const double res = GetResolution();
-        if (std::fabs(nominal_sdf_distance) > res)
+        if (std::fabs(nominal_sdf_distance) > res * std::sqrt(3.001))
         {
             // Assign a smaller distance as a "buffer"
             const double adjustment = res * 0.5;
@@ -567,35 +566,123 @@ namespace sdf_tools
         // Otherwise, measure the distance to the nearest boundary directly
         else
         {
-            // Determine vector from "entry surface" to center of voxel
-            // TODO: Needs special handling if there's no gradient to work with
-            const std::vector<double> raw_gradient = GetGradient(x_idx, y_idx, z_idx, true);
-            const Eigen::Vector3d gradient = EigenHelpers::StdVectorDoubleToEigenVector3d(raw_gradient);
-            const Eigen::Vector3d direction_to_boundary = querry_in_freespace ? -gradient : gradient;
+            // Check all 26 neighbours to see which one is closest and is in the opposite collision state
+            std::vector<int64_t> nearest_indices;
+            double nearest_abs_dist = std::numeric_limits<float>::infinity();
+            std::vector<std::vector<int64_t>> cells_considered;
+            std::vector<float> cells_nominal_distances_considered;
+            for (int64_t test_x_idx = x_idx - 1; test_x_idx <= x_idx + 1; ++test_x_idx)
+            {
+                for (int64_t test_y_idx = y_idx - 1; test_y_idx <= y_idx + 1; ++test_y_idx)
+                {
+                    for (int64_t test_z_idx = z_idx - 1; test_z_idx <= z_idx + 1; ++test_z_idx)
+                    {
+                        const bool test_indices_are_querry_indices = (x_idx == test_x_idx) && (y_idx == test_y_idx) && (z_idx == test_z_idx);
+                        if (distance_field_.IndexInBounds(test_x_idx, test_y_idx, test_z_idx) && !test_indices_are_querry_indices)
+                        {
+                            const auto test_cell_nominal_dist = Get(test_x_idx, test_y_idx, test_z_idx);
+                            std::vector<int64_t> tmp = {test_x_idx, test_y_idx, test_z_idx};
+                            cells_considered.push_back(tmp);
+                            cells_nominal_distances_considered.push_back(test_cell_nominal_dist);
+                            if (test_cell_nominal_dist * nominal_sdf_distance < 0.0) // Does this cell have an opposite collision value?
+                            {
+                                const Eigen::Vector3d test_cell_center = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(test_x_idx, test_y_idx, test_z_idx));
+                                const auto location_to_test_cell_center = (test_cell_center - location);
+                                const double dist_to_test_cell_center = location_to_test_cell_center.norm();
 
-            // Measure how far into the cell the querry is, along the direction defined by the primary entry surface vector
-            const std::pair<Eigen::Vector3d, double> entry_surface_information = GetPrimaryEntrySurfaceVector(direction_to_boundary, cell_center_to_location_vector);
-            const Eigen::Vector3d& entry_surface_vector = entry_surface_information.first;
-            const Eigen::Vector3d& nominal_entry_location = cell_center + entry_surface_vector;
-            const Eigen::Vector3d& nominal_pentration_vector = location - nominal_entry_location;
-            const double raw_distance = EigenHelpers::VectorProjection(entry_surface_vector, nominal_pentration_vector).norm();
-            const double signed_distance = querry_in_freespace ? raw_distance : -raw_distance;
+                                if (dist_to_test_cell_center < nearest_abs_dist) // Is the center of this cell closer to the querry than any previously tested?
+                                {
+                                    nearest_indices = std::vector<int64_t>({test_x_idx, test_y_idx, test_z_idx});
+                                    nearest_abs_dist = dist_to_test_cell_center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+//            if (nearest_indices.size() != 3)
+//            {
+//                const auto min_loc = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(0, 0, 0));
+//                const auto max_loc = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(GetNumXCells() - 1, GetNumYCells() - 1, GetNumZCells() - 1));
+
+//                std::cerr << std::setprecision(12)
+//                          << "Num x, y, z, cells: " << GetNumXCells() << " " << GetNumYCells() << " " << GetNumZCells() << std::endl
+//                          << "Querry x, y, z idx: " << x_idx << " " << y_idx << " " << z_idx << std::endl
+//                          << "Min location:         " << min_loc.transpose() << std::endl
+//                          << "Max location:         " << max_loc.transpose() << std::endl
+//                          << "Location:             " << location.transpose() << std::endl
+//                          << "Resolution:           " << res << std::endl
+//                          << "Nominal distance:     " << nominal_sdf_distance << std::endl;
+
+//                std::cerr << "Indices considered and distances thereof:\n";
+//                for (size_t idx = 0; idx < cells_considered.size(); ++idx)
+//                {
+//                    std::cerr << std::setprecision(12)
+//                              << cells_considered[idx][0] << " " << cells_considered[idx][1] << " " << cells_considered[idx][2] << " "
+//                              << cells_nominal_distances_considered.at(idx) << std::endl;
+//                }
+//            }
+            assert(nearest_indices.size() == 3);
+
+            // Move everything into grid aligned values
+            const Eigen::Vector3d nearest_cell_center = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(nearest_indices[0], nearest_indices[1], nearest_indices[2]));
+            const Eigen::Vector3d rounded_querry_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(x_idx, y_idx, z_idx));
+            const Eigen::Vector3d grid_aligned_location = GetInverseOriginTransform() * rounded_querry_location;
+            const Eigen::Vector3d grid_aligned_nearest = GetInverseOriginTransform() * nearest_cell_center;
+
+            // Determine what direction we moved based on the indices
+            const auto x_idx_offset = nearest_indices[0] - x_idx;
+            const auto y_idx_offset = nearest_indices[1] - y_idx;
+            const auto z_idx_offset = nearest_indices[2] - z_idx;
+
+            // Add up distances for each index offset that is non-zero
+            double total_distance_sq = 0.0;
+            if (x_idx_offset != 0)
+            {
+                const double collision_boundary = grid_aligned_nearest.x() - x_idx_offset * res;
+                const double delta = grid_aligned_location.x() - collision_boundary;
+                std::cerr << std::setprecision(12) << "x: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
+                total_distance_sq += delta * delta;
+            }
+            if (y_idx_offset != 0)
+            {
+                const double collision_boundary = grid_aligned_nearest.y() - y_idx_offset * res;
+                const double delta = grid_aligned_location.y() - collision_boundary;
+                std::cerr << std::setprecision(12) << "y: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
+                total_distance_sq += delta * delta;
+            }
+            if (z_idx_offset != 0)
+            {
+                const double collision_boundary = grid_aligned_nearest.z() - z_idx_offset * res;
+                const double delta = grid_aligned_location.z() - collision_boundary;
+                std::cerr << std::setprecision(12) << "z: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
+                total_distance_sq += delta * delta;
+            }
 
 
 
-//            std::cout << std::setprecision(12)
-//                      << "Location:             " << location.transpose() << std::endl
-//                      << "Gradient:             " << gradient.transpose() << std::endl
-//                      << "Dir to Bdy:           " << direction_to_boundary.transpose() << std::endl
-//                      << "Entry surface vector: " << entry_surface_vector.transpose() << std::endl
-//                      << "Nominal distance:     " << nominal_sdf_distance << std::endl
-//                      << "Raw distance:         " << raw_distance << std::endl
-//                      << "Signed distance:      " << signed_distance << std::endl;
+            std::cerr << std::setprecision(12)
+                      << "Location:             " << location.transpose() << std::endl
+                      << "Querry x, y, z idx: " << x_idx << " " << y_idx << " " << z_idx << std::endl
+                      << "Num x, y, z, cells: " << GetNumXCells() << " " << GetNumYCells() << " " << GetNumZCells() << std::endl
+//                      << "Min location:         " << min_loc.transpose() << std::endl
+//                      << "Max location:         " << max_loc.transpose() << std::endl
+                      << "Resolution:           " << res << std::endl
+                      << "Nominal distance:     " << nominal_sdf_distance << std::endl
+                      << "Grid aligned location:   " << grid_aligned_location.transpose() << std::endl
+                      << "Grid aligned nearest:    " << grid_aligned_nearest.transpose() << std::endl
+                      << "Offsets:                 " << x_idx_offset << " " << y_idx_offset << " " << z_idx_offset << std::endl
+                      << "Total distance: " << std::sqrt(total_distance_sq) << std::endl;
 
 
-
-
-            return signed_distance;
+            if (querry_in_freespace)
+            {
+                return std::sqrt(total_distance_sq);
+            }
+            else
+            {
+                return -std::sqrt(total_distance_sq);
+            }
         }
     }
 
