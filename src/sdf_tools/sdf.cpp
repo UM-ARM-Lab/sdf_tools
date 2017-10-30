@@ -543,8 +543,9 @@ namespace sdf_tools
 
     double SignedDistanceField::EstimateDistanceInternal(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
     {
-        const std::vector<double> cell_center = GridIndexToLocation(x_idx, y_idx, z_idx);
-        const Eigen::Vector3d cell_center_to_location_vector(x - cell_center[0], y - cell_center[1], z - cell_center[2]);
+        const Eigen::Vector3d location(x, y, z);
+        const Eigen::Vector3d cell_center = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(x_idx, y_idx, z_idx));
+        const Eigen::Vector3d cell_center_to_location_vector = location - cell_center;
         const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
         const bool querry_in_freespace = nominal_sdf_distance > 0.0;
 
@@ -553,8 +554,15 @@ namespace sdf_tools
         if (std::fabs(nominal_sdf_distance) > res)
         {
             // Assign a smaller distance as a "buffer"
-            const double adjustment = (querry_in_freespace ? -res : res) / std::sqrt(2.0);
-            return nominal_sdf_distance + adjustment;
+            const double adjustment = res * 0.5;
+            if (querry_in_freespace)
+            {
+                return std::max(res, nominal_sdf_distance - adjustment);
+            }
+            else
+            {
+                return std::min(-res, nominal_sdf_distance + adjustment);
+            }
         }
         // Otherwise, measure the distance to the nearest boundary directly
         else
@@ -568,8 +576,25 @@ namespace sdf_tools
             // Measure how far into the cell the querry is, along the direction defined by the primary entry surface vector
             const std::pair<Eigen::Vector3d, double> entry_surface_information = GetPrimaryEntrySurfaceVector(direction_to_boundary, cell_center_to_location_vector);
             const Eigen::Vector3d& entry_surface_vector = entry_surface_information.first;
-            const double raw_distance = EigenHelpers::VectorProjection(entry_surface_vector, cell_center_to_location_vector).norm();
+            const Eigen::Vector3d& nominal_entry_location = cell_center + entry_surface_vector;
+            const Eigen::Vector3d& nominal_pentration_vector = location - nominal_entry_location;
+            const double raw_distance = EigenHelpers::VectorProjection(entry_surface_vector, nominal_pentration_vector).norm();
             const double signed_distance = querry_in_freespace ? raw_distance : -raw_distance;
+
+
+
+//            std::cout << std::setprecision(12)
+//                      << "Location:             " << location.transpose() << std::endl
+//                      << "Gradient:             " << gradient.transpose() << std::endl
+//                      << "Dir to Bdy:           " << direction_to_boundary.transpose() << std::endl
+//                      << "Entry surface vector: " << entry_surface_vector.transpose() << std::endl
+//                      << "Nominal distance:     " << nominal_sdf_distance << std::endl
+//                      << "Raw distance:         " << raw_distance << std::endl
+//                      << "Signed distance:      " << signed_distance << std::endl;
+
+
+
+
             return signed_distance;
         }
     }
