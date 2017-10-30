@@ -641,38 +641,34 @@ namespace sdf_tools
             {
                 const double collision_boundary = grid_aligned_nearest.x() - x_idx_offset * res;
                 const double delta = grid_aligned_location.x() - collision_boundary;
-                std::cerr << std::setprecision(12) << "x: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
+//                std::cerr << std::setprecision(12) << "x: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
                 total_distance_sq += delta * delta;
             }
             if (y_idx_offset != 0)
             {
                 const double collision_boundary = grid_aligned_nearest.y() - y_idx_offset * res;
                 const double delta = grid_aligned_location.y() - collision_boundary;
-                std::cerr << std::setprecision(12) << "y: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
+//                std::cerr << std::setprecision(12) << "y: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
                 total_distance_sq += delta * delta;
             }
             if (z_idx_offset != 0)
             {
                 const double collision_boundary = grid_aligned_nearest.z() - z_idx_offset * res;
                 const double delta = grid_aligned_location.z() - collision_boundary;
-                std::cerr << std::setprecision(12) << "z: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
+//                std::cerr << std::setprecision(12) << "z: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
                 total_distance_sq += delta * delta;
             }
 
-
-
-            std::cerr << std::setprecision(12)
-                      << "Location:             " << location.transpose() << std::endl
-                      << "Querry x, y, z idx: " << x_idx << " " << y_idx << " " << z_idx << std::endl
-                      << "Num x, y, z, cells: " << GetNumXCells() << " " << GetNumYCells() << " " << GetNumZCells() << std::endl
-//                      << "Min location:         " << min_loc.transpose() << std::endl
-//                      << "Max location:         " << max_loc.transpose() << std::endl
-                      << "Resolution:           " << res << std::endl
-                      << "Nominal distance:     " << nominal_sdf_distance << std::endl
-                      << "Grid aligned location:   " << grid_aligned_location.transpose() << std::endl
-                      << "Grid aligned nearest:    " << grid_aligned_nearest.transpose() << std::endl
-                      << "Offsets:                 " << x_idx_offset << " " << y_idx_offset << " " << z_idx_offset << std::endl
-                      << "Total distance: " << std::sqrt(total_distance_sq) << std::endl;
+//            std::cerr << std::setprecision(12)
+//                      << "Location:             " << location.transpose() << std::endl
+//                      << "Querry x, y, z idx: " << x_idx << " " << y_idx << " " << z_idx << std::endl
+//                      << "Num x, y, z, cells: " << GetNumXCells() << " " << GetNumYCells() << " " << GetNumZCells() << std::endl
+//                      << "Resolution:           " << res << std::endl
+//                      << "Nominal distance:     " << nominal_sdf_distance << std::endl
+//                      << "Grid aligned location:   " << grid_aligned_location.transpose() << std::endl
+//                      << "Grid aligned nearest:    " << grid_aligned_nearest.transpose() << std::endl
+//                      << "Offsets:                 " << x_idx_offset << " " << y_idx_offset << " " << z_idx_offset << std::endl
+//                      << "Total distance: " << std::sqrt(total_distance_sq) << std::endl;
 
 
             if (querry_in_freespace)
