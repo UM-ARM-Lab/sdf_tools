@@ -142,15 +142,14 @@ namespace sdf_tools
 
         double EstimateDistanceInternalLegacy(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const;
 
-    public:
-
-        std::pair<double, bool> EstimateDistance3dLegacy(const Eigen::Vector3d& location) const;
-
         std::pair<double, bool> EstimateDistance4dLegacy(const Eigen::Vector4d& location) const;
 
-        Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance3dLegacy(const Eigen::Vector3d& location, const double minimum_distance, const double stepsize_multiplier) const;
+        Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4dLegacy(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 8.0) const;
 
-        Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4dLegacy(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier) const;
+    public:
+
+        Eigen::Vector3d ProjectOutOfCollision3dLegacy(const Eigen::Vector3d& location, const double stepsize_multiplier = 1.0 / 8.0) const;
+
 
 
 

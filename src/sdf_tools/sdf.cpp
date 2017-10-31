@@ -1112,19 +1112,6 @@ namespace sdf_tools
         }
     }
 
-    std::pair<double, bool> SignedDistanceField::EstimateDistance3dLegacy(const Eigen::Vector3d& location) const
-    {
-        const std::vector<int64_t> indices = LocationToGridIndex3d(location);
-        if (indices.size() == 3)
-        {
-            return std::make_pair(EstimateDistanceInternalLegacy(location.x(), location.y(), location.z(), indices[0], indices[1], indices[2]), true);
-        }
-        else
-        {
-            return std::make_pair((double)distance_field_.GetOOBValue(), false);
-        }
-    }
-
     std::pair<double, bool> SignedDistanceField::EstimateDistance4dLegacy(const Eigen::Vector4d& location) const
     {
         const std::vector<int64_t> indices = LocationToGridIndex4d(location);
@@ -1138,9 +1125,9 @@ namespace sdf_tools
         }
     }
 
-    Eigen::Vector3d SignedDistanceField::ProjectOutOfCollisionToMinimumDistance3dLegacy(const Eigen::Vector3d& location, const double minimum_distance, const double stepsize_multiplier) const
+    Eigen::Vector3d SignedDistanceField::ProjectOutOfCollision3dLegacy(const Eigen::Vector3d& location, const double stepsize_multiplier) const
     {
-        const Eigen::Vector4d result = ProjectOutOfCollisionToMinimumDistance4dLegacy(Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0), minimum_distance, stepsize_multiplier);
+        const Eigen::Vector4d result = ProjectOutOfCollisionToMinimumDistance4dLegacy(Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0), 0.0, stepsize_multiplier);
         return result.head<3>();
     }
 
