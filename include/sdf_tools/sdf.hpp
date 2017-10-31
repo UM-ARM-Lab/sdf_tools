@@ -128,7 +128,33 @@ namespace sdf_tools
 
         double EstimateDistanceInternal(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const;
 
+
+
+
+
+        std::pair<Eigen::Vector3d, double> GetPrimaryComponentsVectorLegacy(const Eigen::Vector3d& raw_vector) const;
+
+        double ComputeAxisMatchLegacy(const double axis_value, const double check_value) const;
+
+        Eigen::Vector3d GetBestMatchSurfaceVectorLegacy(const Eigen::Vector3d& possible_surfaces_vector, const Eigen::Vector3d& center_to_location_vector) const;
+
+        std::pair<Eigen::Vector3d, double> GetPrimaryEntrySurfaceVectorLegacy(const Eigen::Vector3d& boundary_direction_vector, const Eigen::Vector3d& center_to_location_vector) const;
+
+        double EstimateDistanceInternalLegacy(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const;
+
     public:
+
+        std::pair<double, bool> EstimateDistance3dLegacy(const Eigen::Vector3d& location) const;
+
+        std::pair<double, bool> EstimateDistance4dLegacy(const Eigen::Vector4d& location) const;
+
+        Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance3dLegacy(const Eigen::Vector3d& location, const double minimum_distance, const double stepsize_multiplier) const;
+
+        Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4dLegacy(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier) const;
+
+
+
+
 
         std::pair<double, bool> EstimateDistance(const double x, const double y, const double z) const;
 
