@@ -738,20 +738,29 @@ namespace sdf_tools
 
         inline double EstimateDistanceInternal(const Eigen::Vector4d& query_location, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
         {
-            // We need to handle the cases of boundary and non-boundary cells separately
-            // Non-boundary cells can use a simpler approximation of distance adjustment,
-            // since these cells have a more useful gradient
-            // Boundary cells need special treatment since the gradient may exhibit discretization
-            // errors that would produce an incorrect estimate using the simpler method
-            const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
-            // Account for diagonal distances
-            if (std::abs(nominal_sdf_distance) > (GetResolution() * std::sqrt(3.001)))
+            // We think the bi/tri-linear interpolation is a better method, but it doesn't work everywhere
+            try
             {
-                return EstimateDistanceNonBoundaryCell(query_location, x_idx, y_idx, z_idx, nominal_sdf_distance);
+                return EstimateDistanceInterpolateFromNeighbors(query_location, x_idx, y_idx, z_idx);
             }
-            else
+            // Fall back to different methods
+            catch (...)
             {
-                return EstimateDistanceBoundaryCell(query_location, x_idx, y_idx, z_idx, nominal_sdf_distance);
+                // We need to handle the cases of boundary and non-boundary cells separately
+                // Non-boundary cells can use a simpler approximation of distance adjustment,
+                // since these cells have a more useful gradient
+                // Boundary cells need special treatment since the gradient may exhibit discretization
+                // errors that would produce an incorrect estimate using the simpler method
+                const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
+                // Account for diagonal distances
+                if (std::abs(nominal_sdf_distance) > (GetResolution() * std::sqrt(3.001)))
+                {
+                    return EstimateDistanceNonBoundaryCell(query_location, x_idx, y_idx, z_idx, nominal_sdf_distance);
+                }
+                else
+                {
+                    return EstimateDistanceBoundaryCell(query_location, x_idx, y_idx, z_idx, nominal_sdf_distance);
+                }
             }
         }
 
