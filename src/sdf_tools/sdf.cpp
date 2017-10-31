@@ -191,11 +191,11 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(float alpha) co
                     max_distance = distance;
                 }
                 // Convert SDF indices into a real-world location
-                std::vector<double> location = distance_field_.GridIndexToLocation(x_index, y_index, z_index);
+                const Eigen::Vector4d location = distance_field_.GridIndexToLocation(x_index, y_index, z_index);
                 geometry_msgs::Point new_point;
-                new_point.x = location[0];
-                new_point.y = location[1];
-                new_point.z = location[2];
+                new_point.x = location(0);
+                new_point.y = location(1);
+                new_point.z = location(2);
                 display_rep.points.push_back(new_point);
             }
         }
@@ -266,11 +266,11 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(fl
                 if (distance <= 0.0)
                 {
                     // Convert SDF indices into a real-world location
-                    std::vector<double> location = distance_field_.GridIndexToLocation(x_index, y_index, z_index);
+                    const Eigen::Vector4d location = distance_field_.GridIndexToLocation(x_index, y_index, z_index);
                     geometry_msgs::Point new_point;
-                    new_point.x = location[0];
-                    new_point.y = location[1];
-                    new_point.z = location[2];
+                    new_point.x = location(0);
+                    new_point.y = location(1);
+                    new_point.z = location(2);
                     display_rep.points.push_back(new_point);
                     // Color it
                     std_msgs::ColorRGBA new_color;
@@ -312,11 +312,11 @@ visualization_msgs::Marker SignedDistanceField::ExportForDebug(float alpha) cons
             for (int64_t z_index = 0; z_index < distance_field_.GetNumZCells(); z_index++)
             {
                 // Convert SDF indices into a real-world location
-                std::vector<double> location = distance_field_.GridIndexToLocation(x_index, y_index, z_index);
+                const Eigen::Vector4d location = distance_field_.GridIndexToLocation(x_index, y_index, z_index);
                 geometry_msgs::Point new_point;
-                new_point.x = location[0];
-                new_point.y = location[1];
-                new_point.z = location[2];
+                new_point.x = location(0);
+                new_point.y = location(1);
+                new_point.z = location(2);
                 display_rep.points.push_back(new_point);
                 // Color it
                 std_msgs::ColorRGBA new_color;
@@ -354,8 +354,8 @@ void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(VoxelGrid::VoxelGri
         Eigen::Vector3d current_gradient(raw_gradient[0], raw_gradient[1], raw_gradient[2]);
         if (GradientIsEffectiveFlat(current_gradient))
         {
-            std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
-            Eigen::Vector3d local_maxima(location[0], location[1], location[2]);
+            const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
+            Eigen::Vector3d local_maxima(location(0), location(1), location(2));
             watershed_map.SetValue(x_index, y_index, z_index, local_maxima);
         }
         else
@@ -376,8 +376,8 @@ void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(VoxelGrid::VoxelGri
                 {
                     //std::cerr << "LMAX found by cycle detect" << std::endl;
                     // If we've already been here, then we are done
-                    std::vector<double> location = GridIndexToLocation(current_index);
-                    local_maxima = Eigen::Vector3d(location[0], location[1], location[2]);
+                    const Eigen::Vector4d location = GridIndexToLocation(current_index);
+                    local_maxima = Eigen::Vector3d(location(0), location(1), location(2));
                     break;
                 }
                 // Check if we've been pushed past the edge
@@ -404,8 +404,8 @@ void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(VoxelGrid::VoxelGri
                     {
                         //std::cerr << "LMAX found by flat detect" << std::endl;
                         // We have the local maxima
-                        std::vector<double> location = GridIndexToLocation(current_index);
-                        local_maxima = Eigen::Vector3d(location[0], location[1], location[2]);
+                        const Eigen::Vector4d location = GridIndexToLocation(current_index);
+                        local_maxima = Eigen::Vector3d(location(0), location(1), location(2));
                         break;
                     }
                 }

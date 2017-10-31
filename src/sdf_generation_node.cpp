@@ -34,11 +34,11 @@ visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<uin
                 if (status == 1)
                 {
                     // Convert cell indices into a real-world location
-                    std::vector<double> location = collision_map.GridIndexToLocation(x_index, y_index, z_index);
+                    const Eigen::Vector4d location = collision_map.GridIndexToLocation(x_index, y_index, z_index);
                     geometry_msgs::Point new_point;
-                    new_point.x = location[0];
-                    new_point.y = location[1];
-                    new_point.z = location[2];
+                    new_point.x = location(0);
+                    new_point.y = location(1);
+                    new_point.z = location(2);
                     display_rep.points.push_back(new_point);
                     // Color it
                     std_msgs::ColorRGBA new_color;

@@ -543,10 +543,10 @@ namespace sdf_tools
 
         inline std::pair<bool, bool> CheckIfCandidateCorner3d(const Eigen::Vector3d& location) const
         {
-            const std::vector<int64_t> indices = collision_field_.LocationToGridIndex3d(location);
-            if (indices.size() == 3)
+            const VoxelGrid::GRID_INDEX index = collision_field_.LocationToGridIndex3d(location);
+            if (collision_field_.IndexInBounds(index))
             {
-                return CheckIfCandidateCorner(indices[0], indices[1], indices[2]);
+                return CheckIfCandidateCorner(index);
             }
             else
             {
@@ -556,10 +556,10 @@ namespace sdf_tools
 
         inline std::pair<bool, bool> CheckIfCandidateCorner4d(const Eigen::Vector4d& location) const
         {
-            const std::vector<int64_t> indices = collision_field_.LocationToGridIndex4d(location);
-            if (indices.size() == 3)
+            const VoxelGrid::GRID_INDEX index = collision_field_.LocationToGridIndex4d(location);
+            if (collision_field_.IndexInBounds(index))
             {
-                return CheckIfCandidateCorner(indices[0], indices[1], indices[2]);
+                return CheckIfCandidateCorner(index);
             }
             else
             {
@@ -821,22 +821,27 @@ namespace sdf_tools
             return std::pair<uint32_t, bool>(number_of_components_, components_valid_);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex3d(const Eigen::Vector3d& location) const
+        inline VoxelGrid::GRID_INDEX LocationToGridIndex3d(const Eigen::Vector3d& location) const
         {
             return collision_field_.LocationToGridIndex3d(location);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex4d(const Eigen::Vector4d& location) const
+        inline VoxelGrid::GRID_INDEX LocationToGridIndex4d(const Eigen::Vector4d& location) const
         {
             return collision_field_.LocationToGridIndex4d(location);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex(const double x, const double y, const double z) const
+        inline VoxelGrid::GRID_INDEX LocationToGridIndex(double x, double y, double z) const
         {
             return collision_field_.LocationToGridIndex(x, y, z);
         }
 
-        inline std::vector<double> GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+        inline Eigen::Vector4d GridIndexToLocation(const VoxelGrid::GRID_INDEX& index) const
+        {
+            return collision_field_.GridIndexToLocation(index);
+        }
+
+        inline Eigen::Vector4d GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             return collision_field_.GridIndexToLocation(x_index, y_index, z_index);
         }
@@ -859,9 +864,7 @@ namespace sdf_tools
                     for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
                     {
                         const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
-                        const std::vector<double> raw_current_cell_location = GridIndexToLocation(x_index, y_index, z_index);
-                        assert(raw_current_cell_location.size() == 3);
-                        const Eigen::Vector4d current_cell_location(raw_current_cell_location[0], raw_current_cell_location[1], raw_current_cell_location[2], 1.0);
+                        const Eigen::Vector4d current_cell_location = GridIndexToLocation(x_index, y_index, z_index);
                         resampled.Set4d(current_cell_location, current_cell);
                     }
                 }
@@ -1481,7 +1484,8 @@ namespace sdf_tools
         {
             std::map<size_t, uint8_t> line_of_sight_indices;
             std::map<size_t, uint8_t> non_line_of_sight_indices;
-            Eigen::Vector3d current_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(current_surface_index.x, current_surface_index.y, current_surface_index.z));
+            const Eigen::Vector4d start_location = GridIndexToLocation(current_surface_index.x, current_surface_index.y, current_surface_index.z);
+            Eigen::Vector3d current_location(start_location(0), start_location(1), start_location(2));
             const double ray_step_size = GetResolution() * 0.5;
             const Eigen::Vector3d ray_step_vector = ray_unit_vector * ray_step_size;
             bool in_grid = true;
@@ -1490,10 +1494,9 @@ namespace sdf_tools
             while (in_grid)
             {
                 // Grab the index corresponding to our location
-                std::vector<int64_t> raw_current_index = LocationToGridIndex(current_location.x(), current_location.y(), current_location.z());
-                if (raw_current_index.size() == 3)
+                const VoxelGrid::GRID_INDEX current_index = LocationToGridIndex(current_location.x(), current_location.y(), current_location.z());
+                if (collision_field_.IndexInBounds(current_index))
                 {
-                    VoxelGrid::GRID_INDEX current_index(raw_current_index[0], raw_current_index[1], raw_current_index[2]);
                     //std::cout << "CVGX " << PrettyPrint::PrettyPrint(current_index) << std::endl;
                     // Are we in the surface?
                     auto found_itr = surface_index_map.find(current_index);

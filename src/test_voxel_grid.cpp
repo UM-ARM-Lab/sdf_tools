@@ -100,15 +100,14 @@ void test_voxel_grid_locations()
                     pass = false;
                 }
                 check_index++;
-                std::vector<double> query_point = {x_pos, y_pos, z_pos};
                 //std::cout << "Query point - " << PrettyPrint::PrettyPrint(query_point) << std::endl;
-                std::vector<int64_t> query_index = test_grid.LocationToGridIndex(x_pos, y_pos, z_pos);
+                const VoxelGrid::GRID_INDEX query_index = test_grid.LocationToGridIndex(x_pos, y_pos, z_pos);
                 //std::cout << "Query index - " << PrettyPrint::PrettyPrint(query_index) << std::endl;
-                std::vector<double> query_location = test_grid.GridIndexToLocation(query_index[0], query_index[1], query_index[2]);
+                const Eigen::Vector4d query_location = test_grid.GridIndexToLocation(query_index);
                 //std::cout << "Query location - " << PrettyPrint::PrettyPrint(query_location) << std::endl;
-                std::vector<int64_t> found_query_index = test_grid.LocationToGridIndex(query_location[0], query_location[1], query_location[2]);
+                const VoxelGrid::GRID_INDEX found_query_index = test_grid.LocationToGridIndex4d(query_location);
                 //std::cout << "Found query index - " << PrettyPrint::PrettyPrint(found_query_index) << std::endl;
-                if (query_point[0] == query_location[0] && query_point[1] == query_location[1] && query_point[2] == query_location[2])
+                if (x_pos == query_location(0) && y_pos == query_location(1) && z_pos == query_location(2))
                 {
                     //std::cout << "Position check pass" << std::endl;
                 }
@@ -117,7 +116,7 @@ void test_voxel_grid_locations()
                     std::cout << "Position check fail" << std::endl;
                     pass = false;
                 }
-                if (query_index[0] == found_query_index[0] && query_index[1] == found_query_index[1] && query_index[2] == found_query_index[2])
+                if (query_index.x == found_query_index.x && query_index.y == found_query_index.y && query_index.z == found_query_index.z)
                 {
                     //std::cout << "Position index check pass" << std::endl;
                 }
@@ -324,6 +323,35 @@ visualization_msgs::MarkerArray test_dsh_collision_map(std::default_random_engin
     return display_rep;
 }
 
+void test_estimate_distance()
+{
+    const double res = 1.0;
+    const double size = 10.0;
+    auto map = sdf_tools::CollisionMapGrid(Eigen::Isometry3d::Identity(), "mocap_world", res, size, size, size, sdf_tools::COLLISION_CELL(0.0));
+    map.Set(5.0, 5.0, 5.0, sdf_tools::COLLISION_CELL(1.0));
+    map.Set(5.0, 5.0, 6.0, sdf_tools::COLLISION_CELL(1.0));
+    map.Set(5.0, 6.0, 5.0, sdf_tools::COLLISION_CELL(1.0));
+    map.Set(5.0, 6.0, 6.0, sdf_tools::COLLISION_CELL(1.0));
+    map.Set(6.0, 5.0, 5.0, sdf_tools::COLLISION_CELL(1.0));
+    map.Set(6.0, 5.0, 6.0, sdf_tools::COLLISION_CELL(1.0));
+    map.Set(6.0, 6.0, 5.0, sdf_tools::COLLISION_CELL(1.0));
+    map.Set(6.0, 6.0, 6.0, sdf_tools::COLLISION_CELL(1.0));
+    const auto sdf = map.ExtractSignedDistanceField(1e6).first;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.4, 6.4, 6.4).first << std::endl;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.5, 6.5, 6.5).first << std::endl;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.5, 6.5, 6.6).first << std::endl;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.5, 6.6, 6.5).first << std::endl;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.5, 6.5).first << std::endl;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.6, 6.6).first << std::endl;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.6, 6.7).first << std::endl;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.7, 6.6).first << std::endl;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.7, 6.6, 6.6).first << std::endl;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.7, 6.7, 6.7).first << std::endl;
+    std::cout << "-----" << std::endl;
+    std::cout << std::setprecision(12) << sdf.EstimateDistance(5.8, 5.9, 5.7).first << std::endl;
+    std::cout << PrettyPrint::PrettyPrint(sdf.ProjectOutOfCollisionToMinimumDistance4d(Eigen::Vector4d(5.8, 5.9, 5.7, 1.0), 0.001, 0.06125)) << std::endl;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -338,6 +366,7 @@ int main(int argc, char** argv)
     test_voxel_grid_serialization();
     test_dsh_voxel_grid_locations();
     test_float_binary_conversion(5280.0);
+    test_estimate_distance();
     visualization_msgs::MarkerArray display_rep = test_dsh_collision_map(generator);
     display_pub.publish(display_rep);
     ros::spin();

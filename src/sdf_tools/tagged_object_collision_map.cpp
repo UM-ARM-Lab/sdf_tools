@@ -189,11 +189,11 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const 
             for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
             {
                 // Convert grid indices into a real-world location
-                std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
+                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
                 geometry_msgs::Point new_point;
-                new_point.x = location[0];
-                new_point.y = location[1];
-                new_point.z = location[2];
+                new_point.x = location(0);
+                new_point.y = location(1);
+                new_point.z = location(2);
                 const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
                 const auto draw_found_itr = objects_to_draw_map.find(current_cell.object_id);
                 if (draw_found_itr != objects_to_draw_map.end() || objects_to_draw_map.size() == 0)
@@ -237,11 +237,11 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const 
             for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
             {
                 // Convert grid indices into a real-world location
-                std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
+                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
                 geometry_msgs::Point new_point;
-                new_point.x = location[0];
-                new_point.y = location[1];
-                new_point.z = location[2];
+                new_point.x = location(0);
+                new_point.y = location(1);
+                new_point.z = location(2);
                 const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
                 // Check if we've been given a color to work with
                 auto found_itr = object_color_map.find(current_cell.object_id);
@@ -298,11 +298,11 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDis
             for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
             {
                 // Convert grid indices into a real-world location
-                std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
+                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
                 geometry_msgs::Point new_point;
-                new_point.x = location[0];
-                new_point.y = location[1];
-                new_point.z = location[2];
+                new_point.x = location(0);
+                new_point.y = location(1);
+                new_point.z = location(2);
                 const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
                 // Get the SDF for the current object
                 auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
@@ -359,11 +359,11 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDis
             for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
             {
                 // Convert grid indices into a real-world location
-                std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
+                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
                 geometry_msgs::Point new_point;
-                new_point.x = location[0];
-                new_point.y = location[1];
-                new_point.z = location[2];
+                new_point.x = location(0);
+                new_point.y = location(1);
+                new_point.z = location(2);
                 const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
                 // Get the SDF for the current object
                 auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
@@ -424,11 +424,11 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplayOccupan
             for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
             {
                 // Convert grid indices into a real-world location
-                std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
+                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
                 geometry_msgs::Point new_point;
-                new_point.x = location[0];
-                new_point.y = location[1];
-                new_point.z = location[2];
+                new_point.x = location(0);
+                new_point.y = location(1);
+                new_point.z = location(2);
                 if (GetImmutable(x_index, y_index, z_index).first.occupancy > 0.5)
                 {
                     if (collision_color.a > 0.0)
@@ -485,11 +485,11 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportConnectedComponen
             for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
             {
                 // Convert grid indices into a real-world location
-                std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
+                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
                 geometry_msgs::Point new_point;
-                new_point.x = location[0];
-                new_point.y = location[1];
-                new_point.z = location[2];
+                new_point.x = location(0);
+                new_point.y = location(1);
+                new_point.z = location(2);
                 display_rep.points.push_back(new_point);
                 const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
                 if (current_cell.occupancy != 0.5)
@@ -549,11 +549,11 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportConvexSegmentForD
                 if ((current_cell.object_id == object_id) && (current_cell.IsPartOfConvexSegment(convex_segment)))
                 {
                     // Convert grid indices into a real-world location
-                    std::vector<double> location = GridIndexToLocation(x_index, y_index, z_index);
+                    const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
                     geometry_msgs::Point new_point;
-                    new_point.x = location[0];
-                    new_point.y = location[1];
-                    new_point.z = location[2];
+                    new_point.x = location(0);
+                    new_point.y = location(1);
+                    new_point.z = location(2);
                     display_rep.points.push_back(new_point);
                     // Generate a color
                     const std_msgs::ColorRGBA color = GenerateComponentColor(convex_segment);
@@ -592,11 +592,11 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportSurfaceForDisplay
         if (validity == 1)
         {
             // Convert grid indices into a real-world location
-            std::vector<double> location = GridIndexToLocation(index.x, index.y, index.z);
+            const Eigen::Vector4d location = GridIndexToLocation(index);
             geometry_msgs::Point new_point;
-            new_point.x = location[0];
-            new_point.y = location[1];
-            new_point.z = location[2];
+            new_point.x = location(0);
+            new_point.y = location(1);
+            new_point.z = location(2);
             display_rep.points.push_back(new_point);
             display_rep.colors.push_back(surface_color);
         }
@@ -644,17 +644,15 @@ std::vector<VoxelGrid::GRID_INDEX> TaggedObjectCollisionMapGrid::CheckIfConvex(c
         if (other_status == 1)
         {
             // Walk from first index to second index. If any intervening cells are filled, return false
-            const Eigen::Vector3d start_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(other_index.x, other_index.y, other_index.z));
-            const Eigen::Vector3d end_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(candidate_index.x, candidate_index.y, candidate_index.z));
+            const Eigen::Vector4d start_location = GridIndexToLocation(other_index.x, other_index.y, other_index.z);
+            const Eigen::Vector4d end_location = GridIndexToLocation(candidate_index.x, candidate_index.y, candidate_index.z);
             double distance = (end_location - start_location).norm();
             uint32_t num_steps = (uint32_t)ceil(distance / (GetResolution() * 0.5));
             for (uint32_t step_num = 0; step_num <= num_steps; step_num++)
             {
                 const double ratio = (double)step_num / (double)num_steps;
-                const Eigen::Vector3d interpolated_location = EigenHelpers::Interpolate(start_location, end_location, ratio);
-                std::vector<int64_t> raw_interpolated_index = region_grid.LocationToGridIndex3d(interpolated_location);
-                assert(raw_interpolated_index.size() == 3);
-                VoxelGrid::GRID_INDEX interpolated_index(raw_interpolated_index[0], raw_interpolated_index[1], raw_interpolated_index[2]);
+                const Eigen::Vector4d interpolated_location = EigenHelpers::Interpolate4d(start_location, end_location, ratio);
+                const VoxelGrid::GRID_INDEX interpolated_index = region_grid.LocationToGridIndex4d(interpolated_location);
                 // Grab the cell at that location
                 const TAGGED_OBJECT_COLLISION_CELL& intermediate_cell = GetImmutable(interpolated_index).first;
                 // Check for collision
@@ -714,7 +712,7 @@ void TaggedObjectCollisionMapGrid::GrowConvexRegion(const VoxelGrid::GRID_INDEX&
     // Mark the region of the start index
     region_grid.GetMutable(start_index).first.push_back(current_convex_region);
     std::cout << "Added " << PrettyPrint::PrettyPrint(start_index) << " to region " << current_convex_region << std::endl;
-    const Eigen::Vector3d start_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(start_index.x, start_index.y, start_index.z));
+    const Eigen::Vector4d start_location = GridIndexToLocation(start_index.x, start_index.y, start_index.z);
     std::list<VoxelGrid::GRID_INDEX> working_queue;
     std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable;
     working_queue.push_back(start_index);
@@ -740,7 +738,7 @@ void TaggedObjectCollisionMapGrid::GrowConvexRegion(const VoxelGrid::GRID_INDEX&
             if ((candidate_neighbor.x >= 0) && (candidate_neighbor.y >= 0) && (candidate_neighbor.z >= 0) && (candidate_neighbor.x < GetNumXCells()) && (candidate_neighbor.y < GetNumYCells()) && (candidate_neighbor.z < GetNumZCells()))
             {
                 // Make sure it's within the check radius
-                const Eigen::Vector3d current_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(candidate_neighbor.x, candidate_neighbor.y, candidate_neighbor.z));
+                const Eigen::Vector4d current_location = GridIndexToLocation(candidate_neighbor.x, candidate_neighbor.y, candidate_neighbor.z);
                 double distance = (current_location - start_location).norm();
                 if (distance <= max_check_radius)
                 {

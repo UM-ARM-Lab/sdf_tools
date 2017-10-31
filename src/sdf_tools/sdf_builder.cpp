@@ -297,14 +297,11 @@ VoxelGrid::VoxelGrid<uint8_t> SDF_Builder::UpdateCollisionMapFromPlanningScene()
             for (int64_t z_index = 0; z_index < collision_field.GetNumZCells(); z_index++)
             {
                 // Convert SDF indices into a real-world location
-                std::vector<double> location = collision_field.GridIndexToLocation(x_index, y_index, z_index);
-                double x = location[0];
-                double y = location[1];
-                double z = location[2];
+                const Eigen::Vector4d location = collision_field.GridIndexToLocation(x_index, y_index, z_index);
                 // Set them
-                sdf_compute_bot_state.setJointPositions(x_joint, &x);
-                sdf_compute_bot_state.setJointPositions(y_joint, &y);
-                sdf_compute_bot_state.setJointPositions(z_joint, &z);
+                sdf_compute_bot_state.setJointPositions(x_joint, &location(0));
+                sdf_compute_bot_state.setJointPositions(y_joint, &location(1));
+                sdf_compute_bot_state.setJointPositions(z_joint, &location(2));
                 col_res.clear();
                 planning_scene_ptr_->checkCollision(col_req, col_res);
                 if (col_res.collision)
@@ -350,13 +347,10 @@ SignedDistanceField SDF_Builder::UpdateSDFFromPlanningScene()
             for (uint32_t z_index = 0; z_index < new_sdf.GetNumZCells(); z_index++)
             {
                 // Convert SDF indices into a real-world location
-                std::vector<double> location = new_sdf.GridIndexToLocation(x_index, y_index, z_index);
-                double x = location[0];
-                double y = location[1];
-                double z = location[2];
-                sdf_compute_bot_state.setJointPositions(x_joint, &x);
-                sdf_compute_bot_state.setJointPositions(y_joint, &y);
-                sdf_compute_bot_state.setJointPositions(z_joint, &z);
+                const Eigen::Vector4d location = new_sdf.GridIndexToLocation(x_index, y_index, z_index);
+                sdf_compute_bot_state.setJointPositions(x_joint, &location(0));
+                sdf_compute_bot_state.setJointPositions(y_joint, &location(1));
+                sdf_compute_bot_state.setJointPositions(z_joint, &location(2));
                 col_res.clear();
                 planning_scene_ptr_->checkCollision(col_req, col_res);
                 if (col_res.collision)

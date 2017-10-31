@@ -189,11 +189,11 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(const std_msgs::Co
             for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
             {
                 // Convert grid indices into a real-world location
-                std::vector<double> location = collision_field_.GridIndexToLocation(x_index, y_index, z_index);
+                const Eigen::Vector4d location = collision_field_.GridIndexToLocation(x_index, y_index, z_index);
                 geometry_msgs::Point new_point;
-                new_point.x = location[0];
-                new_point.y = location[1];
-                new_point.z = location[2];
+                new_point.x = location(0);
+                new_point.y = location(1);
+                new_point.z = location(2);
                 if (collision_field_.GetImmutable(x_index, y_index, z_index).first.occupancy > 0.5)
                 {
                     if (collision_color.a > 0.0)
@@ -250,11 +250,11 @@ visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay
             for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
             {
                 // Convert grid indices into a real-world location
-                std::vector<double> location = collision_field_.GridIndexToLocation(x_index, y_index, z_index);
+                const Eigen::Vector4d location = collision_field_.GridIndexToLocation(x_index, y_index, z_index);
                 geometry_msgs::Point new_point;
-                new_point.x = location[0];
-                new_point.y = location[1];
-                new_point.z = location[2];
+                new_point.x = location(0);
+                new_point.y = location(1);
+                new_point.z = location(2);
                 display_rep.points.push_back(new_point);
                 COLLISION_CELL current_cell = collision_field_.GetImmutable(x_index, y_index, z_index).first;
                 if (current_cell.occupancy != 0.5)

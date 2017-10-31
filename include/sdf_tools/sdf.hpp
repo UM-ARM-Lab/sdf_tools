@@ -9,6 +9,7 @@
 #include <visualization_msgs/Marker.h>
 #include <arc_utilities/eigen_helpers.hpp>
 #include <arc_utilities/voxel_grid.hpp>
+#include <arc_utilities/pretty_print.hpp>
 #include <sdf_tools/SDF.h>
 
 #ifndef SDF_HPP
@@ -234,27 +235,27 @@ namespace sdf_tools
 
         inline bool CheckInBounds3d(const Eigen::Vector3d& location) const
         {
-            return distance_field_.GetImmutable3d(location).second;
+            return distance_field_.LocationInBounds3d(location);
         }
 
         inline bool CheckInBounds4d(const Eigen::Vector4d& location) const
         {
-            return distance_field_.GetImmutable4d(location).second;
+            return distance_field_.LocationInBounds4d(location);
         }
 
         inline bool CheckInBounds(const double x, const double y, const double z) const
         {
-            return distance_field_.GetImmutable(x, y, z).second;
+            return distance_field_.LocationInBounds(x, y, z);
         }
 
         inline bool CheckInBounds(const VoxelGrid::GRID_INDEX& index) const
         {
-            return distance_field_.GetImmutable(index.x, index.y, index.z).second;
+            return distance_field_.IndexInBounds(index);
         }
 
         inline bool CheckInBounds(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
-            return distance_field_.GetImmutable(x_index, y_index, z_index).second;
+            return distance_field_.IndexInBounds(x_index, y_index, z_index);
         }
 
         inline double GetXSize() const
@@ -299,182 +300,458 @@ namespace sdf_tools
 
     protected:
 
-        inline std::pair<Eigen::Vector3d, double> GetPrimaryComponentsVector(const Eigen::Vector3d& raw_vector) const
+        inline double GetCorrectedCenter(const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
         {
-            if (std::abs(raw_vector.x()) > std::abs(raw_vector.y()) && std::abs(raw_vector.x()) > std::abs(raw_vector.z()))
+            if (distance_field_.IndexInBounds(x_idx, y_idx, z_idx))
             {
-                if (raw_vector.x() >= 0.0)
-                {
-                    return std::make_pair(Eigen::Vector3d(GetResolution() * 0.5, 0.0, 0.0), GetResolution() * 0.5);
-                }
-                else
-                {
-                    return std::make_pair(Eigen::Vector3d(GetResolution() * -0.5, 0.0, 0.0), GetResolution() * 0.5);
-                }
-            }
-            else if (std::abs(raw_vector.y()) > std::abs(raw_vector.x()) && std::abs(raw_vector.y()) > std::abs(raw_vector.z()))
-            {
-                if (raw_vector.y() >= 0.0)
-                {
-                    return std::make_pair(Eigen::Vector3d(0.0, GetResolution() * 0.5, 0.0), GetResolution() * 0.5);
-                }
-                else
-                {
-                    return std::make_pair(Eigen::Vector3d(0.0, GetResolution() * -0.5, 0.0), GetResolution() * 0.5);
-                }
-            }
-            else if (std::abs(raw_vector.z()) > std::abs(raw_vector.x()) && std::abs(raw_vector.z()) > std::abs(raw_vector.y()))
-            {
-                if (raw_vector.z() >= 0.0)
-                {
-                    return std::make_pair(Eigen::Vector3d(0.0, 0.0, GetResolution() * 0.5), GetResolution() * 0.5);
-                }
-                else
-                {
-                    return std::make_pair(Eigen::Vector3d(0.0, 0.0, GetResolution() * -0.5), GetResolution() * 0.5);
-                }
-            }
-            else if (std::abs(raw_vector.x()) == std::abs(raw_vector.y()))
-            {
-                const Eigen::Vector3d temp_vector(raw_vector.x(), raw_vector.y(), 0.0);
-                return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
-            }
-            else if (std::abs(raw_vector.y()) == std::abs(raw_vector.z()))
-            {
-                const Eigen::Vector3d temp_vector(0.0, raw_vector.y(), raw_vector.x());
-                return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
-            }
-            else if (std::abs(raw_vector.x()) == std::abs(raw_vector.z()))
-            {
-                const Eigen::Vector3d temp_vector(raw_vector.x(), 0.0, raw_vector.z());
-                return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
+                const double nominal_sdf_distance = Get(x_idx, y_idx, z_idx);
+                const double cell_center_distance_offset = GetResolution() * 0.5;
+                const double center_adjusted_nominal_distance = (nominal_sdf_distance >= 0.0) ? nominal_sdf_distance - cell_center_distance_offset : nominal_sdf_distance + cell_center_distance_offset;
+                return center_adjusted_nominal_distance;
             }
             else
             {
-                return std::make_pair((raw_vector / (raw_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 3.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 3.0));
+                throw std::invalid_argument("Index out of bounds");
             }
         }
 
-        inline double ComputeAxisMatch(const double axis_value, const double check_value) const
+        inline double EstimateDistanceNonBoundaryCell(const Eigen::Vector4d& query_location, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx, const double nominal_sdf_distance) const
         {
-            if ((axis_value >= 0.0) == (check_value >= 0.0))
-            {
-                return std::abs(check_value - axis_value);
-            }
-            else
-            {
-                return -std::abs(check_value - axis_value);
-            }
-        }
-
-        inline Eigen::Vector3d GetBestMatchSurfaceVector(const Eigen::Vector3d& possible_surfaces_vector, const Eigen::Vector3d& center_to_location_vector) const
-        {
-            const Eigen::Vector3d location_rejected_on_possible = EigenHelpers::VectorRejection(possible_surfaces_vector, center_to_location_vector);
-            // Find the axis with the best-match components
-            const double x_axis_match = ComputeAxisMatch(possible_surfaces_vector.x(), location_rejected_on_possible.x());
-            const double y_axis_match = ComputeAxisMatch(possible_surfaces_vector.y(), location_rejected_on_possible.y());
-            const double z_axis_match = ComputeAxisMatch(possible_surfaces_vector.z(), location_rejected_on_possible.z());
-            // Cases where one is better
-            if ((x_axis_match > y_axis_match) && (x_axis_match > z_axis_match))
-            {
-                return Eigen::Vector3d(possible_surfaces_vector.x(), 0.0, 0.0);
-            }
-            else if ((y_axis_match > x_axis_match) && (y_axis_match > z_axis_match))
-            {
-                return Eigen::Vector3d(0.0, possible_surfaces_vector.y(), 0.0);
-            }
-            else if ((z_axis_match > x_axis_match) && (z_axis_match > y_axis_match))
-            {
-                return Eigen::Vector3d(0.0, 0.0, possible_surfaces_vector.z());
-            }
-            // Cases where two are equally good
-            else if ((x_axis_match < y_axis_match) && (x_axis_match < z_axis_match))
-            {
-                return Eigen::Vector3d(0.0, possible_surfaces_vector.y(), possible_surfaces_vector.z());
-            }
-            else if ((y_axis_match < x_axis_match) && (y_axis_match < z_axis_match))
-            {
-                return Eigen::Vector3d(possible_surfaces_vector.x(), 0.0, possible_surfaces_vector.z());
-            }
-            else if ((z_axis_match < x_axis_match) && (z_axis_match < y_axis_match))
-            {
-                return Eigen::Vector3d(possible_surfaces_vector.x(), possible_surfaces_vector.y(), 0.0);
-            }
-            // When all are equally good
-            else
-            {
-                std::cerr << "Possible surfaces vector " << possible_surfaces_vector << " simple match failed: " << x_axis_match << ", " << y_axis_match << ", " << z_axis_match << " (x, y, z)" << std::endl;
-                return possible_surfaces_vector;
-            }
-        }
-
-        /**
-         * @brief GetPrimaryEntrySurfaceVector Estimates the real distance of the provided point, comparing it with the cell center location and gradient vector
-         * @param boundary_direction_vector
-         * @param center_to_location_vector
-         * @return vector from center of voxel to primary entry surface, and magnitude of that vector
-         */
-        inline std::pair<Eigen::Vector3d, double> GetPrimaryEntrySurfaceVector(const Eigen::Vector3d& boundary_direction_vector, const Eigen::Vector3d& center_to_location_vector) const
-        {
-            if (boundary_direction_vector.squaredNorm() > std::numeric_limits<double>::epsilon())
-            {
-                const std::pair<Eigen::Vector3d, double> primary_components_vector_query = GetPrimaryComponentsVector(boundary_direction_vector);
-                // If the cell is on a surface
-                if (primary_components_vector_query.second == (GetResolution() * 0.5))
-                {
-                    return primary_components_vector_query;
-                }
-                // If the cell is on an edge or surface
-                else
-                {
-                    // Pick the best-match of the two/three exposed surfaces
-                    return std::make_pair(GetBestMatchSurfaceVector(primary_components_vector_query.first, center_to_location_vector), GetResolution() * 0.5);
-                }
-            }
-            else
-            {
-                return GetPrimaryComponentsVector(center_to_location_vector);
-            }
-        }
-
-        inline double EstimateDistanceInternal(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
-        {
-            const std::vector<double> cell_center = GridIndexToLocation(x_idx, y_idx, z_idx);
-            const Eigen::Vector3d cell_center_to_location_vector(x - cell_center[0], y - cell_center[1], z - cell_center[2]);
-            const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
-
-            // Determine vector from "entry surface" to center of voxel
-            // TODO: Needs special handling if there's no gradient to work with
+            const Eigen::Vector4d cell_center_location = GridIndexToLocation(x_idx, y_idx, z_idx);
+            const Eigen::Vector4d cell_center_to_query_vector = query_location - cell_center_location;
             const std::vector<double> raw_gradient = GetGradient(x_idx, y_idx, z_idx, true);
-            const Eigen::Vector3d gradient = EigenHelpers::StdVectorDoubleToEigenVector3d(raw_gradient);
-            const Eigen::Vector3d direction_to_boundary = (nominal_sdf_distance >= 0.0) ? -gradient : gradient;
-            const std::pair<Eigen::Vector3d, double> entry_surface_information = GetPrimaryEntrySurfaceVector(direction_to_boundary, cell_center_to_location_vector);
-            const Eigen::Vector3d& entry_surface_vector = entry_surface_information.first;
-            const double minimum_distance_magnitude = entry_surface_information.second;
-
+            assert(raw_gradient.size() == 3);
+            const Eigen::Vector4d gradient(raw_gradient[0], raw_gradient[1], raw_gradient[2], 0.0);
             // Adjust for calculating distance to boundary of voxels instead of center of voxels
-            const double center_adjusted_nominal_distance = (nominal_sdf_distance >= 0.0) ? nominal_sdf_distance - (GetResolution() * 0.5) : nominal_sdf_distance + (GetResolution() * 0.5);
-            const double minimum_adjusted_distance = arc_helpers::SpreadValue(center_adjusted_nominal_distance, -minimum_distance_magnitude, 0.0, minimum_distance_magnitude);
+            const double gradient_norm = gradient.norm();
+            // This adjustment is nominally resolution / 2, however, we can inflate this slightly with the gradient
+            // to handle diagonal graidents where the distance is longer.
+            // Think of it as
+            // (change in distance / unit change in position) * change in position = change in distance
+            const double cell_center_distance_offset = gradient_norm * GetResolution() * 0.5;
+            const double center_adjusted_nominal_distance = (nominal_sdf_distance >= 0.0) ? nominal_sdf_distance - cell_center_distance_offset : nominal_sdf_distance + cell_center_distance_offset;
+            // We figure out how much of the center->location vector is along the gradient vector
+            // Naively this would be VectorProjection(gradient, center->location).norm() with +/- determined
+            // separately using the dot product. In pure math, this would be:
+            // ((center->location.dot(gradient) / gradient.norm()) * (gradient / gradient.norm())).norm();
+            // We only want the magnitude of the projected vector, i.e.
+            // center->location.dot(gradient) / gradient.norm()
+            // which has the correct sign so we don't need to separately determine sign
+            const double distance_adjustment = cell_center_to_query_vector.dot(gradient) / gradient_norm;
+            const double adjusted_distance = center_adjusted_nominal_distance + distance_adjustment;
+            assert((adjusted_distance >= 0.0) == (nominal_sdf_distance >= 0.0));
+            return adjusted_distance;
+        }
 
-            // Account for target location being not at the exact center of the voxel
-            const double raw_distance_adjustment = EigenHelpers::VectorProjection(entry_surface_vector, cell_center_to_location_vector).norm();
-            const double real_distance_adjustment = (minimum_adjusted_distance >= 0.0) ? -raw_distance_adjustment: raw_distance_adjustment;
-            const double final_adjusted_distance = minimum_adjusted_distance + real_distance_adjustment;
-
-            // Perform minimum distance thresholding and error checking
-            // TODO: do we need to address this magic number somehow?
-            if (std::abs(final_adjusted_distance) < GetResolution() * 0.001)
+        inline double EstimateDistanceBoundaryCell(const Eigen::Vector4d& query_location, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx, const double nominal_sdf_distance) const
+        {
+            // Grab the closest neighboring cell that is across the boundary
+            double closest_across_boundary_squared_distance = std::numeric_limits<double>::infinity();
+            VoxelGrid::GRID_INDEX closest_across_boundary_index(-1, -1, -1);
+            Eigen::Vector4d closest_across_boundary_location(0.0, 0.0, 0.0, 1.0);
+            for (int64_t test_x_idx = x_idx - 1; test_x_idx <= x_idx + 1; test_x_idx++)
             {
-                return 0.0;
+                for (int64_t test_y_idx = y_idx - 1; test_y_idx <= y_idx + 1; test_y_idx++)
+                {
+                    for (int64_t test_z_idx = z_idx - 1; test_z_idx <= z_idx + 1; test_z_idx++)
+                    {
+                        const auto query = GetSafe(test_x_idx, test_y_idx, test_z_idx);
+                        if (query.second)
+                        {
+                            const double test_nominal_distance = (double)query.first;
+                            if ((test_nominal_distance >= 0.0) != (nominal_sdf_distance >= 0.0))
+                            {
+                                const Eigen::Vector4d test_cell_location = GridIndexToLocation(test_x_idx, test_y_idx, test_z_idx);
+                                const double squared_distance = (query_location - test_cell_location).squaredNorm();
+                                if (squared_distance < closest_across_boundary_squared_distance)
+                                {
+                                    closest_across_boundary_squared_distance = squared_distance;
+                                    closest_across_boundary_index = VoxelGrid::GRID_INDEX(test_x_idx, test_y_idx, test_z_idx);
+                                    closest_across_boundary_location = test_cell_location;
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            if ((minimum_adjusted_distance >= 0.0) == (final_adjusted_distance >= 0.0))
+            assert(distance_field_.IndexInBounds(closest_across_boundary_index));
+            const Eigen::Vector4d cell_center_location = GridIndexToLocation(x_idx, y_idx, z_idx);
+            // We can assume that the true boundary lies eactly in the middle of the current cell center and the across-boundary cell center
+            // We model this with a hyperplane of the form (point, normal)
+            // The point is the midpoint between cell centers
+            const Eigen::Vector4d boundary_plane_point = EigenHelpers::Interpolate4d(cell_center_location, closest_across_boundary_location, 0.5);
+            // Helpfully, the normal is just plane_point->grid_aligned_cell_center
+            const Eigen::Vector4d boundary_plane_normal = cell_center_location - boundary_plane_point;
+            // Now we just compute the distance from our query point to the plane
+            // Naively this would be VectorProjection(normal, point->query).norm()
+            // In pure math, this would be:
+            // ((point->query.dot(normal) / normal.norm()) * (normal / normal.norm())).norm();
+            // We only want the magnitude of the projected vector, i.e.
+            // point->query.dot(normal) / normal.norm()
+            const Eigen::Vector4d point_to_query_vector = query_location - boundary_plane_point;
+            const double abs_distance = point_to_query_vector.dot(boundary_plane_normal) / boundary_plane_normal.norm();
+            // Set sign appropriately
+            if (nominal_sdf_distance >= 0.0)
             {
-                return final_adjusted_distance;
+                return abs_distance;
             }
             else
             {
-                std::cerr << "Center adjusted nominal distance " << minimum_adjusted_distance << " final adjusted_distance " << final_adjusted_distance << std::endl;
-                assert(false && "Mismatched minimum and final adjusted distance signs");
+                return -abs_distance;
+            }
+        }
+
+        inline double LinearInterpolateX(const Eigen::Vector4d& corner_location, const Eigen::Vector4d& query_location,
+                                         const double mx_dist, const double px_dist) const
+        {
+            const double interpolation_ratio = (query_location(0) - corner_location(0)) / GetResolution();
+            return EigenHelpers::Interpolate(mx_dist, px_dist, interpolation_ratio);
+        }
+
+        inline double LinearInterpolateY(const Eigen::Vector4d& corner_location, const Eigen::Vector4d& query_location,
+                                         const double my_dist, const double py_dist) const
+        {
+            const double interpolation_ratio = (query_location(1) - corner_location(1)) / GetResolution();
+            return EigenHelpers::Interpolate(my_dist, py_dist, interpolation_ratio);
+        }
+
+        inline double LinearInterpolateZ(const Eigen::Vector4d& corner_location, const Eigen::Vector4d& query_location,
+                                         const double mz_dist, const double pz_dist) const
+        {
+            const double interpolation_ratio = (query_location(2) - corner_location(2)) / GetResolution();
+            return EigenHelpers::Interpolate(mz_dist, pz_dist, interpolation_ratio);
+        }
+
+        inline double BilinearInterpolate(const double low_d1, const double high_d1, const double low_d2, const double high_d2, const double query_d1, const double query_d2, const double l1l2_val, const double l1h2_val, const double h1l2_val, const double h1h2_val) const
+        {
+            Eigen::Matrix<double, 1, 2> d1_offsets;
+            d1_offsets(0, 0) = high_d1 - query_d1;
+            d1_offsets(0, 1) = query_d1 - low_d1;
+            Eigen::Matrix<double, 2, 2> values;
+            values(0, 0) = l1l2_val;
+            values(0, 1) = l1h2_val;
+            values(1, 0) = h1l2_val;
+            values(1, 1) = h1h2_val;
+            Eigen::Matrix<double, 2, 1> d2_offsets;
+            d2_offsets(0, 0) = high_d2 - query_d2;
+            d2_offsets(1, 0) = query_d2 - low_d2;
+            const double multiplier = 1.0 / ((high_d1 - low_d1) * (high_d2 - low_d2));
+            const double bilinear_interpolated = multiplier * d1_offsets * values * d2_offsets;
+            return bilinear_interpolated;
+        }
+
+        inline double BilinearInterpolateDistanceXY(const Eigen::Vector4d& corner_location, const Eigen::Vector4d& query_location,
+                                                    const double mxmy_dist, const double mxpy_dist, const double pxmy_dist, const double pxpy_dist) const
+        {
+            return BilinearInterpolate(corner_location(0), corner_location(0) + GetResolution(), corner_location(1), corner_location(1) + GetResolution(), query_location(0), query_location(1), mxmy_dist, mxpy_dist, pxmy_dist, pxpy_dist);
+        }
+
+        inline double BilinearInterpolateDistanceYZ(const Eigen::Vector2d& corner_location, const Eigen::Vector2d& query_location,
+                                                    const double mymz_dist, const double mypz_dist, const double pymz_dist, const double pypz_dist) const
+        {
+            return BilinearInterpolate(corner_location(1), corner_location(1) + GetResolution(), corner_location(2), corner_location(2) + GetResolution(), query_location(1), query_location(2), mymz_dist, mypz_dist, pymz_dist, pypz_dist);
+        }
+
+        inline double BilinearInterpolateDistanceXZ(const Eigen::Vector2d& corner_location, const Eigen::Vector2d& query_location,
+                                                    const double mxmz_dist, const double mxpz_dist, const double pxmz_dist, const double pxpz_dist) const
+        {
+            return BilinearInterpolate(corner_location(0), corner_location(0) + GetResolution(), corner_location(2), corner_location(2) + GetResolution(), query_location(0), query_location(2), mxmz_dist, mxpz_dist, pxmz_dist, pxpz_dist);
+        }
+
+        inline double TrilinearInterpolateDistance(const Eigen::Vector4d& corner_location, const Eigen::Vector4d& query_location,
+                                                   const double mxmymz_dist, const double mxmypz_dist, const double mxpymz_dist, const double mxpypz_dist,
+                                                   const double pxmymz_dist, const double pxmypz_dist, const double pxpymz_dist, const double pxpypz_dist) const
+        {
+            const double mz_bilinear_interpolated = BilinearInterpolateDistanceXY(corner_location, query_location,
+                                                                                  mxmymz_dist, mxpymz_dist, pxmymz_dist, pxpymz_dist);
+            const double pz_bilinear_interpolated = BilinearInterpolateDistanceXY(corner_location, query_location,
+                                                                                  mxmypz_dist, mxpypz_dist, pxmypz_dist, pxpypz_dist);
+            return LinearInterpolateZ(corner_location, query_location, mz_bilinear_interpolated, pz_bilinear_interpolated);
+        }
+
+        inline double EstimateDistanceInterpolateFromNeighbors(const Eigen::Vector4d& query_location, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
+        {
+            try
+            {
+                // Switch between all the possible options of where we are
+                const Eigen::Vector4d cell_center_location = GridIndexToLocation(x_idx, y_idx, z_idx);
+                const Eigen::Vector4d query_offset = query_location - cell_center_location;
+                // Catch the easiest case
+                if ((query_offset(0) == 0.0) && (query_offset(1) == 0.0) && (query_offset(2) == 0.0))
+                {
+                    return GetCorrectedCenter(x_idx, y_idx, z_idx);
+                }
+                // +X+Y+Z
+                else if ((query_offset(0) >= 0.0) && (query_offset(1) >= 0.0) && (query_offset(2) >= 0.0))
+                {
+                    return TrilinearInterpolateDistance(cell_center_location, query_location,
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx, y_idx + 1, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx + 1, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx + 1, z_idx),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx + 1, z_idx + 1));
+                }
+                // +X+Y-Z
+                else if ((query_offset(0) >= 0.0) && (query_offset(1) >= 0.0) && (query_offset(2) < 0.0))
+                {
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx, y_idx, z_idx - 1);
+                    return TrilinearInterpolateDistance(corner_location, query_location,
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx -1),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx + 1, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx, y_idx + 1, z_idx),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx + 1, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx + 1, z_idx));
+                }
+                // +X-Y+Z
+                else if ((query_offset(0) >= 0.0) && (query_offset(1) < 0.0) && (query_offset(2) >= 0.0))
+                {
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx, y_idx - 1, z_idx);
+
+                    return TrilinearInterpolateDistance(corner_location, query_location,
+                                                        GetCorrectedCenter(x_idx, y_idx - 1, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx - 1, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx - 1, z_idx),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx - 1, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx, z_idx + 1));
+                }
+                // +X-Y-Z
+                else if ((query_offset(0) >= 0.0) && (query_offset(1) < 0.0) && (query_offset(2) < 0.0))
+                {
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx, y_idx - 1, z_idx - 1);
+
+                    return TrilinearInterpolateDistance(corner_location, query_location,
+                                                        GetCorrectedCenter(x_idx, y_idx - 1, z_idx -1),
+                                                        GetCorrectedCenter(x_idx, y_idx - 1, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx - 1, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx - 1, z_idx),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx + 1, y_idx, z_idx));
+                }
+                // -X+Y+Z
+                else if ((query_offset(0) < 0.0) && (query_offset(1) >= 0.0) && (query_offset(2) >= 0.0))
+                {
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx - 1, y_idx, z_idx);
+                    return TrilinearInterpolateDistance(corner_location, query_location,
+                                                        GetCorrectedCenter(x_idx - 1, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx + 1, z_idx),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx + 1, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx, y_idx + 1, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx + 1, z_idx + 1));
+                }
+                // -X+Y-Z
+                else if ((query_offset(0) < 0.0) && (query_offset(1) >= 0.0) && (query_offset(2) < 0.0))
+                {
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx - 1, y_idx, z_idx - 1);
+                    return TrilinearInterpolateDistance(corner_location, query_location,
+                                                        GetCorrectedCenter(x_idx - 1, y_idx, z_idx -1),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx + 1, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx + 1, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx + 1, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx, y_idx + 1, z_idx));
+                }
+                // -X-Y+Z
+                else if ((query_offset(0) < 0.0) && (query_offset(1) < 0.0) && (query_offset(2) >= 0.0))
+                {
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx - 1, y_idx - 1, z_idx);
+                    return TrilinearInterpolateDistance(corner_location, query_location,
+                                                        GetCorrectedCenter(x_idx - 1, y_idx - 1, z_idx),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx - 1, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx, y_idx - 1, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx - 1, z_idx + 1),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx + 1));
+                }
+                // -X-Y-Z
+                else if ((query_offset(0) < 0.0) && (query_offset(1) < 0.0) && (query_offset(2) < 0.0))
+                {
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx - 1, y_idx - 1, z_idx - 1);
+                    return TrilinearInterpolateDistance(corner_location, query_location,
+                                                        GetCorrectedCenter(x_idx - 1, y_idx - 1, z_idx -1),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx - 1, z_idx),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx - 1, y_idx, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx - 1, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx, y_idx - 1, z_idx),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx - 1),
+                                                        GetCorrectedCenter(x_idx, y_idx, z_idx));
+                }
+                else
+                {
+                    throw std::runtime_error("Should not be possible to reach this!");
+                }
+            }
+            catch (const std::invalid_argument& ex)
+            {
+                const std::string msg = "Query location in outer half-cell of grid - message: " + std::string(ex.what());
+                throw std::runtime_error(msg);
+            }
+            catch (const std::runtime_error& ex)
+            {
+                const std::string msg = "Interpolation case not properly handled - message: " + std::string(ex.what());
+                throw std::runtime_error(msg);
+            }
+        }
+
+            /*
+            // Z-Axis
+            else if ((query_offset(0) == 0.0) && (query_offset(1) == 0.0))
+            {
+                if (query_offset(2) > 0.0)
+                {
+                    return LinearInterpolateZ(cell_center_location, query_location, Get(x_idx, y_idx, z_idx), Get(x_idx, y_idx, z_idx + 1));
+                }
+                else
+                {
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx, y_idx, z_idx - 1);
+                    return LinearInterpolateZ(corner_location, query_location, Get(x_idx, y_idx, z_idx - 1), Get(x_idx, y_idx, z_idx));
+                }
+            }
+            // X-Axis
+            else if ((query_offset(1) == 0.0) && (query_offset(2) == 0.0))
+            {
+                if (query_offset(0) > 0.0)
+                {
+                    return LinearInterpolateX(cell_center_location, query_location, Get(x_idx, y_idx, z_idx), Get(x_idx, y_idx + 1, z_idx));
+                }
+                else
+                {
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx - 1, y_idx, z_idx);
+                    return LinearInterpolateX(corner_location, query_location, Get(x_idx - 1, y_idx, z_idx), Get(x_idx, y_idx, z_idx));
+                }
+            }
+            // Y-Axis
+            else if ((query_offset(0) == 0.0) && (query_offset(2) == 0.0))
+            {
+                if (query_offset(1) > 0.0)
+                {
+                    return LinearInterpolateY(cell_center_location, query_location, Get(x_idx, y_idx, z_idx), Get(x_idx, y_idx + 1, z_idx));
+                }
+                else
+                {
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx, y_idx - 1, z_idx);
+                    return LinearInterpolateY(corner_location, query_location, Get(x_idx, y_idx - 1, z_idx), Get(x_idx, y_idx, z_idx));
+                }
+            }
+            // YZ-Plane
+            else if (query_offset(0) == 0.0)
+            {
+                if ((query_offset(1) > 0.0) && (query_offset(2) > 0.0))
+                {
+                    return BilinearInterpolateYZ(cell_center_location, query_location,
+                                                 Get(x_idx, y_idx, z_idx), Get(x_idx, y_idx, z_idx + 1),
+                                                 Get(x_idx, y_idx + 1, z_idx), Get(x_idx, y_idx + 1, z_idx + 1));
+                }
+                else if ((query_offset(1) > 0.0) && (query_offset(2) < 0.0))
+                {
+                    // CHECK
+                    const Eigen::Vector4d corner_location = GridIndexToLocation(x_idx, y_idx, z_idx - 1);
+                    return BilinearInterpolateYZ(corner_location, query_location,
+                                                 Get(x_idx, y_idx, z_idx -1), Get(x_idx, y_idx, z_idx),
+                                                 Get(x_idx, y_idx + 1, z_idx - 1), Get(x_idx, y_idx + 1, z_idx));
+                }
+                else if ((query_offset(1) < 0.0) && (query_offset(2) > 0.0))
+                {
+                    ;
+                }
+                else if ((query_offset(1) < 0.0) && (query_offset(2) < 0.0))
+                {
+                    ;
+                }
+                else
+                {
+                    assert(false && "Should not be possible to reach this!");
+                }
+            }
+            // XZ-Plane
+            else if (query_offset(1) == 0.0)
+            {
+                if ((query_offset(0) > 0.0) && (query_offset(2) > 0.0))
+                {
+                    ;
+                }
+                else if ((query_offset(0) > 0.0) && (query_offset(2) < 0.0))
+                {
+                    ;
+                }
+                else if ((query_offset(0) < 0.0) && (query_offset(2) > 0.0))
+                {
+                    ;
+                }
+                else if ((query_offset(0) < 0.0) && (query_offset(2) < 0.0))
+                {
+                    ;
+                }
+                else
+                {
+                    assert(false && "Should not be possible to reach this!");
+                }
+            }
+            // XY-Plane
+            else if (query_offset(2) == 0.0)
+            {
+                if ((query_offset(0) > 0.0) && (query_offset(1) > 0.0))
+                {
+                    ;
+                }
+                else if ((query_offset(0) > 0.0) && (query_offset(1) < 0.0))
+                {
+                    ;
+                }
+                else if ((query_offset(0) < 0.0) && (query_offset(1) > 0.0))
+                {
+                    ;
+                }
+                else if ((query_offset(0) < 0.0) && (query_offset(1) < 0.0))
+                {
+                    ;
+                }
+                else
+                {
+                    assert(false && "Should not be possible to reach this!");
+                }
+            }
+            else
+            {
+                assert(false && "Should not be possible to reach this!");
+            }
+        }
+        */
+
+        inline double EstimateDistanceInternal(const Eigen::Vector4d& query_location, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
+        {
+            // We need to handle the cases of boundary and non-boundary cells separately
+            // Non-boundary cells can use a simpler approximation of distance adjustment,
+            // since these cells have a more useful gradient
+            // Boundary cells need special treatment since the gradient may exhibit discretization
+            // errors that would produce an incorrect estimate using the simpler method
+            const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
+            // Account for diagonal distances
+            if (std::abs(nominal_sdf_distance) > (GetResolution() * std::sqrt(3.001)))
+            {
+                return EstimateDistanceNonBoundaryCell(query_location, x_idx, y_idx, z_idx, nominal_sdf_distance);
+            }
+            else
+            {
+                return EstimateDistanceBoundaryCell(query_location, x_idx, y_idx, z_idx, nominal_sdf_distance);
             }
         }
 
@@ -487,10 +764,10 @@ namespace sdf_tools
 
         inline std::pair<double, bool> EstimateDistance3d(const Eigen::Vector3d& location) const
         {
-            const std::vector<int64_t> indices = LocationToGridIndex3d(location);
-            if (indices.size() == 3)
+            const VoxelGrid::GRID_INDEX index = distance_field_.LocationToGridIndex3d(location);
+            if (distance_field_.IndexInBounds(index))
             {
-                return std::make_pair(EstimateDistanceInternal(location.x(), location.y(), location.z(), indices[0], indices[1], indices[2]), true);
+                return std::make_pair(EstimateDistanceInternal(Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0), index.x, index.y, index.z), true);
             }
             else
             {
@@ -500,10 +777,10 @@ namespace sdf_tools
 
         inline std::pair<double, bool> EstimateDistance4d(const Eigen::Vector4d& location) const
         {
-            const std::vector<int64_t> indices = LocationToGridIndex4d(location);
-            if (indices.size() == 3)
+            const VoxelGrid::GRID_INDEX index = distance_field_.LocationToGridIndex4d(location);
+            if (distance_field_.IndexInBounds(index))
             {
-                return std::make_pair(EstimateDistanceInternal(location(0), location(1), location(2), indices[0], indices[1], indices[2]), true);
+                return std::make_pair(EstimateDistanceInternal(location, index.x, index.y, index.z), true);
             }
             else
             {
@@ -518,10 +795,10 @@ namespace sdf_tools
 
         inline std::vector<double> GetGradient3d(const Eigen::Vector3d& location, const bool enable_edge_gradients=false) const
         {
-            const std::vector<int64_t> indices = LocationToGridIndex3d(location);
-            if (indices.size() == 3)
+            const VoxelGrid::GRID_INDEX index = distance_field_.LocationToGridIndex3d(location);
+            if (distance_field_.IndexInBounds(index))
             {
-                return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
+                return GetGradient(index, enable_edge_gradients);
             }
             else
             {
@@ -531,10 +808,10 @@ namespace sdf_tools
 
         inline std::vector<double> GetGradient4d(const Eigen::Vector4d& location, const bool enable_edge_gradients=false) const
         {
-            const std::vector<int64_t> indices = LocationToGridIndex4d(location);
-            if (indices.size() == 3)
+            const VoxelGrid::GRID_INDEX index = distance_field_.LocationToGridIndex4d(location);
+            if (distance_field_.IndexInBounds(index))
             {
-                return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
+                return GetGradient(index, enable_edge_gradients);
             }
             else
             {
@@ -649,17 +926,27 @@ namespace sdf_tools
 
         inline Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 10.0) const
         {
+            // To avoid potential problems with alignment, we need to pass location by reference, so we make a local copy
+            // here that we can change. https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
             Eigen::Vector4d mutable_location = location;
-            const bool enable_edge_gradients = true;
-            double sdf_dist = EstimateDistance4d(mutable_location).first;
-            if (sdf_dist < minimum_distance && CheckInBounds4d(location))
+            // If we are in bounds, start the projection process, otherwise return the location unchanged
+            if (CheckInBounds4d(mutable_location))
             {
-                while (sdf_dist < minimum_distance)
+                // Add a small collision margin to account for rounding and similar
+                const double minimum_distance_with_margin = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
+                const double max_stepsize = GetResolution() * stepsize_multiplier;
+                const bool enable_edge_gradients = true;
+
+                double sdf_dist = EstimateDistance4d(mutable_location).first;
+                while (sdf_dist <= minimum_distance)
                 {
                     const std::vector<double> gradient = GetGradient4d(mutable_location, enable_edge_gradients);
-                    const Eigen::Vector3d grad_eigen = EigenHelpers::StdVectorDoubleToEigenVector3d(gradient);
-                    assert(grad_eigen.norm() > GetResolution() / 4.0); // Sanity check
-                    mutable_location.head<3>() += grad_eigen.normalized() * GetResolution() * stepsize_multiplier;
+                    assert(gradient.size() == 3);
+                    const Eigen::Vector4d grad_eigen(gradient[0], gradient[1], gradient[2], 0.0);
+                    assert(grad_eigen.norm() > GetResolution() * 0.25); // Sanity check
+                    // Don't step any farther than is needed
+                    const double step_distance = std::min(max_stepsize, minimum_distance_with_margin - sdf_dist);
+                    mutable_location += grad_eigen.normalized() * step_distance;
                     sdf_dist = EstimateDistance4d(mutable_location).first;
                 }
             }
@@ -681,27 +968,27 @@ namespace sdf_tools
             return frame_;
         }
 
-        inline std::vector<int64_t> LocationToGridIndex3d(const Eigen::Vector3d& location) const
+        inline VoxelGrid::GRID_INDEX LocationToGridIndex3d(const Eigen::Vector3d& location) const
         {
             return distance_field_.LocationToGridIndex3d(location);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex4d(const Eigen::Vector4d& location) const
+        inline VoxelGrid::GRID_INDEX LocationToGridIndex4d(const Eigen::Vector4d& location) const
         {
             return distance_field_.LocationToGridIndex4d(location);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex(const double x, const double y, const double z) const
+        inline VoxelGrid::GRID_INDEX LocationToGridIndex(const double x, const double y, const double z) const
         {
             return distance_field_.LocationToGridIndex(x, y, z);
         }
 
-        inline std::vector<double> GridIndexToLocation(const VoxelGrid::GRID_INDEX& index) const
+        inline Eigen::Vector4d GridIndexToLocation(const VoxelGrid::GRID_INDEX& index) const
         {
             return distance_field_.GridIndexToLocation(index);
         }
 
-        inline std::vector<double> GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+        inline Eigen::Vector4d GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             return distance_field_.GridIndexToLocation(x_index, y_index, z_index);
         }

@@ -481,22 +481,27 @@ namespace sdf_tools
             return std::pair<uint32_t, bool>(number_of_components_, components_valid_);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex3d(const Eigen::Vector3d& location) const
+        inline VoxelGrid::GRID_INDEX LocationToGridIndex3d(const Eigen::Vector3d& location) const
         {
             return collision_field_.LocationToGridIndex3d(location);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex4d(const Eigen::Vector4d& location) const
+        inline VoxelGrid::GRID_INDEX LocationToGridIndex4d(const Eigen::Vector4d& location) const
         {
             return collision_field_.LocationToGridIndex4d(location);
         }
 
-        inline std::vector<int64_t> LocationToGridIndex(double x, double y, double z) const
+        inline VoxelGrid::GRID_INDEX LocationToGridIndex(double x, double y, double z) const
         {
             return collision_field_.LocationToGridIndex(x, y, z);
         }
 
-        inline std::vector<double> GridIndexToLocation(int64_t x_index, int64_t y_index, int64_t z_index) const
+        inline Eigen::Vector4d GridIndexToLocation(const VoxelGrid::GRID_INDEX& index) const
+        {
+            return collision_field_.GridIndexToLocation(index);
+        }
+
+        inline Eigen::Vector4d GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             return collision_field_.GridIndexToLocation(x_index, y_index, z_index);
         }
