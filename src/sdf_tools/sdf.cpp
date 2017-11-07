@@ -613,6 +613,34 @@ namespace sdf_tools
         }
     }
 
+    std::pair<double, bool> SignedDistanceField::DistanceToBoundary(const double x, const double y, const double z) const
+    {
+        return DistanceToBoundary4d(Eigen::Vector4d(x, y, z, 1.0));
+    }
+
+    std::pair<double, bool> SignedDistanceField::DistanceToBoundary3d(const Eigen::Vector3d& location) const
+    {
+        return DistanceToBoundary4d(Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0));
+    }
+
+    std::pair<double, bool> SignedDistanceField::DistanceToBoundary4d(const Eigen::Vector4d& location) const
+    {
+        const auto inverse_origin_transform = distance_field_.GetInverseOriginTransform();
+        const auto point_in_grid_frame = inverse_origin_transform * location;
+        const auto x_size = distance_field_.GetXSize();
+        const auto y_size = distance_field_.GetYSize();
+        const auto z_size = distance_field_.GetZSize();
+        const auto displacements = Eigen::Array3d(
+                    std::min(point_in_grid_frame(0), x_size - point_in_grid_frame(0)),
+                    std::min(point_in_grid_frame(1), y_size - point_in_grid_frame(1)),
+                    std::min(point_in_grid_frame(2), z_size - point_in_grid_frame(2)));
+        const bool point_inside = (displacements >= 0.0).all();
+        const Eigen::Array3d distances = displacements.abs();
+        Eigen::Array3d::Index min_index;
+        distances.minCoeff(&min_index);
+        return {displacements(min_index), point_inside};
+    }
+
     std::vector<double> SignedDistanceField::GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients) const
     {
         return GetGradient4d(Eigen::Vector4d(x, y, z, 1.0), enable_edge_gradients);
@@ -755,9 +783,18 @@ namespace sdf_tools
         // here that we can change. https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
         Eigen::Vector4d mutable_location = location;
 
-        // If we are in bounds, start the projection process, otherwise return the location unchanged
-        if (CheckInBounds4d(mutable_location))
+        // Verify that the input location is in bounds
+        const auto distance_check = EstimateDistance4d(location);
+        if (!distance_check.second)
         {
+            std::cerr << "starting location out of bounds: " << location.transpose() << std::endl;
+            std::cerr << std::endl << std::endl;
+        }
+
+        // If we are in bounds, start the projection process, otherwise return the location unchanged
+        if (distance_check.second)
+        {
+            // TODO: make this additional margin configurable
             // Add a small collision margin to account for rounding and similar
             const double minimum_distance_with_margin = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
             const double max_stepsize = GetResolution() * stepsize_multiplier;
@@ -772,11 +809,77 @@ namespace sdf_tools
                 assert(grad_eigen.norm() > GetResolution() * 0.25); // Sanity check
                 // Don't step any farther than is needed
                 const double step_distance = std::min(max_stepsize, minimum_distance_with_margin - sdf_dist);
-                mutable_location += grad_eigen.normalized() * step_distance;
-                sdf_dist = EstimateDistance4d(mutable_location).first;
+                const Eigen::Vector4d next_location = mutable_location + grad_eigen.normalized() * step_distance;
+
+                // Ensure that we are still operating in the valid range of the SDF
+                const auto distance_check = EstimateDistance4d(next_location);
+                if (!distance_check.second)
+                {
+                    std::cerr << "starting location: " << location.transpose() << std::endl
+                              << "current location:  " << mutable_location.transpose() << std::endl
+                              << "Current gradient:  " << grad_eigen.transpose() << std::endl
+                              << "Out of bounds loc: " << next_location.transpose() << std::endl;
+                    std::cerr << std::endl << std::endl;
+                }
+                mutable_location = next_location;
+                sdf_dist = distance_check.first;
             }
         }
         return mutable_location;
+    }
+
+    Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolume(const double x, const double y, const double z) const
+    {
+        const Eigen::Vector4d result = ProjectIntoValidVolume4d(Eigen::Vector4d(x, y, z, 1.0));
+        return result.head<3>();
+    }
+
+    Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolumeToMinimumDistance(const double x, const double y, const double z, const double minimum_distance) const
+    {
+        const Eigen::Vector4d result = ProjectIntoValidVolumeToMinimumDistance4d(Eigen::Vector4d(x, y, z, 1.0), minimum_distance);
+        return result.head<3>();
+    }
+
+    Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolume3d(const Eigen::Vector3d& location) const
+    {
+        return ProjectIntoValidVolume(location.x(), location.y(), location.z());
+    }
+
+    Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolumeToMinimumDistance3d(const Eigen::Vector3d& location, const double minimum_distance) const
+    {
+        return ProjectIntoValidVolumeToMinimumDistance(location.x(), location.y(), location.z(), minimum_distance);
+    }
+
+    Eigen::Vector4d SignedDistanceField::ProjectIntoValidVolume4d(const Eigen::Vector4d& location) const
+    {
+        return ProjectIntoValidVolumeToMinimumDistance4d(location, 0.0);
+    }
+
+    Eigen::Vector4d SignedDistanceField::ProjectIntoValidVolumeToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance) const
+    {
+        const auto inverse_origin_transform = distance_field_.GetInverseOriginTransform();
+        const auto point_in_grid_frame = inverse_origin_transform * location;
+        const auto x_size = distance_field_.GetXSize();
+        const auto y_size = distance_field_.GetYSize();
+        const auto z_size = distance_field_.GetZSize();
+        // TODO: make this additional margin configurable
+        const double minimum_distance_with_margin = minimum_distance + GetResolution() * 1e-4;
+        const double x = arc_helpers::ClampValue(point_in_grid_frame(0), minimum_distance_with_margin, x_size - minimum_distance_with_margin);
+        const double y = arc_helpers::ClampValue(point_in_grid_frame(1), minimum_distance_with_margin, y_size - minimum_distance_with_margin);
+        const double z = arc_helpers::ClampValue(point_in_grid_frame(2), minimum_distance_with_margin, z_size - minimum_distance_with_margin);
+        // To avoid numerical problems, only return a modified location if we actually had to change something
+        bool change_made = false;
+        change_made |= (x != point_in_grid_frame(0));
+        change_made |= (y != point_in_grid_frame(1));
+        change_made |= (z != point_in_grid_frame(2));
+        if (change_made)
+        {
+            return GetOriginTransform() * Eigen::Vector4d(x, y, z, 1.0);
+        }
+        else
+        {
+            return location;
+        }
     }
 
     const Eigen::Isometry3d& SignedDistanceField::GetOriginTransform() const
