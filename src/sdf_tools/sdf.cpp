@@ -631,9 +631,9 @@ namespace sdf_tools
         const auto y_size = distance_field_.GetYSize();
         const auto z_size = distance_field_.GetZSize();
         const auto displacements = Eigen::Array3d(
-                    point_in_grid_frame(0) <= x_size * 0.5 ? point_in_grid_frame(0) : x_size - point_in_grid_frame(0),
-                    point_in_grid_frame(1) <= y_size * 0.5 ? point_in_grid_frame(1) : y_size - point_in_grid_frame(1),
-                    point_in_grid_frame(2) <= z_size * 0.5 ? point_in_grid_frame(2) : z_size - point_in_grid_frame(2));
+                    std::min(point_in_grid_frame(0), x_size - point_in_grid_frame(0)),
+                    std::min(point_in_grid_frame(1), y_size - point_in_grid_frame(1)),
+                    std::min(point_in_grid_frame(2), z_size - point_in_grid_frame(2)));
         const bool point_inside = (displacements >= 0.0).all();
         const Eigen::Array3d distances = displacements.abs();
         Eigen::Array3d::Index min_index;
