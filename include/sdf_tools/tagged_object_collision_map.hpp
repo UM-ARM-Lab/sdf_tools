@@ -383,7 +383,7 @@ namespace sdf_tools
             // We're going to assume that connected components, in general, will take ~1/16 of the grid in size
             // which means, with 2 cells/hash bucket, we'll initialize to grid size/32
         #ifdef ENABLE_UNORDERED_MAP_SIZE_HINTS
-            size_t queued_hashtable_size_hint = collision_field_.GetRawData().size() / 32;
+            size_t queued_hashtable_size_hint = collision_field_.GetImmutableRawData().size() / 32;
             std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable(queued_hashtable_size_hint);
         #else
             std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable;
@@ -773,7 +773,7 @@ namespace sdf_tools
 
         inline double GetResolution() const
         {
-            return collision_field_.GetCellSizes()[0];
+            return collision_field_.GetCellSizes().x();
         }
 
         inline TAGGED_OBJECT_COLLISION_CELL GetDefaultValue() const

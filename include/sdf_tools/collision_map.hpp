@@ -8,7 +8,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <Eigen/Geometry>
-#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <arc_utilities/arc_helpers.hpp>
 #include <arc_utilities/voxel_grid.hpp>
 #include <sdf_tools/sdf.hpp>
@@ -65,6 +65,51 @@ namespace sdf_tools
         }
 
         inline bool IsSurfaceIndex(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+        {
+            // First, we make sure that indices are within bounds
+            // Out of bounds indices are NOT surface cells
+            if (collision_field_.IndexInBounds(x_index, y_index, z_index) == false)
+            {
+                return false;
+            }
+            // Check all 26 possible neighbors
+            const int64_t min_x_check = std::max((int64_t)0, x_index - 1);
+            const int64_t max_x_check = std::min(GetNumXCells() - 1, x_index + 1);
+            const int64_t min_y_check = std::max((int64_t)0, y_index - 1);
+            const int64_t max_y_check = std::min(GetNumYCells() - 1, y_index + 1);
+            const int64_t min_z_check = std::max((int64_t)0, z_index - 1);
+            const int64_t max_z_check = std::min(GetNumZCells() - 1, z_index + 1);
+            const float our_occupancy = collision_field_.GetImmutable(x_index, y_index, z_index).first.occupancy;
+            for (int64_t x_idx = min_x_check; x_idx <= max_x_check; x_idx++)
+            {
+                for (int64_t y_idx = min_y_check; y_idx <= max_y_check; y_idx++)
+                {
+                    for (int64_t z_idx = min_z_check; z_idx <= max_z_check; z_idx++)
+                    {
+                        // Skip ourselves
+                        if ((x_idx != x_index) || (y_idx != y_index) || (z_idx != z_index))
+                        {
+                            const float other_occupancy = collision_field_.GetImmutable(x_idx, y_idx, z_idx).first.occupancy;
+                            if ((our_occupancy < 0.5) && (other_occupancy >= 0.5))
+                            {
+                                return true;
+                            }
+                            else if ((our_occupancy > 0.5) && (other_occupancy <= 0.5))
+                            {
+                                return true;
+                            }
+                            else if ((our_occupancy == 0.5) && (other_occupancy != 0.5))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        inline bool IsConnectedComponentSurfaceIndex(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             // First, we make sure that indices are within bounds
             // Out of bounds indices are NOT surface cells
@@ -305,9 +350,9 @@ namespace sdf_tools
         bool initialized_;
         bool components_valid_;
 
-        std::vector<uint8_t> PackBinaryRepresentation(std::vector<COLLISION_CELL>& raw);
+        std::vector<uint8_t> PackBinaryRepresentation(const std::vector<COLLISION_CELL>& raw) const;
 
-        std::vector<COLLISION_CELL> UnpackBinaryRepresentation(std::vector<uint8_t>& packed);
+        std::vector<COLLISION_CELL> UnpackBinaryRepresentation(const std::vector<uint8_t>& packed) const;
 
         int64_t MarkConnectedComponent(int64_t x_index, int64_t y_index, int64_t z_index, uint32_t connected_component);
 
@@ -433,7 +478,7 @@ namespace sdf_tools
 
         inline double GetResolution() const
         {
-            return collision_field_.GetCellSizes()[0];
+            return collision_field_.GetCellSizes().x();
         }
 
         inline COLLISION_CELL GetDefaultValue() const
@@ -504,6 +549,16 @@ namespace sdf_tools
         inline Eigen::Vector4d GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
         {
             return collision_field_.GridIndexToLocation(x_index, y_index, z_index);
+        }
+
+        inline std::vector<COLLISION_CELL>& GetMutableRawData()
+        {
+            return collision_field_.GetMutableRawData();
+        }
+
+        inline const std::vector<COLLISION_CELL>& GetImmutableRawData() const
+        {
+            return collision_field_.GetImmutableRawData();
         }
 
         bool SaveToFile(const std::string& filepath);
@@ -583,6 +638,12 @@ namespace sdf_tools
         }
 
         visualization_msgs::Marker ExportForDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const;
+
+        visualization_msgs::MarkerArray ExportForSeparateDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const;
+
+        visualization_msgs::Marker ExportSurfacesForDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const;
+
+        visualization_msgs::MarkerArray ExportSurfacesForSeparateDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const;
 
         visualization_msgs::Marker ExportConnectedComponentsForDisplay(bool color_unknown_components) const;
     };

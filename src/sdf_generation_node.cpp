@@ -19,9 +19,9 @@ visualization_msgs::Marker ExportCollisionMapForDisplay(VoxelGrid::VoxelGrid<uin
     display_rep.frame_locked = false;
     const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
     display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
-    display_rep.scale.x = collision_map.GetCellSizes()[0];
-    display_rep.scale.y = collision_map.GetCellSizes()[1];
-    display_rep.scale.z = collision_map.GetCellSizes()[2];
+    display_rep.scale.x = collision_map.GetCellSizes().x();
+    display_rep.scale.y = collision_map.GetCellSizes().y();
+    display_rep.scale.z = collision_map.GetCellSizes().z();
     // Add all cells in collision
     for (int64_t x_index = 0; x_index < collision_map.GetNumXCells(); x_index++)
     {

@@ -16,7 +16,7 @@
 
 using namespace sdf_tools;
 
-std::vector<uint8_t> SignedDistanceField::GetInternalBinaryRepresentation(const std::vector<float>& field_data)
+std::vector<uint8_t> SignedDistanceField::GetInternalBinaryRepresentation(const std::vector<float>& field_data) const
 {
     std::vector<uint8_t> raw_binary_data(field_data.size() * 4);
     for (size_t field_index = 0, binary_index = 0; field_index < field_data.size(); field_index++, binary_index+=4)
@@ -32,7 +32,7 @@ std::vector<uint8_t> SignedDistanceField::GetInternalBinaryRepresentation(const 
     return raw_binary_data;
 }
 
-std::vector<float> SignedDistanceField::UnpackFieldFromBinaryRepresentation(std::vector<uint8_t>& binary)
+std::vector<float> SignedDistanceField::UnpackFieldFromBinaryRepresentation(const std::vector<uint8_t>& binary) const
 {
     if ((binary.size() % 4) != 0)
     {
@@ -118,8 +118,8 @@ sdf_tools::SDF SignedDistanceField::GetMessageRepresentation()
     message_rep.OOB_value = distance_field_.GetDefaultValue();
     message_rep.initialized = initialized_;
     message_rep.locked = locked_;
-    const std::vector<float>& raw_data = distance_field_.GetRawData();
-    std::vector<uint8_t> binary_data = GetInternalBinaryRepresentation(raw_data);
+    const std::vector<float>& raw_data = distance_field_.GetImmutableRawData();
+    const std::vector<uint8_t> binary_data = GetInternalBinaryRepresentation(raw_data);
     message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
 }

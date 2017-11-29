@@ -73,9 +73,9 @@ namespace sdf_tools
         bool initialized_;
         bool locked_;
 
-        std::vector<uint8_t> GetInternalBinaryRepresentation(const std::vector<float> &field_data);
+        std::vector<uint8_t> GetInternalBinaryRepresentation(const std::vector<float>& field_data) const;
 
-        std::vector<float> UnpackFieldFromBinaryRepresentation(std::vector<uint8_t>& binary);
+        std::vector<float> UnpackFieldFromBinaryRepresentation(const std::vector<uint8_t>& binary) const;
 
         /*
          * You *MUST* provide valid indices to this function, hence why it is protected (there are safe wrappers available - use them!)
@@ -275,7 +275,7 @@ namespace sdf_tools
 
         inline double GetResolution() const
         {
-            return distance_field_.GetCellSizes()[0];
+            return distance_field_.GetCellSizes().x();
         }
 
         inline float GetOOBValue() const

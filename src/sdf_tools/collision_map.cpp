@@ -65,7 +65,7 @@ bool CollisionMapGrid::LoadFromFile(const std::string& filepath)
     }
 }
 
-std::vector<uint8_t> CollisionMapGrid::PackBinaryRepresentation(std::vector<COLLISION_CELL>& raw)
+std::vector<uint8_t> CollisionMapGrid::PackBinaryRepresentation(const std::vector<COLLISION_CELL>& raw) const
 {
     std::vector<uint8_t> packed(raw.size() * 8);
     for (size_t field_idx = 0, binary_index = 0; field_idx < raw.size(); field_idx++, binary_index+=8)
@@ -84,7 +84,7 @@ std::vector<uint8_t> CollisionMapGrid::PackBinaryRepresentation(std::vector<COLL
     return packed;
 }
 
-std::vector<COLLISION_CELL> CollisionMapGrid::UnpackBinaryRepresentation(std::vector<uint8_t>& packed)
+std::vector<COLLISION_CELL> CollisionMapGrid::UnpackBinaryRepresentation(const std::vector<uint8_t>& packed) const
 {
     if ((packed.size() % 8) != 0)
     {
@@ -124,8 +124,8 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
     message_rep.number_of_components = number_of_components_;
     message_rep.components_valid = components_valid_;
     message_rep.initialized = initialized_;
-    std::vector<COLLISION_CELL> raw_data = collision_field_.GetRawData();
-    std::vector<uint8_t> binary_data = PackBinaryRepresentation(raw_data);
+    const std::vector<COLLISION_CELL> raw_data = collision_field_.GetImmutableRawData();
+    const std::vector<uint8_t> binary_data = PackBinaryRepresentation(raw_data);
     message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
 }
@@ -133,16 +133,16 @@ sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
 bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& message)
 {
     // Make a new voxel grid inside
-    Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
-    Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
-    Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
+    const Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
+    const Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
+    const Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
     COLLISION_CELL OOB_value;
     OOB_value.occupancy = message.OOB_occupancy_value;
     OOB_value.component = message.OOB_component_value;
     VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
     // Unpack the binary data
-    std::vector<uint8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
-    std::vector<COLLISION_CELL> unpacked = UnpackBinaryRepresentation(binary_representation);
+    const std::vector<uint8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
+    const std::vector<COLLISION_CELL> unpacked = UnpackBinaryRepresentation(binary_representation);
     if (unpacked.empty())
     {
         std::cerr << "Unpack returned an empty CollisionMapGrid" << std::endl;
@@ -222,6 +222,98 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(const std_msgs::Co
         }
     }
     return display_rep;
+}
+
+visualization_msgs::MarkerArray CollisionMapGrid::ExportForSeparateDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const
+{
+    const std_msgs::ColorRGBA no_color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(0.0, 0.0, 0.0, 0.0);
+    visualization_msgs::Marker collision_only_marker = ExportForDisplay(collision_color, no_color, no_color);
+    collision_only_marker.ns = "collision_only";
+    visualization_msgs::Marker free_only_marker = ExportForDisplay(no_color, free_color, no_color);
+    free_only_marker.ns = "free_only";
+    visualization_msgs::Marker unknown_only_marker = ExportForDisplay(no_color, no_color, unknown_color);
+    unknown_only_marker.ns = "unknown_only";
+    visualization_msgs::MarkerArray display_messages;
+    display_messages.markers = {collision_only_marker, free_only_marker, unknown_only_marker};
+    return display_messages;
+}
+
+visualization_msgs::Marker CollisionMapGrid::ExportSurfacesForDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const
+{
+    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
+    visualization_msgs::Marker display_rep;
+    // Populate the header
+    display_rep.header.frame_id = frame_;
+    // Populate the options
+    display_rep.ns = "collision_map_display";
+    display_rep.id = 1;
+    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+    display_rep.action = visualization_msgs::Marker::ADD;
+    display_rep.lifetime = ros::Duration(0.0);
+    display_rep.frame_locked = false;
+    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+    display_rep.scale.x = GetResolution();
+    display_rep.scale.y = GetResolution();
+    display_rep.scale.z = GetResolution();
+    // Add all the cells of the SDF to the message
+    for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < collision_field_.GetNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
+            {
+                if (IsSurfaceIndex(x_index, y_index, z_index))
+                {
+                    // Convert grid indices into a real-world location
+                    const Eigen::Vector4d location = collision_field_.GridIndexToLocation(x_index, y_index, z_index);
+                    geometry_msgs::Point new_point;
+                    new_point.x = location(0);
+                    new_point.y = location(1);
+                    new_point.z = location(2);
+                    if (collision_field_.GetImmutable(x_index, y_index, z_index).first.occupancy > 0.5)
+                    {
+                        if (collision_color.a > 0.0)
+                        {
+                            display_rep.points.push_back(new_point);
+                            display_rep.colors.push_back(collision_color);
+                        }
+                    }
+                    else if (collision_field_.GetImmutable(x_index, y_index, z_index).first.occupancy < 0.5)
+                    {
+                        if (free_color.a > 0.0)
+                        {
+                            display_rep.points.push_back(new_point);
+                            display_rep.colors.push_back(free_color);
+                        }
+                    }
+                    else
+                    {
+                        if (unknown_color.a > 0.0)
+                        {
+                            display_rep.points.push_back(new_point);
+                            display_rep.colors.push_back(unknown_color);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return display_rep;
+}
+
+visualization_msgs::MarkerArray CollisionMapGrid::ExportSurfacesForSeparateDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const
+{
+    const std_msgs::ColorRGBA no_color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(0.0, 0.0, 0.0, 0.0);
+    visualization_msgs::Marker collision_only_marker = ExportSurfacesForDisplay(collision_color, no_color, no_color);
+    collision_only_marker.ns = "collision_surfaces_only";
+    visualization_msgs::Marker free_only_marker = ExportSurfacesForDisplay(no_color, free_color, no_color);
+    free_only_marker.ns = "free_surfaces_only";
+    visualization_msgs::Marker unknown_only_marker = ExportSurfacesForDisplay(no_color, no_color, unknown_color);
+    unknown_only_marker.ns = "unknown_surfaces_only";
+    visualization_msgs::MarkerArray display_messages;
+    display_messages.markers = {collision_only_marker, free_only_marker, unknown_only_marker};
+    return display_messages;
 }
 
 visualization_msgs::Marker CollisionMapGrid::ExportConnectedComponentsForDisplay(bool color_unknown_components) const
@@ -350,7 +442,7 @@ int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_inde
     // We're going to assume that connected components, in general, will take ~1/16 of the grid in size
     // which means, with 2 cells/hash bucket, we'll initialize to grid size/32
 #ifdef ENABLE_UNORDERED_MAP_SIZE_HINTS
-    size_t queued_hashtable_size_hint = collision_field_.GetRawData().size() / 32;
+    size_t queued_hashtable_size_hint = collision_field_.GetImmutableRawData().size() / 32;
     std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable(queued_hashtable_size_hint);
 #else
     std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable;
@@ -483,7 +575,7 @@ std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> Collision
                     if (current_cell.occupancy > 0.5)
                     {
                         VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
-                        if (IsSurfaceIndex(x_index, y_index, z_index))
+                        if (IsConnectedComponentSurfaceIndex(x_index, y_index, z_index))
                         {
                             component_surfaces[current_cell.component][current_index] = 1;
                         }
@@ -492,7 +584,7 @@ std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> Collision
                 else
                 {
                     VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
-                    if (IsSurfaceIndex(x_index, y_index, z_index))
+                    if (IsConnectedComponentSurfaceIndex(x_index, y_index, z_index))
                     {
                         component_surfaces[current_cell.component][current_index] = 1;
                     }

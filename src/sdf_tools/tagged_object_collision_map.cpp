@@ -120,8 +120,8 @@ sdf_tools::TaggedObjectCollisionMap TaggedObjectCollisionMapGrid::GetMessageRepr
     message_rep.components_valid = components_valid_;
     message_rep.convex_segments_valid = convex_segments_valid_;
     message_rep.initialized = initialized_;
-    const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw_data = collision_field_.GetRawData();
-    std::vector<uint8_t> binary_data = PackBinaryRepresentation(raw_data);
+    const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw_data = collision_field_.GetImmutableRawData();
+    const std::vector<uint8_t> binary_data = PackBinaryRepresentation(raw_data);
     message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
 }
