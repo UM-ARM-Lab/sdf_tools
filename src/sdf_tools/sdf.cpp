@@ -1109,6 +1109,7 @@ namespace sdf_tools
         {
             std::cerr << "Center adjusted nominal distance " << minimum_adjusted_distance << " final adjusted_distance " << final_adjusted_distance << std::endl;
             assert(false && "Mismatched minimum and final adjusted distance signs");
+            return std::numeric_limits<double>::quiet_NaN();
         }
     }
 
