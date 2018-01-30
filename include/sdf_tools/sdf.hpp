@@ -738,6 +738,7 @@ namespace sdf_tools
 
         inline double EstimateDistanceInternal(const Eigen::Vector4d& query_location, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
         {
+#ifdef TEST_ESTIMATE_DISTANCE
             // We think the bi/tri-linear interpolation is a better method, but it doesn't work everywhere
             try
             {
@@ -746,6 +747,7 @@ namespace sdf_tools
             // Fall back to different methods
             catch (...)
             {
+#endif
                 // We need to handle the cases of boundary and non-boundary cells separately
                 // Non-boundary cells can use a simpler approximation of distance adjustment,
                 // since these cells have a more useful gradient
@@ -761,7 +763,9 @@ namespace sdf_tools
                 {
                     return EstimateDistanceBoundaryCell(query_location, x_idx, y_idx, z_idx, nominal_sdf_distance);
                 }
+#ifdef TEST_ESTIMATE_DISTANCE
             }
+#endif
         }
 
     public:

@@ -11,6 +11,7 @@
 #include <random>
 #include <Eigen/Geometry>
 #include <Eigen/Sparse>
+#include <eigen3/unsupported/Eigen/ArpackSupport>
 #include <visualization_msgs/Marker.h>
 #include <arc_utilities/voxel_grid.hpp>
 #include <arc_utilities/arc_helpers.hpp>
@@ -926,29 +927,9 @@ namespace sdf_tools
             return connected_components;
         }
 
-        std::map<uint32_t, std::pair<int32_t, int32_t>> ComputeComponentTopology(const bool ignore_empty_components, const bool recompute_connected_components, const bool verbose)
-        {
-            // Recompute the connected components if need be
-            if (recompute_connected_components)
-            {
-                UpdateConnectedComponents();
-            }
-            // Extract the surfaces of each connected component
-            std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> component_surfaces = ExtractComponentSurfaces(ignore_empty_components);
-            // Compute the number of holes in each surface
-            std::map<uint32_t, std::pair<int32_t, int32_t>> component_holes;
-            std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>>::iterator component_surfaces_itr;
-            for (component_surfaces_itr = component_surfaces.begin(); component_surfaces_itr != component_surfaces.end(); ++component_surfaces_itr)
-            {
-                uint32_t component_number = component_surfaces_itr->first;
-                std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& component_surface = component_surfaces_itr->second;
-                std::pair<int32_t, int32_t> number_of_holes_and_voids = ComputeHolesInSurface(component_number, component_surface, verbose);
-                component_holes[component_number] = number_of_holes_and_voids;
-            }
-            return component_holes;
-        }
+        enum COMPONENT_TYPES : uint8_t { FILLED_COMPONENTS=0x01, EMPTY_COMPONENTS=0x02, UNKNOWN_COMPONENTS=0x04 };
 
-        std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> ExtractComponentSurfaces(const bool ignore_empty_components) const
+        std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> ExtractComponentSurfaces(const COMPONENT_TYPES component_types_to_extract) const
         {
             std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> component_surfaces;
             // Loop through the grid and extract surface cells for each component
@@ -959,29 +940,80 @@ namespace sdf_tools
                     for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
                     {
                         const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
-                        if (ignore_empty_components)
+                        if (current_cell.occupancy > 0.5)
                         {
-                            if (current_cell.occupancy > 0.5)
+                            if ((component_types_to_extract & FILLED_COMPONENTS) > 0x00)
                             {
-                                VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
                                 if (IsSurfaceIndex(x_index, y_index, z_index))
                                 {
+                                    const VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
+                                    component_surfaces[current_cell.component][current_index] = 1;
+                                }
+                            }
+                        }
+                        else if (current_cell.occupancy < 0.5)
+                        {
+                            if ((component_types_to_extract & EMPTY_COMPONENTS) > 0x00)
+                            {
+                                if (IsSurfaceIndex(x_index, y_index, z_index))
+                                {
+                                    const VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
                                     component_surfaces[current_cell.component][current_index] = 1;
                                 }
                             }
                         }
                         else
                         {
-                            VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
-                            if (IsSurfaceIndex(x_index, y_index, z_index))
+                            if ((component_types_to_extract & UNKNOWN_COMPONENTS) > 0x00)
                             {
-                                component_surfaces[current_cell.component][current_index] = 1;
+                                if (IsSurfaceIndex(x_index, y_index, z_index))
+                                {
+                                    const VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
+                                    component_surfaces[current_cell.component][current_index] = 1;
+                                }
                             }
                         }
                     }
                 }
             }
             return component_surfaces;
+        }
+
+        std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> ExtractFilledComponentSurfaces() const
+        {
+            return ExtractComponentSurfaces(FILLED_COMPONENTS);
+        }
+
+        std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> ExtractUnknownComponentSurfaces() const
+        {
+            return ExtractComponentSurfaces(UNKNOWN_COMPONENTS);
+        }
+
+        std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> ExtractEmptyComponentSurfaces() const
+        {
+            return ExtractComponentSurfaces(EMPTY_COMPONENTS);
+        }
+
+        std::map<uint32_t, std::pair<int32_t, int32_t>> ComputeComponentTopology(const COMPONENT_TYPES component_types_to_use, const bool recompute_connected_components, const bool verbose)
+        {
+            // Recompute the connected components if need be
+            if (recompute_connected_components)
+            {
+                UpdateConnectedComponents();
+            }
+            // Extract the surfaces of each connected component
+            std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> component_surfaces = ExtractComponentSurfaces(component_types_to_use);
+            // Compute the number of holes in each surface
+            std::map<uint32_t, std::pair<int32_t, int32_t>> component_holes;
+            std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>>::iterator component_surfaces_itr;
+            for (component_surfaces_itr = component_surfaces.begin(); component_surfaces_itr != component_surfaces.end(); ++component_surfaces_itr)
+            {
+                const uint32_t component_number = component_surfaces_itr->first;
+                std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& component_surface = component_surfaces_itr->second;
+                const std::pair<int32_t, int32_t> number_of_holes_and_voids = ComputeHolesInSurface(component_number, component_surface, verbose);
+                component_holes[component_number] = number_of_holes_and_voids;
+            }
+            return component_holes;
         }
 
         /* Extracts the active indices from a surface map as a vector, which is useful in contexts where a 1-dimensional index into the surface is needed
@@ -1718,7 +1750,7 @@ namespace sdf_tools
             assert(num_clusters > 0);
             // Grab the num_clusters largest eigenvalues & corresponding eigenvectors
             // Each column of this matrix is an eigenvector, so the # of rows corresponds to the number of datapoints, and the # of columns is the number of clusters
-            Eigen::MatrixXd k_largest_eigenvectors = ExtractKLargestEigenvaluesAndEigenvectors(raw_eigenvalues, raw_eigenvectors, num_clusters).second;
+            const Eigen::MatrixXd k_largest_eigenvectors = ExtractKLargestEigenvaluesAndEigenvectors(raw_eigenvalues, raw_eigenvectors, num_clusters).second;
             // Convert them into datapoints for kmeans clustering
             std::vector<Eigen::VectorXd> clustering_data(k_largest_eigenvectors.rows());
             for (size_t datapoint_index = 0; datapoint_index < clustering_data.size(); datapoint_index++)
@@ -1802,7 +1834,7 @@ namespace sdf_tools
                     break;
                 }
                 std::vector<uint32_t> cluster_labels = PerformKMeansSpectralClustering(eigen_values, eigen_vectors, num_clusters);
-                double convexity = ComputeConvexityMetric(los_matrix, cluster_labels);
+                const double convexity = ComputeConvexityMetric(los_matrix, cluster_labels);
                 std::cout << "K-means clustering at " << num_clusters << " clusters with convexity " << convexity << std::endl;
                 if (convexity > best_convexity)
                 {
@@ -1847,9 +1879,24 @@ namespace sdf_tools
             return convex_surface_segments;
         }
 
-        std::map<uint32_t, uint32_t> UpdateConvexSegments()
+        std::map<uint32_t, uint32_t> UpdateConvexSegments(const bool enable_experimental_features=false)
         {
+            // First, we need connected components to be accurate
+            UpdateConnectedComponents();
             // Some day, we will do real work here. Until then, this is a dummy that does nothing
+            if (enable_experimental_features)
+            {
+                const std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> free_space_surfaces = ExtractEmptyComponentSurfaces();
+                for (auto itr = free_space_surfaces.begin(); itr != free_space_surfaces.end(); ++itr)
+                {
+                    const uint32_t component_id = itr->first;
+                    const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& component_surface = itr->second;
+                    // Try to segemnt into convex segments
+                    const std::vector<std::vector<VoxelGrid::GRID_INDEX>> weakly_convex_surface_segments = ComputeWeaklyConvexSurfaceSegments(component_surface, 32u);
+                    std::cout << "Segmented free space component " << component_id << " surface into " << weakly_convex_surface_segments.size() << " weakly convex segments" << std::endl;
+                    // Not yet sure how to best go from segmented surface to segmented volume
+                }
+            }
             convex_segments_valid_ = true;
             // Return a map of object_id to # of convex segments in the object
             std::map<uint32_t, uint32_t> convex_segment_counts;
