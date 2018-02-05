@@ -14,6 +14,7 @@
 #include <arc_utilities/zlib_helpers.hpp>
 #include <sdf_tools/collision_map.hpp>
 #include <sdf_tools/CollisionMap.h>
+#include <sdf_tools/topology_computation.hpp>
 
 using namespace sdf_tools;
 
@@ -385,156 +386,46 @@ uint32_t CollisionMapGrid::UpdateConnectedComponents()
         return number_of_components_;
     }
     components_valid_ = false;
-    // Reset components first
-    for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
+    // Make the helper functions
+    const std::function<bool(const VoxelGrid::GRID_INDEX&, const VoxelGrid::GRID_INDEX&)> are_connected_fn
+        = [&] (const VoxelGrid::GRID_INDEX& index1, const VoxelGrid::GRID_INDEX& index2)
     {
-        for (int64_t y_index = 0; y_index < collision_field_.GetNumYCells(); y_index++)
+        auto query1 = collision_field_.GetImmutable(index1);
+        auto query2 = collision_field_.GetImmutable(index2);
+        assert(query1.second);
+        assert(query2.second);
+        if ((query1.first.occupancy > 0.5) == (query2.first.occupancy > 0.5))
         {
-            for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
-            {
-                COLLISION_CELL current = collision_field_.GetImmutable(x_index, y_index, z_index).first;
-                current.component = 0;
-                collision_field_.SetValue(x_index, y_index, z_index, current);
-            }
+            return true;
         }
-    }
-    // Mark the components
-    int64_t total_cells = collision_field_.GetNumXCells() * collision_field_.GetNumYCells() * collision_field_.GetNumZCells();
-    int64_t marked_cells = 0;
-    uint32_t connected_components = 0;
-    // Sweep through the grid
-    for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
+        else
+        {
+            return false;
+        }
+    };
+    const std::function<int64_t(const VoxelGrid::GRID_INDEX&)> get_component_fn = [&] (const VoxelGrid::GRID_INDEX& index)
     {
-        for (int64_t y_index = 0; y_index < collision_field_.GetNumYCells(); y_index++)
+        auto query = collision_field_.GetImmutable(index);
+        if (query.second)
         {
-            for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
-            {
-                // Check if the cell has already been marked, if so, ignore
-                if (collision_field_.GetImmutable(x_index, y_index, z_index).first.component > 0)
-                {
-                    continue;
-                }
-                // Start marking a new connected component
-                connected_components++;
-                int64_t cells_marked = MarkConnectedComponent(x_index, y_index, z_index, connected_components);
-                marked_cells += cells_marked;
-                // Short-circuit if we've marked everything
-                if (marked_cells == total_cells)
-                {
-                    number_of_components_ = connected_components;
-                    components_valid_ = true;
-                    return connected_components;
-                }
-            }
+            return (int64_t)query.first.component;
         }
-    }
-    number_of_components_ = connected_components;
+        else
+        {
+            return (int64_t)-1;
+        }
+    };
+    const std::function<void(const VoxelGrid::GRID_INDEX&, const uint32_t)> mark_component_fn = [&] (const VoxelGrid::GRID_INDEX& index, const uint32_t component)
+    {
+        auto query = collision_field_.GetMutable(index);
+        if (query.second)
+        {
+            collision_field_.SetValue(index, COLLISION_CELL(query.first.occupancy, component));
+        }
+    };
+    number_of_components_ = topology_computation::ComputeConnectedComponents(collision_field_, are_connected_fn, get_component_fn, mark_component_fn);
     components_valid_ = true;
-    return connected_components;
-}
-
-int64_t CollisionMapGrid::MarkConnectedComponent(int64_t x_index, int64_t y_index, int64_t z_index, uint32_t connected_component)
-{
-    // Make the working queue
-    std::list<VoxelGrid::GRID_INDEX> working_queue;
-    // Make a hash table to store queued indices (so we don't repeat work)
-    // Let's provide an hint at the size of hashmap we'll need, since this will reduce the need to resize & rehash
-    // We're going to assume that connected components, in general, will take ~1/16 of the grid in size
-    // which means, with 2 cells/hash bucket, we'll initialize to grid size/32
-#ifdef ENABLE_UNORDERED_MAP_SIZE_HINTS
-    size_t queued_hashtable_size_hint = collision_field_.GetImmutableRawData().size() / 32;
-    std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable(queued_hashtable_size_hint);
-#else
-    std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable;
-#endif
-    // Add the starting index
-    VoxelGrid::GRID_INDEX start_index(x_index, y_index, z_index);
-    // Enqueue it
-    working_queue.push_back(start_index);
-    queued_hashtable[start_index] = 1;
-    // Work
-    int64_t marked_cells = 0;
-    while (working_queue.size() > 0)
-    {
-        // Get an item off the queue to work with
-        VoxelGrid::GRID_INDEX current_index = working_queue.front();
-        working_queue.pop_front();
-        // Get the current value
-        COLLISION_CELL current_value = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z).first;
-        // Mark the connected component
-        current_value.component = connected_component;
-        // Update the grid
-        collision_field_.SetValue(current_index.x, current_index.y, current_index.z, current_value);
-        // Go through the possible neighbors and enqueue as needed
-        // Since there are only six cases (voxels must share a face to be considered connected), we handle each explicitly
-        // Case 1
-        std::pair<COLLISION_CELL, bool> xm1_neighbor = collision_field_.GetImmutable(current_index.x - 1, current_index.y, current_index.z);
-        if (xm1_neighbor.second && (current_value.occupancy == xm1_neighbor.first.occupancy))
-        {
-            VoxelGrid::GRID_INDEX neighbor_index(current_index.x - 1, current_index.y, current_index.z);
-            if (queued_hashtable[neighbor_index] <= 0)
-            {
-                queued_hashtable[neighbor_index] = 1;
-                working_queue.push_back(neighbor_index);
-            }
-        }
-        // Case 2
-        std::pair<COLLISION_CELL, bool> ym1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y - 1, current_index.z);
-        if (ym1_neighbor.second && (current_value.occupancy == ym1_neighbor.first.occupancy))
-        {
-            VoxelGrid::GRID_INDEX neighbor_index(current_index.x, current_index.y - 1, current_index.z);
-            if (queued_hashtable[neighbor_index] <= 0)
-            {
-                queued_hashtable[neighbor_index] = 1;
-                working_queue.push_back(neighbor_index);
-            }
-        }
-        // Case 3
-        std::pair<COLLISION_CELL, bool> zm1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z - 1);
-        if (zm1_neighbor.second && (current_value.occupancy == zm1_neighbor.first.occupancy))
-        {
-            VoxelGrid::GRID_INDEX neighbor_index(current_index.x, current_index.y, current_index.z - 1);
-            if (queued_hashtable[neighbor_index] <= 0)
-            {
-                queued_hashtable[neighbor_index] = 1;
-                working_queue.push_back(neighbor_index);
-            }
-        }
-        // Case 4
-        std::pair<COLLISION_CELL, bool> xp1_neighbor = collision_field_.GetImmutable(current_index.x + 1, current_index.y, current_index.z);
-        if (xp1_neighbor.second && (current_value.occupancy == xp1_neighbor.first.occupancy))
-        {
-            VoxelGrid::GRID_INDEX neighbor_index(current_index.x + 1, current_index.y, current_index.z);
-            if (queued_hashtable[neighbor_index] <= 0)
-            {
-                queued_hashtable[neighbor_index] = 1;
-                working_queue.push_back(neighbor_index);
-            }
-        }
-        // Case 5
-        std::pair<COLLISION_CELL, bool> yp1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y + 1, current_index.z);
-        if (yp1_neighbor.second && (current_value.occupancy == yp1_neighbor.first.occupancy))
-        {
-            VoxelGrid::GRID_INDEX neighbor_index(current_index.x, current_index.y + 1, current_index.z);
-            if (queued_hashtable[neighbor_index] <= 0)
-            {
-                queued_hashtable[neighbor_index] = 1;
-                working_queue.push_back(neighbor_index);
-            }
-        }
-        // Case 6
-        std::pair<COLLISION_CELL, bool> zp1_neighbor = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z + 1);
-        if (zp1_neighbor.second && (current_value.occupancy == zp1_neighbor.first.occupancy))
-        {
-            VoxelGrid::GRID_INDEX neighbor_index(current_index.x, current_index.y, current_index.z + 1);
-            if (queued_hashtable[neighbor_index] <= 0)
-            {
-                queued_hashtable[neighbor_index] = 1;
-                working_queue.push_back(neighbor_index);
-            }
-        }
-    }
-    return marked_cells;
+    return number_of_components_;
 }
 
 std::map<uint32_t, std::pair<int32_t, int32_t>> CollisionMapGrid::ComputeComponentTopology(bool ignore_empty_components, bool recompute_connected_components, bool verbose)
@@ -544,402 +435,39 @@ std::map<uint32_t, std::pair<int32_t, int32_t>> CollisionMapGrid::ComputeCompone
     {
         UpdateConnectedComponents();
     }
-    // Extract the surfaces of each connected component
-    std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> component_surfaces = ExtractComponentSurfaces(ignore_empty_components);
-    // Compute the number of holes in each surface
-    std::map<uint32_t, std::pair<int32_t, int32_t>> component_holes;
-    std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>>::iterator component_surfaces_itr;
-    for (component_surfaces_itr = component_surfaces.begin(); component_surfaces_itr != component_surfaces.end(); ++component_surfaces_itr)
+    const std::function<int64_t(const VoxelGrid::GRID_INDEX&)> get_component_fn = [&] (const VoxelGrid::GRID_INDEX& index)
     {
-        uint32_t component_number = component_surfaces_itr->first;
-        std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& component_surface = component_surfaces_itr->second;
-        std::pair<int32_t, int32_t> number_of_holes_and_voids = ComputeHolesInSurface(component_number, component_surface, verbose);
-        component_holes[component_number] = number_of_holes_and_voids;
-    }
-    return component_holes;
-}
-
-std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> CollisionMapGrid::ExtractComponentSurfaces(const bool ignore_empty_components) const
-{
-    std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>> component_surfaces;
-    // Loop through the grid and extract surface cells for each component
-    for (int64_t x_index = 0; x_index < collision_field_.GetNumXCells(); x_index++)
-    {
-        for (int64_t y_index = 0; y_index < collision_field_.GetNumYCells(); y_index++)
+        auto query = collision_field_.GetImmutable(index);
+        if (query.second)
         {
-            for (int64_t z_index = 0; z_index < collision_field_.GetNumZCells(); z_index++)
-            {
-                COLLISION_CELL current_cell = collision_field_.GetImmutable(x_index, y_index, z_index).first;
-                if (ignore_empty_components)
-                {
-                    if (current_cell.occupancy > 0.5)
-                    {
-                        VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
-                        if (IsConnectedComponentSurfaceIndex(x_index, y_index, z_index))
-                        {
-                            component_surfaces[current_cell.component][current_index] = 1;
-                        }
-                    }
-                }
-                else
-                {
-                    VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
-                    if (IsConnectedComponentSurfaceIndex(x_index, y_index, z_index))
-                    {
-                        component_surfaces[current_cell.component][current_index] = 1;
-                    }
-                }
-            }
-        }
-    }
-    return component_surfaces;
-}
-
-std::pair<int32_t, int32_t> CollisionMapGrid::ComputeHolesInSurface(const uint32_t component, const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& surface, const bool verbose) const
-{
-    // We have a list of all voxels with an exposed surface face
-    // We loop through this list of voxels, and convert each voxel
-    // into 8 vertices (the corners), which we individually check:
-    //
-    // First - we check to see if the vertex has already been
-    // evaluated
-    //
-    // Second - we check if the vertex is actually on the surface
-    // (make sure at least one of the three adjacent vertices is
-    // exposed)
-    //
-    // Third - insert into hashtable of surface vertices
-    //
-    // Once we have completed this process, we loop back through
-    // the hashtable of surface vertices and compute the number
-    // of distance-1 neighboring surface vertices (we do this by
-    // checking each of the six potential neighbor vertices) and
-    // keep a running count of all vertices with 3, 5, and 6
-    // neighbors.
-    //
-    // Once we have evaluated all the neighbors of all surface
-    // vertices, we count the number of holes in the grid using
-    // the formula from Chen and Rong, "Linear Time Recognition
-    // Algorithms for Topological Invariants in 3D":
-    //
-    // #holes = 1 + (M5 + 2 * M6 - M3) / 8
-    //
-    // where M5 is the number of vertices with 5 neighbors,
-    // M6 is the number of vertices with 6 neighbors, and
-    // M3 is the number of vertices with 3 neighbors
-    //
-    // Storage for surface vertices
-    // Compute a hint for initial surface vertex hashmap size
-    // expected # of surface vertices
-    // surface cells * 8
-#ifdef ENABLE_UNORDERED_MAP_SIZE_HINTS
-    size_t surface_vertices_size_hint = surface.size() * 8;
-    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> surface_vertices(surface_vertices_size_hint);
-#else
-    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> surface_vertices;
-#endif
-    // Loop through all the surface voxels and extract surface vertices
-    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::const_iterator surface_itr;
-    for (surface_itr = surface.begin(); surface_itr != surface.end(); ++surface_itr)
-    {
-        const VoxelGrid::GRID_INDEX& current_index = surface_itr->first;
-        // First, grab all six neighbors from the grid
-        std::pair<const COLLISION_CELL&, bool> xyzm1 = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z - 1);
-        std::pair<const COLLISION_CELL&, bool> xyzp1 = collision_field_.GetImmutable(current_index.x, current_index.y, current_index.z + 1);
-        std::pair<const COLLISION_CELL&, bool> xym1z = collision_field_.GetImmutable(current_index.x, current_index.y - 1, current_index.z);
-        std::pair<const COLLISION_CELL&, bool> xyp1z = collision_field_.GetImmutable(current_index.x, current_index.y + 1, current_index.z);
-        std::pair<const COLLISION_CELL&, bool> xm1yz = collision_field_.GetImmutable(current_index.x - 1, current_index.y, current_index.z);
-        std::pair<const COLLISION_CELL&, bool> xp1yz = collision_field_.GetImmutable(current_index.x + 1, current_index.y, current_index.z);
-        // Generate all 8 vertices for the current voxel, check if an adjacent vertex is on the surface, and insert it if so
-        // First, check the (-,-,-) vertex
-        if (component != xyzm1.first.component || component != xym1z.first.component || component != xm1yz.first.component)
-        {
-            VoxelGrid::GRID_INDEX vertex1(current_index.x, current_index.y, current_index.z);
-            surface_vertices[vertex1] = 1;
-        }
-        // Second, check the (-,-,+) vertex
-        if (component != xyzp1.first.component || component != xym1z.first.component || component != xm1yz.first.component)
-        {
-            VoxelGrid::GRID_INDEX vertex2(current_index.x, current_index.y, current_index.z + 1);
-            surface_vertices[vertex2] = 1;
-        }
-        // Third, check the (-,+,-) vertex
-        if (component != xyzm1.first.component || component != xyp1z.first.component || component != xm1yz.first.component)
-        {
-            VoxelGrid::GRID_INDEX vertex3(current_index.x, current_index.y + 1, current_index.z);
-            surface_vertices[vertex3] = 1;
-        }
-        // Fourth, check the (-,+,+) vertex
-        if (component != xyzp1.first.component || component != xyp1z.first.component || component != xm1yz.first.component)
-        {
-            VoxelGrid::GRID_INDEX vertex4(current_index.x, current_index.y + 1, current_index.z + 1);
-            surface_vertices[vertex4] = 1;
-        }
-        // Fifth, check the (+,-,-) vertex
-        if (component != xyzm1.first.component || component != xym1z.first.component || component != xp1yz.first.component)
-        {
-            VoxelGrid::GRID_INDEX vertex5(current_index.x + 1, current_index.y, current_index.z);
-            surface_vertices[vertex5] = 1;
-        }
-        // Sixth, check the (+,-,+) vertex
-        if (component != xyzp1.first.component || component != xym1z.first.component || component != xp1yz.first.component)
-        {
-            VoxelGrid::GRID_INDEX vertex6(current_index.x + 1, current_index.y, current_index.z + 1);
-            surface_vertices[vertex6] = 1;
-        }
-        // Seventh, check the (+,+,-) vertex
-        if (component != xyzm1.first.component || component != xyp1z.first.component || component != xp1yz.first.component)
-        {
-            VoxelGrid::GRID_INDEX vertex7(current_index.x + 1, current_index.y + 1, current_index.z);
-            surface_vertices[vertex7] = 1;
-        }
-        // Eighth, check the (+,+,+) vertex
-        if (component != xyzp1.first.component || component != xyp1z.first.component || component != xp1yz.first.component)
-        {
-            VoxelGrid::GRID_INDEX vertex8(current_index.x + 1, current_index.y + 1, current_index.z + 1);
-            surface_vertices[vertex8] = 1;
-        }
-    }
-    if (verbose)
-    {
-        std::cerr << "Surface with " << surface.size() << " voxels has " << surface_vertices.size() << " surface vertices" << std::endl;
-    }
-    // Iterate through the surface vertices and count the neighbors of each vertex
-    int32_t M3 = 0;
-    int32_t M5 = 0;
-    int32_t M6 = 0;
-    // Store the connectivity of each vertex
-    // Compute a hint for initial vertex connectivity hashmap size
-    // real # of surface vertices
-    // surface vertices
-    size_t vertex_connectivity_size_hint = surface_vertices.size();
-    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t> vertex_connectivity(vertex_connectivity_size_hint);
-    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::iterator surface_vertices_itr;
-    for (surface_vertices_itr = surface_vertices.begin(); surface_vertices_itr != surface_vertices.end(); ++surface_vertices_itr)
-    {
-        VoxelGrid::GRID_INDEX key = surface_vertices_itr->first;
-        VoxelGrid::GRID_INDEX value = key;
-        // Insert into the connectivity map
-        vertex_connectivity[key] = 0b00000000;
-        // Check the six edges from the current vertex and count the number of exposed edges
-        // (an edge is exposed if the at least one of the four surrounding voxels is not part
-        // of the current component)
-        int32_t edge_count = 0;
-        // First, get the 8 voxels that surround the current vertex
-        std::pair<const COLLISION_CELL&, bool> xm1ym1zm1 = collision_field_.GetImmutable(value.x - 1, value.y - 1, value.z - 1);
-        std::pair<const COLLISION_CELL&, bool> xm1ym1zp1 = collision_field_.GetImmutable(value.x - 1, value.y - 1, value.z + 0);
-        std::pair<const COLLISION_CELL&, bool> xm1yp1zm1 = collision_field_.GetImmutable(value.x - 1, value.y + 0, value.z - 1);
-        std::pair<const COLLISION_CELL&, bool> xm1yp1zp1 = collision_field_.GetImmutable(value.x - 1, value.y + 0, value.z + 0);
-        std::pair<const COLLISION_CELL&, bool> xp1ym1zm1 = collision_field_.GetImmutable(value.x + 0, value.y - 1, value.z - 1);
-        std::pair<const COLLISION_CELL&, bool> xp1ym1zp1 = collision_field_.GetImmutable(value.x + 0, value.y - 1, value.z + 0);
-        std::pair<const COLLISION_CELL&, bool> xp1yp1zm1 = collision_field_.GetImmutable(value.x + 0, value.y + 0, value.z - 1);
-        std::pair<const COLLISION_CELL&, bool> xp1yp1zp1 = collision_field_.GetImmutable(value.x + 0, value.y + 0, value.z + 0);
-        // Check the "z- down" edge
-        if (component != xm1ym1zm1.first.component || component != xm1yp1zm1.first.component || component != xp1ym1zm1.first.component || component != xp1yp1zm1.first.component)
-        {
-            if (!(component != xm1ym1zm1.first.component && component != xm1yp1zm1.first.component && component != xp1ym1zm1.first.component && component != xp1yp1zm1.first.component))
-            {
-                edge_count++;
-                vertex_connectivity[key] |= 0b00000001;
-            }
-        }
-        // Check the "z+ up" edge
-        if (component != xm1ym1zp1.first.component || component != xm1yp1zp1.first.component || component != xp1ym1zp1.first.component || component != xp1yp1zp1.first.component)
-        {
-            if (!(component != xm1ym1zp1.first.component && component != xm1yp1zp1.first.component && component != xp1ym1zp1.first.component && component != xp1yp1zp1.first.component))
-            {
-                edge_count++;
-                vertex_connectivity[key] |= 0b00000010;
-            }
-        }
-        // Check the "y- right" edge
-        if (component != xm1ym1zm1.first.component || component != xm1ym1zp1.first.component || component != xp1ym1zm1.first.component || component != xp1ym1zp1.first.component)
-        {
-            if (!(component != xm1ym1zm1.first.component && component != xm1ym1zp1.first.component && component != xp1ym1zm1.first.component && component != xp1ym1zp1.first.component))
-            {
-                edge_count++;
-                vertex_connectivity[key] |= 0b00000100;
-            }
-        }
-        // Check the "y+ left" edge
-        if (component != xm1yp1zm1.first.component || component != xm1yp1zp1.first.component || component != xp1yp1zm1.first.component || component != xp1yp1zp1.first.component)
-        {
-            if (!(component != xm1yp1zm1.first.component && component != xm1yp1zp1.first.component && component != xp1yp1zm1.first.component && component != xp1yp1zp1.first.component))
-            {
-                edge_count++;
-                vertex_connectivity[key] |= 0b00001000;
-            }
-        }
-        // Check the "x- back" edge
-        if (component != xm1ym1zm1.first.component || component != xm1ym1zp1.first.component || component != xm1yp1zm1.first.component || component != xm1yp1zp1.first.component)
-        {
-            if (!(component != xm1ym1zm1.first.component && component != xm1ym1zp1.first.component && component != xm1yp1zm1.first.component && component != xm1yp1zp1.first.component))
-            {
-                edge_count++;
-                vertex_connectivity[key] |= 0b00010000;
-            }
-        }
-        // Check the "x+ front" edge
-        if (component != xp1ym1zm1.first.component || component != xp1ym1zp1.first.component || component != xp1yp1zm1.first.component || component != xp1yp1zp1.first.component)
-        {
-            if (!(component != xp1ym1zm1.first.component && component != xp1ym1zp1.first.component && component != xp1yp1zm1.first.component && component != xp1yp1zp1.first.component))
-            {
-                edge_count++;
-                vertex_connectivity[key] |= 0b00100000;
-            }
-        }
-        // Increment M counts
-        if (edge_count == 3)
-        {
-            M3++;
-        }
-        else if (edge_count == 5)
-        {
-            M5++;
-        }
-        else if (edge_count == 6)
-        {
-            M6++;
-        }
-    }
-    // Check to see if the set of vertices is connected. If not, our object contains void(s)
-    int32_t number_of_surfaces = ComputeConnectivityOfSurfaceVertices(vertex_connectivity);
-    int32_t number_of_voids = number_of_surfaces - 1;
-    // Compute the number of holes in the surface
-    int32_t raw_number_of_holes = 1 + ((M5 + (2 * M6) - M3) / 8);
-    int32_t number_of_holes = raw_number_of_holes + number_of_voids;
-    if (verbose)
-    {
-        std::cout << "Processing surface with M3 = " << M3 << " M5 = " << M5 << " M6 = " << M6 << " holes = " << number_of_holes << " surfaces = " << number_of_surfaces << " voids = " << number_of_voids << std::endl;
-    }
-    return std::pair<int32_t, int32_t>(number_of_holes, number_of_voids);
-}
-
-int32_t CollisionMapGrid::ComputeConnectivityOfSurfaceVertices(const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& surface_vertex_connectivity) const
-{
-    int32_t connected_components = 0;
-    int64_t processed_vertices = 0;
-    // Compute a hint for initial vertex components hashmap size
-    // real # of surface vertices
-    // surface vertices
-    size_t vertex_components_size_hint = surface_vertex_connectivity.size();
-    std::unordered_map<VoxelGrid::GRID_INDEX, int32_t> vertex_components(vertex_components_size_hint);
-    // Iterate through the vertices
-    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::const_iterator surface_vertices_itr;
-    for (surface_vertices_itr = surface_vertex_connectivity.begin(); surface_vertices_itr != surface_vertex_connectivity.end(); ++surface_vertices_itr)
-    {
-        VoxelGrid::GRID_INDEX key = surface_vertices_itr->first;
-        VoxelGrid::GRID_INDEX location = key;
-        //const uint8_t& connectivity = surface_vertices_itr->second.second;
-        // First, check if the vertex has already been marked
-        if (vertex_components[key] > 0)
-        {
-            continue;
+            return (int64_t)query.first.component;
         }
         else
         {
-            // If not, we start marking a new connected component
-            connected_components++;
-            // Make the working queue
-            std::list<VoxelGrid::GRID_INDEX> working_queue;
-            // Make a hash table to store queued indices (so we don't repeat work)
-            // Compute a hint for initial queued hashtable hashmap size
-            // If we assume that most object surfaces are, in fact, intact, then the first (and only)
-            // queued_hashtable will need to store an entry for every vertex on the surface.
-            // real # of surface vertices
-            // surface vertices
-            size_t queued_hashtable_size_hint = surface_vertex_connectivity.size();
-            std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable(queued_hashtable_size_hint);
-            // Add the current point
-            working_queue.push_back(location);
-            queued_hashtable[key] = 1;
-            // Keep track of the number of vertices we've processed
-            int64_t component_processed_vertices = 0;
-            // Loop from the queue
-            while (working_queue.size() > 0)
+            return (int64_t)-1;
+        }
+    };
+    const std::function<bool(const VoxelGrid::GRID_INDEX&)> is_surface_index_fn = [&] (const VoxelGrid::GRID_INDEX& index)
+    {
+        if (ignore_empty_components)
+        {
+            const COLLISION_CELL& current_cell = collision_field_.GetImmutable(index).first;
+            if (current_cell.occupancy > 0.5)
             {
-                // Get the top of thw working queue
-                VoxelGrid::GRID_INDEX current_vertex = working_queue.front();
-                working_queue.pop_front();
-                component_processed_vertices++;
-                vertex_components[current_vertex] = connected_components;
-                // Check the six possibly-connected vertices and add them to the queue if they are connected
-                // Get the connectivity of our index
-                uint8_t connectivity = surface_vertex_connectivity.at(current_vertex);
-                // Go through the neighbors
-                if ((connectivity & 0b00000001) > 0)
+                if (IsConnectedComponentSurfaceIndex(index.x, index.y, index.z))
                 {
-                    // Try to add the vertex
-                    VoxelGrid::GRID_INDEX connected_vertex(current_vertex.x, current_vertex.y, current_vertex.z - 1);
-                    // We only add if we haven't already processed it
-                    if (queued_hashtable[connected_vertex] <= 0)
-                    {
-                        queued_hashtable[connected_vertex] = 1;
-                        working_queue.push_back(connected_vertex);
-                    }
+                    return true;
                 }
-                if ((connectivity & 0b00000010) > 0)
-                {
-                    // Try to add the vertex
-                    VoxelGrid::GRID_INDEX connected_vertex(current_vertex.x, current_vertex.y, current_vertex.z + 1);
-                    // We only add if we haven't already processed it
-                    if (queued_hashtable[connected_vertex] <= 0)
-                    {
-                        queued_hashtable[connected_vertex] = 1;
-                        working_queue.push_back(connected_vertex);
-                    }
-                }
-                if ((connectivity & 0b00000100) > 0)
-                {
-                    // Try to add the vertex
-                    VoxelGrid::GRID_INDEX connected_vertex(current_vertex.x, current_vertex.y - 1, current_vertex.z);
-                    // We only add if we haven't already processed it
-                    if (queued_hashtable[connected_vertex] <= 0)
-                    {
-                        queued_hashtable[connected_vertex] = 1;
-                        working_queue.push_back(connected_vertex);
-                    }
-                }
-                if ((connectivity & 0b00001000) > 0)
-                {
-                    // Try to add the vertex
-                    VoxelGrid::GRID_INDEX connected_vertex(current_vertex.x, current_vertex.y + 1, current_vertex.z);
-                    // We only add if we haven't already processed it
-                    if (queued_hashtable[connected_vertex] <= 0)
-                    {
-                        queued_hashtable[connected_vertex] = 1;
-                        working_queue.push_back(connected_vertex);
-                    }
-                }
-                if ((connectivity & 0b00010000) > 0)
-                {
-                    // Try to add the vertex
-                    VoxelGrid::GRID_INDEX connected_vertex(current_vertex.x - 1, current_vertex.y, current_vertex.z);
-                    // We only add if we haven't already processed it
-                    if (queued_hashtable[connected_vertex] <= 0)
-                    {
-                        queued_hashtable[connected_vertex] = 1;
-                        working_queue.push_back(connected_vertex);
-                    }
-                }
-                if ((connectivity & 0b00100000) > 0)
-                {
-                    // Try to add the vertex
-                    VoxelGrid::GRID_INDEX connected_vertex(current_vertex.x + 1, current_vertex.y, current_vertex.z);
-                    // We only add if we haven't already processed it
-                    if (queued_hashtable[connected_vertex] <= 0)
-                    {
-                        queued_hashtable[connected_vertex] = 1;
-                        working_queue.push_back(connected_vertex);
-                    }
-                }
-            }
-            processed_vertices += component_processed_vertices;
-            if (processed_vertices == (int64_t)surface_vertex_connectivity.size())
-            {
-                break;
             }
         }
-    }
-    return connected_components;
+        else
+        {
+            if (IsConnectedComponentSurfaceIndex(index.x, index.y, index.z))
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+    return topology_computation::ComputeComponentTopology(collision_field_, get_component_fn, is_surface_index_fn, verbose);
 }

@@ -24,24 +24,6 @@ namespace sdf_tools
     static const uint8_t USE_ONLY_COLLISION_OBJECTS = 0x02;
     static const uint8_t USE_FULL_PLANNING_SCENE = 0x03;
 
-    typedef struct
-    {
-        uint32_t location[3];
-        uint32_t closest_point[3];
-        double distance_square;
-        int32_t update_direction;
-    } bucket_cell;
-
-    typedef VoxelGrid::VoxelGrid<bucket_cell> DistanceField;
-
-    inline double ComputeDistanceSquared(int32_t x1, int32_t y1, int32_t z1, int32_t x2, int32_t y2, int32_t z2)
-    {
-        int32_t dx = x1 - x2;
-        int32_t dy = y1 - y2;
-        int32_t dz = z1 - z2;
-        return double((dx * dx) + (dy * dy) + (dz * dz));
-    }
-
     class SDF_Builder
     {
     protected:
@@ -69,24 +51,17 @@ namespace sdf_tools
 
         bool BuildInternalPlanningScene();
 
-        DistanceField BuildDistanceField(std::vector<Eigen::Vector3i>& points);
+        std::string GenerateSDFComputeBotURDFString() const;
 
-        std::vector<std::vector<std::vector<std::vector<int>>>> MakeNeighborhoods();
-
-        inline int GetDirectionNumber(int dx, int dy, int dz)
-        {
-            return ((dx + 1) * 9) + ((dy + 1) * 3) + (dz + 1);
-        }
-
-        std::string GenerateSDFComputeBotURDFString();
-
-        std::string GenerateSDFComputeBotSRDFString();
+        std::string GenerateSDFComputeBotSRDFString() const;
 
     public:
 
-        SDF_Builder(ros::NodeHandle& nh, Eigen::Isometry3d origin_transform, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service);
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-        SDF_Builder(ros::NodeHandle& nh, std::string frame, double x_size, double y_size, double z_size, double resolution, float OOB_value, std::string planning_scene_service);
+        SDF_Builder(ros::NodeHandle& nh, const Eigen::Isometry3d& origin_transform, const std::string& frame, const double x_size, const double y_size, const double z_size, const double resolution, const float OOB_value, const std::string& planning_scene_service);
+
+        SDF_Builder(ros::NodeHandle& nh, const std::string& frame, const double x_size, const double y_size, const double z_size, const double resolution, const float OOB_value, const std::string& planning_scene_service);
 
         SDF_Builder()
         {
@@ -96,15 +71,15 @@ namespace sdf_tools
             has_planning_scene_ = false;
         }
 
-        void UpdatePlanningSceneFromMessage(moveit_msgs::PlanningScene& planning_scene);
+        void UpdatePlanningSceneFromMessage(const moveit_msgs::PlanningScene& planning_scene);
 
-        SignedDistanceField UpdateSDF(uint8_t update_mode);
+        SignedDistanceField UpdateSDF(const uint8_t update_mode);
 
-        SignedDistanceField GetCachedSDF();
+        const SignedDistanceField& GetCachedSDF() const;
 
-        VoxelGrid::VoxelGrid<uint8_t> UpdateCollisionMap(uint8_t update_mode);
+        VoxelGrid::VoxelGrid<uint8_t> UpdateCollisionMap(const uint8_t update_mode);
 
-        VoxelGrid::VoxelGrid<uint8_t> GetCachedCollisionMap();
+        const VoxelGrid::VoxelGrid<uint8_t>& GetCachedCollisionMap() const;
 
     };
 

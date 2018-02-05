@@ -72,6 +72,8 @@ if(moveit_core_FOUND)
         include/${PROJECT_NAME}/tagged_object_collision_map.hpp
         include/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.hpp
         include/${PROJECT_NAME}/sdf.hpp
+        include/${PROJECT_NAME}/sdf_generation.hpp
+        include/${PROJECT_NAME}/topology_computation.hpp
         include/${PROJECT_NAME}/sdf_builder.hpp
         src/${PROJECT_NAME}/collision_map.cpp
         src/${PROJECT_NAME}/tagged_object_collision_map.cpp
