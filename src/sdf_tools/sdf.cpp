@@ -196,7 +196,7 @@ namespace sdf_tools
         distance_field_ = new_field;
     }
 
-    SignedDistanceField::SignedDistanceField(Eigen::Isometry3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
+    SignedDistanceField::SignedDistanceField(const Eigen::Isometry3d& origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
         : initialized_(true), locked_(false)
     {
         frame_ = frame;
@@ -731,9 +731,9 @@ namespace sdf_tools
         const auto y_size = distance_field_.GetYSize();
         const auto z_size = distance_field_.GetZSize();
         const auto displacements = Eigen::Array3d(
-                    point_in_grid_frame(0) <= x_size * 0.5 ? point_in_grid_frame(0) : x_size - point_in_grid_frame(0),
-                    point_in_grid_frame(1) <= y_size * 0.5 ? point_in_grid_frame(1) : y_size - point_in_grid_frame(1),
-                    point_in_grid_frame(2) <= z_size * 0.5 ? point_in_grid_frame(2) : z_size - point_in_grid_frame(2));
+                    std::min(point_in_grid_frame(0), x_size - point_in_grid_frame(0)),
+                    std::min(point_in_grid_frame(1), y_size - point_in_grid_frame(1)),
+                    std::min(point_in_grid_frame(2), z_size - point_in_grid_frame(2)));
         const bool point_inside = (displacements >= 0.0).all();
         const Eigen::Array3d distances = displacements.abs();
         Eigen::Array3d::Index min_index;
