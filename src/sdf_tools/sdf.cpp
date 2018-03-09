@@ -1097,7 +1097,7 @@ namespace sdf_tools
 
         // Perform minimum distance thresholding and error checking
         // TODO: do we need to address this magic number somehow?
-        if (std::abs(final_adjusted_distance) < GetResolution() * 0.001)
+        if (std::abs(final_adjusted_distance) < GetResolution() * 0.01)
         {
             return 0.0;
         }
