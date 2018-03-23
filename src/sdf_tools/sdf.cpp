@@ -196,7 +196,7 @@ namespace sdf_tools
         distance_field_ = new_field;
     }
 
-    SignedDistanceField::SignedDistanceField(Eigen::Isometry3d origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
+    SignedDistanceField::SignedDistanceField(const Eigen::Isometry3d& origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
         : initialized_(true), locked_(false)
     {
         frame_ = frame;
