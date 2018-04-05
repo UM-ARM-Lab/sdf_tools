@@ -14,6 +14,10 @@
 #include <sdf_tools/sdf.hpp>
 #include <sdf_tools/SDF.h>
 
+
+#include <execinfo.h>
+
+
 namespace sdf_tools
 {
     std::vector<uint8_t> FloatToBinary(float value)
@@ -1073,9 +1077,12 @@ namespace sdf_tools
 
     double SignedDistanceField::EstimateDistanceInternalLegacy(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
     {
-        const std::vector<double> cell_center = GridIndexToLocation(x_idx, y_idx, z_idx);
-        const Eigen::Vector3d cell_center_to_location_vector(x - cell_center[0], y - cell_center[1], z - cell_center[2]);
         const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
+        const std::vector<double> cell_center = GridIndexToLocation(x_idx, y_idx, z_idx);
+        const Eigen::Vector3d cell_center_to_location_vector_global_frame(x - cell_center[0], y - cell_center[1], z - cell_center[2]);
+
+        #pragma message "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!HACK for addressing origin frame orientation problems - only implemented here, not in projection too"
+        const Eigen::Vector3d cell_center_to_location_vector = GetInverseOriginTransform().linear() * cell_center_to_location_vector_global_frame;
 
         // Determine vector from "entry surface" to center of voxel
         // TODO: Needs special handling if there's no gradient to work with
@@ -1107,6 +1114,28 @@ namespace sdf_tools
         }
         else
         {
+            std::cerr << "\n\n";
+
+            void* callstack[128];
+            int frames = backtrace(callstack, 128);
+            char** strs = backtrace_symbols(callstack, frames);
+            for (int i = 0; i < frames; ++i)
+            {
+                std::cerr << strs[i] << std::endl;
+            }
+            free(strs);
+
+            std::cerr << "\n\nIdx: " << x_idx << " " << y_idx << " " << z_idx << std::endl;
+            std::cerr << "Loc:           " << Eigen::Vector3d(x, y, z).transpose() << std::endl;
+            std::cerr << "Cell center:   " << Eigen::Vector3d(cell_center[0], cell_center[1], cell_center[2]).transpose() << std::endl;
+            std::cerr << "center to loc: " << cell_center_to_location_vector.transpose() << std::endl;
+            std::cerr << "Nominal dist:  " << nominal_sdf_distance << std::endl;
+            std::cerr << "Gradient   (in grid aligned coords)" << gradient.transpose() << std::endl;
+            std::cerr << "Dir to bdy (in grid aligned coords)" << direction_to_boundary.transpose() << std::endl;
+            std::cerr << "Entry surface vector: " << entry_surface_vector.transpose() << std::endl;
+
+
+
             std::cerr << "Center adjusted nominal distance " << minimum_adjusted_distance << " final adjusted_distance " << final_adjusted_distance << std::endl;
             assert(false && "Mismatched minimum and final adjusted distance signs");
             return std::numeric_limits<double>::quiet_NaN();
