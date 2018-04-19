@@ -20,6 +20,10 @@
 
 namespace sdf_tools
 {
+    ////////////////////////////////////////////////////////////////////////////
+    // Local helper functions
+    ////////////////////////////////////////////////////////////////////////////
+
     std::vector<uint8_t> FloatToBinary(float value)
     {
         uint32_t binary_value = 0;
@@ -67,7 +71,9 @@ namespace sdf_tools
         }
     }
 
-
+    ////////////////////////////////////////////////////////////////////////////
+    // Protected helper functions
+    ////////////////////////////////////////////////////////////////////////////
 
     std::vector<uint8_t> SignedDistanceField::GetInternalBinaryRepresentation(const std::vector<float>& field_data)
     {
@@ -192,269 +198,61 @@ namespace sdf_tools
         }
     }
 
-    SignedDistanceField::SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
-        : initialized_(true), locked_(false)
-    {
-        frame_ = frame;
-        VoxelGrid::VoxelGrid<float> new_field(resolution, x_size, y_size, z_size, OOB_value);
-        distance_field_ = new_field;
-    }
 
-    SignedDistanceField::SignedDistanceField(const Eigen::Isometry3d& origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
-        : initialized_(true), locked_(false)
-    {
-        frame_ = frame;
-        VoxelGrid::VoxelGrid<float> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
-        distance_field_ = new_field;
-    }
 
-    SignedDistanceField::SignedDistanceField()
-        : initialized_(false), locked_(false) {}
 
-    bool SignedDistanceField::IsInitialized() const
-    {
-        return initialized_;
-    }
+    ////////////////////////////////////////////////////////////////////////////
+    // Helper functions for EstimateDistanceLegacy - TODO: to be replaced at a later date
+    ////////////////////////////////////////////////////////////////////////////
 
-    bool SignedDistanceField::IsLocked() const
-    {
-        return locked_;
-    }
-
-    void SignedDistanceField::Lock()
-    {
-        locked_ = true;
-    }
-
-    void SignedDistanceField::Unlock()
-    {
-        locked_ = false;
-    }
-
-    float SignedDistanceField::Get(const double x, const double y, const double z) const
-    {
-        return distance_field_.GetImmutable(x, y, z).first;
-    }
-
-    float SignedDistanceField::Get3d(const Eigen::Vector3d& location) const
-    {
-        return distance_field_.GetImmutable3d(location).first;
-    }
-
-    float SignedDistanceField::Get4d(const Eigen::Vector4d& location) const
-    {
-        return distance_field_.GetImmutable4d(location).first;
-    }
-
-    float SignedDistanceField::Get(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
-    {
-        return distance_field_.GetImmutable(x_index, y_index, z_index).first;
-    }
-
-    std::pair<float, bool> SignedDistanceField::GetSafe(const double x, const double y, const double z) const
-    {
-        return distance_field_.GetImmutable(x, y, z);
-    }
-
-    std::pair<float, bool> SignedDistanceField::GetSafe3d(const Eigen::Vector3d& location) const
-    {
-        return distance_field_.GetImmutable3d(location);
-    }
-
-    std::pair<float, bool> SignedDistanceField::GetSafe4d(const Eigen::Vector4d& location) const
-    {
-        return distance_field_.GetImmutable4d(location);
-    }
-
-    std::pair<float, bool> SignedDistanceField::GetSafe(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
-    {
-        return distance_field_.GetImmutable(x_index, y_index, z_index);
-    }
-
-    /*
-     * Setter functions MUST be used carefully - If you arbitrarily change SDF values, it is not a proper SDF any more!
-     *
-     * Use of these functions can be prevented by calling SignedDistanceField::Lock() on the SDF, at which point these functions
-     * will fail with a warning printed to std_err.
-     */
-    bool SignedDistanceField::Set(const double x, const double y, const double z, float value)
-    {
-        if (!locked_)
-        {
-            return distance_field_.SetValue(x, y, z, value);
-        }
-        else
-        {
-            std::cerr << "Attempt to set value in locked SDF" << std::endl;
-            return false;
-        }
-    }
-
-    bool SignedDistanceField::Set3d(const Eigen::Vector3d& location, float value)
-    {
-        if (!locked_)
-        {
-            return distance_field_.SetValue3d(location, value);
-        }
-        else
-        {
-            std::cerr << "Attempt to set value in locked SDF" << std::endl;
-            return false;
-        }
-    }
-
-    bool SignedDistanceField::Set4d(const Eigen::Vector4d& location, float value)
-    {
-        if (!locked_)
-        {
-            return distance_field_.SetValue4d(location, value);
-        }
-        else
-        {
-            std::cerr << "Attempt to set value in locked SDF" << std::endl;
-            return false;
-        }
-    }
-
-    bool SignedDistanceField::Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, const float value)
-    {
-        if (!locked_)
-        {
-            return distance_field_.SetValue(x_index, y_index, z_index, value);
-        }
-        else
-        {
-            std::cerr << "Attempt to set value in locked SDF" << std::endl;
-            return false;
-        }
-    }
-
-    bool SignedDistanceField::Set(const VoxelGrid::GRID_INDEX& index, const float value)
-    {
-        if (!locked_)
-        {
-            return distance_field_.SetValue(index, value);
-        }
-        else
-        {
-            std::cerr << "Attempt to set value in locked SDF" << std::endl;
-            return false;
-        }
-    }
-
-    bool SignedDistanceField::CheckInBounds3d(const Eigen::Vector3d& location) const
-    {
-        return distance_field_.GetImmutable3d(location).second;
-    }
-
-    bool SignedDistanceField::CheckInBounds4d(const Eigen::Vector4d& location) const
-    {
-        return distance_field_.GetImmutable4d(location).second;
-    }
-
-    bool SignedDistanceField::CheckInBounds(const double x, const double y, const double z) const
-    {
-        return distance_field_.GetImmutable(x, y, z).second;
-    }
-
-    bool SignedDistanceField::CheckInBounds(const VoxelGrid::GRID_INDEX& index) const
-    {
-        return distance_field_.GetImmutable(index.x, index.y, index.z).second;
-    }
-
-    bool SignedDistanceField::CheckInBounds(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
-    {
-        return distance_field_.GetImmutable(x_index, y_index, z_index).second;
-    }
-
-    double SignedDistanceField::GetXSize() const
-    {
-        return distance_field_.GetXSize();
-    }
-
-    double SignedDistanceField::GetYSize() const
-    {
-        return distance_field_.GetYSize();
-    }
-
-    double SignedDistanceField::GetZSize() const
-    {
-        return distance_field_.GetZSize();
-    }
-
-    double SignedDistanceField::GetResolution() const
-    {
-        return distance_field_.GetCellSizes()[0];
-    }
-
-    float SignedDistanceField::GetOOBValue() const
-    {
-        return distance_field_.GetDefaultValue();
-    }
-
-    int64_t SignedDistanceField::GetNumXCells() const
-    {
-        return distance_field_.GetNumXCells();
-    }
-
-    int64_t SignedDistanceField::GetNumYCells() const
-    {
-        return distance_field_.GetNumYCells();
-    }
-
-    int64_t SignedDistanceField::GetNumZCells() const
-    {
-        return distance_field_.GetNumZCells();
-    }
-
-    std::pair<Eigen::Vector3d, double> SignedDistanceField::GetPrimaryComponentsVector(const Eigen::Vector3d& raw_vector) const
+    std::pair<Eigen::Vector4d, double> SignedDistanceField::GetPrimaryComponentsVectorLegacy(const Eigen::Vector4d& raw_vector) const
     {
         if (std::abs(raw_vector.x()) > std::abs(raw_vector.y()) && std::abs(raw_vector.x()) > std::abs(raw_vector.z()))
         {
             if (raw_vector.x() >= 0.0)
             {
-                return std::make_pair(Eigen::Vector3d(GetResolution() * 0.5, 0.0, 0.0), GetResolution() * 0.5);
+                return std::make_pair(Eigen::Vector4d(GetResolution() * 0.5, 0.0, 0.0, 0.0), GetResolution() * 0.5);
             }
             else
             {
-                return std::make_pair(Eigen::Vector3d(GetResolution() * -0.5, 0.0, 0.0), GetResolution() * 0.5);
+                return std::make_pair(Eigen::Vector4d(GetResolution() * -0.5, 0.0, 0.0, 0.0), GetResolution() * 0.5);
             }
         }
         else if (std::abs(raw_vector.y()) > std::abs(raw_vector.x()) && std::abs(raw_vector.y()) > std::abs(raw_vector.z()))
         {
             if (raw_vector.y() >= 0.0)
             {
-                return std::make_pair(Eigen::Vector3d(0.0, GetResolution() * 0.5, 0.0), GetResolution() * 0.5);
+                return std::make_pair(Eigen::Vector4d(0.0, GetResolution() * 0.5, 0.0, 0.0), GetResolution() * 0.5);
             }
             else
             {
-                return std::make_pair(Eigen::Vector3d(0.0, GetResolution() * -0.5, 0.0), GetResolution() * 0.5);
+                return std::make_pair(Eigen::Vector4d(0.0, GetResolution() * -0.5, 0.0, 0.0), GetResolution() * 0.5);
             }
         }
         else if (std::abs(raw_vector.z()) > std::abs(raw_vector.x()) && std::abs(raw_vector.z()) > std::abs(raw_vector.y()))
         {
             if (raw_vector.z() >= 0.0)
             {
-                return std::make_pair(Eigen::Vector3d(0.0, 0.0, GetResolution() * 0.5), GetResolution() * 0.5);
+                return std::make_pair(Eigen::Vector4d(0.0, 0.0, GetResolution() * 0.5, 0.0), GetResolution() * 0.5);
             }
             else
             {
-                return std::make_pair(Eigen::Vector3d(0.0, 0.0, GetResolution() * -0.5), GetResolution() * 0.5);
+                return std::make_pair(Eigen::Vector4d(0.0, 0.0, GetResolution() * -0.5, 0.0), GetResolution() * 0.5);
             }
         }
         else if (std::abs(raw_vector.x()) == std::abs(raw_vector.y()))
         {
-            const Eigen::Vector3d temp_vector(raw_vector.x(), raw_vector.y(), 0.0);
+            const Eigen::Vector4d temp_vector(raw_vector.x(), raw_vector.y(), 0.0, 0.0);
             return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
         }
         else if (std::abs(raw_vector.y()) == std::abs(raw_vector.z()))
         {
-            const Eigen::Vector3d temp_vector(0.0, raw_vector.y(), raw_vector.x());
+            const Eigen::Vector4d temp_vector(0.0, raw_vector.y(), raw_vector.x(), 0.0);
             return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
         }
         else if (std::abs(raw_vector.x()) == std::abs(raw_vector.z()))
         {
-            const Eigen::Vector3d temp_vector(raw_vector.x(), 0.0, raw_vector.z());
+            const Eigen::Vector4d temp_vector(raw_vector.x(), 0.0, raw_vector.z(), 0.0);
             return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
         }
         else
@@ -463,7 +261,7 @@ namespace sdf_tools
         }
     }
 
-    double SignedDistanceField::ComputeAxisMatch(const double axis_value, const double check_value) const
+    double SignedDistanceField::ComputeAxisMatchLegacy(const double axis_value, const double check_value) const
     {
         if ((axis_value >= 0.0) == (check_value >= 0.0))
         {
@@ -475,38 +273,38 @@ namespace sdf_tools
         }
     }
 
-    Eigen::Vector3d SignedDistanceField::GetBestMatchSurfaceVector(const Eigen::Vector3d& possible_surfaces_vector, const Eigen::Vector3d& center_to_location_vector) const
+    Eigen::Vector4d SignedDistanceField::GetBestMatchSurfaceVectorLegacy(const Eigen::Vector4d& possible_surfaces_vector, const Eigen::Vector4d& center_to_location_vector) const
     {
-        const Eigen::Vector3d location_rejected_on_possible = EigenHelpers::VectorRejection(possible_surfaces_vector, center_to_location_vector);
+        const Eigen::Vector4d location_rejected_on_possible = EigenHelpers::VectorRejection(possible_surfaces_vector, center_to_location_vector);
         // Find the axis with the best-match components
-        const double x_axis_match = ComputeAxisMatch(possible_surfaces_vector.x(), location_rejected_on_possible.x());
-        const double y_axis_match = ComputeAxisMatch(possible_surfaces_vector.y(), location_rejected_on_possible.y());
-        const double z_axis_match = ComputeAxisMatch(possible_surfaces_vector.z(), location_rejected_on_possible.z());
+        const double x_axis_match = ComputeAxisMatchLegacy(possible_surfaces_vector.x(), location_rejected_on_possible.x());
+        const double y_axis_match = ComputeAxisMatchLegacy(possible_surfaces_vector.y(), location_rejected_on_possible.y());
+        const double z_axis_match = ComputeAxisMatchLegacy(possible_surfaces_vector.z(), location_rejected_on_possible.z());
         // Cases where one is better
         if ((x_axis_match > y_axis_match) && (x_axis_match > z_axis_match))
         {
-            return Eigen::Vector3d(possible_surfaces_vector.x(), 0.0, 0.0);
+            return Eigen::Vector4d(possible_surfaces_vector.x(), 0.0, 0.0, 0.0);
         }
         else if ((y_axis_match > x_axis_match) && (y_axis_match > z_axis_match))
         {
-            return Eigen::Vector3d(0.0, possible_surfaces_vector.y(), 0.0);
+            return Eigen::Vector4d(0.0, possible_surfaces_vector.y(), 0.0, 0.0);
         }
         else if ((z_axis_match > x_axis_match) && (z_axis_match > y_axis_match))
         {
-            return Eigen::Vector3d(0.0, 0.0, possible_surfaces_vector.z());
+            return Eigen::Vector4d(0.0, 0.0, possible_surfaces_vector.z(), 0.0);
         }
         // Cases where two are equally good
         else if ((x_axis_match < y_axis_match) && (x_axis_match < z_axis_match))
         {
-            return Eigen::Vector3d(0.0, possible_surfaces_vector.y(), possible_surfaces_vector.z());
+            return Eigen::Vector4d(0.0, possible_surfaces_vector.y(), possible_surfaces_vector.z(), 0.0);
         }
         else if ((y_axis_match < x_axis_match) && (y_axis_match < z_axis_match))
         {
-            return Eigen::Vector3d(possible_surfaces_vector.x(), 0.0, possible_surfaces_vector.z());
+            return Eigen::Vector4d(possible_surfaces_vector.x(), 0.0, possible_surfaces_vector.z(), 0.0);
         }
         else if ((z_axis_match < x_axis_match) && (z_axis_match < y_axis_match))
         {
-            return Eigen::Vector3d(possible_surfaces_vector.x(), possible_surfaces_vector.y(), 0.0);
+            return Eigen::Vector4d(possible_surfaces_vector.x(), possible_surfaces_vector.y(), 0.0, 0.0);
         }
         // When all are equally good
         else
@@ -522,11 +320,11 @@ namespace sdf_tools
      * @param center_to_location_vector
      * @return vector from center of voxel to primary entry surface, and magnitude of that vector
      */
-    std::pair<Eigen::Vector3d, double> SignedDistanceField::GetPrimaryEntrySurfaceVector(const Eigen::Vector3d& boundary_direction_vector, const Eigen::Vector3d& center_to_location_vector) const
+    std::pair<Eigen::Vector4d, double> SignedDistanceField::GetPrimaryEntrySurfaceVectorLegacy(const Eigen::Vector4d& boundary_direction_vector, const Eigen::Vector4d& center_to_location_vector) const
     {
         if (boundary_direction_vector.squaredNorm() > std::numeric_limits<double>::epsilon())
         {
-            const std::pair<Eigen::Vector3d, double> primary_components_vector_query = GetPrimaryComponentsVector(boundary_direction_vector);
+            const std::pair<Eigen::Vector4d, double> primary_components_vector_query = GetPrimaryComponentsVectorLegacy(boundary_direction_vector);
             // If the cell is on a surface
             if (primary_components_vector_query.second == (GetResolution() * 0.5))
             {
@@ -536,167 +334,22 @@ namespace sdf_tools
             else
             {
                 // Pick the best-match of the two/three exposed surfaces
-                return std::make_pair(GetBestMatchSurfaceVector(primary_components_vector_query.first, center_to_location_vector), GetResolution() * 0.5);
+                return std::make_pair(GetBestMatchSurfaceVectorLegacy(primary_components_vector_query.first, center_to_location_vector), GetResolution() * 0.5);
             }
         }
         else
         {
-            return GetPrimaryComponentsVector(center_to_location_vector);
+            return GetPrimaryComponentsVectorLegacy(center_to_location_vector);
         }
     }
 
-    double SignedDistanceField::EstimateDistanceInternal(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
+    std::pair<double, bool> SignedDistanceField::EstimateDistance4dLegacy(const Eigen::Vector4d& location) const
     {
-        const Eigen::Vector3d location(x, y, z);
-        const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
-        const bool querry_in_freespace = nominal_sdf_distance > 0.0;
-
-        // If we are more than 1 cell from the boundary, just subtract a margin and move on.
-        // 1.8 comes from being larger than sqrt(3) to handle the "diagonal" cases
-        const double res = GetResolution();
-        if (std::fabs(nominal_sdf_distance) > res * std::sqrt(3.001))
-        {
-            // Assign a smaller distance as a "buffer"
-            const double adjustment = res * 0.5;
-            if (querry_in_freespace)
-            {
-                return std::max(res, nominal_sdf_distance - adjustment);
-            }
-            else
-            {
-                return std::min(-res, nominal_sdf_distance + adjustment);
-            }
-        }
-        // Otherwise, measure the distance to the nearest boundary directly
-        else
-        {
-            // Check all 26 neighbours to see which one is closest and is in the opposite collision state
-            std::vector<int64_t> nearest_indices;
-            double nearest_abs_dist = std::numeric_limits<float>::infinity();
-            std::vector<std::vector<int64_t>> cells_considered;
-            std::vector<float> cells_nominal_distances_considered;
-            for (int64_t test_x_idx = x_idx - 1; test_x_idx <= x_idx + 1; ++test_x_idx)
-            {
-                for (int64_t test_y_idx = y_idx - 1; test_y_idx <= y_idx + 1; ++test_y_idx)
-                {
-                    for (int64_t test_z_idx = z_idx - 1; test_z_idx <= z_idx + 1; ++test_z_idx)
-                    {
-                        const bool test_indices_are_querry_indices = (x_idx == test_x_idx) && (y_idx == test_y_idx) && (z_idx == test_z_idx);
-                        if (distance_field_.IndexInBounds(test_x_idx, test_y_idx, test_z_idx) && !test_indices_are_querry_indices)
-                        {
-                            const auto test_cell_nominal_dist = Get(test_x_idx, test_y_idx, test_z_idx);
-                            std::vector<int64_t> tmp = {test_x_idx, test_y_idx, test_z_idx};
-                            cells_considered.push_back(tmp);
-                            cells_nominal_distances_considered.push_back(test_cell_nominal_dist);
-                            if (test_cell_nominal_dist * nominal_sdf_distance < 0.0) // Does this cell have an opposite collision value?
-                            {
-                                const Eigen::Vector3d test_cell_center = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(test_x_idx, test_y_idx, test_z_idx));
-                                const auto location_to_test_cell_center = (test_cell_center - location);
-                                const double dist_to_test_cell_center = location_to_test_cell_center.norm();
-
-                                if (dist_to_test_cell_center < nearest_abs_dist) // Is the center of this cell closer to the querry than any previously tested?
-                                {
-                                    nearest_indices = std::vector<int64_t>({test_x_idx, test_y_idx, test_z_idx});
-                                    nearest_abs_dist = dist_to_test_cell_center;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-//            if (nearest_indices.size() != 3)
-//            {
-//                const auto min_loc = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(0, 0, 0));
-//                const auto max_loc = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(GetNumXCells() - 1, GetNumYCells() - 1, GetNumZCells() - 1));
-
-//                std::cerr << std::setprecision(12)
-//                          << "Num x, y, z, cells: " << GetNumXCells() << " " << GetNumYCells() << " " << GetNumZCells() << std::endl
-//                          << "Querry x, y, z idx: " << x_idx << " " << y_idx << " " << z_idx << std::endl
-//                          << "Min location:         " << min_loc.transpose() << std::endl
-//                          << "Max location:         " << max_loc.transpose() << std::endl
-//                          << "Location:             " << location.transpose() << std::endl
-//                          << "Resolution:           " << res << std::endl
-//                          << "Nominal distance:     " << nominal_sdf_distance << std::endl;
-
-//                std::cerr << "Indices considered and distances thereof:\n";
-//                for (size_t idx = 0; idx < cells_considered.size(); ++idx)
-//                {
-//                    std::cerr << std::setprecision(12)
-//                              << cells_considered[idx][0] << " " << cells_considered[idx][1] << " " << cells_considered[idx][2] << " "
-//                              << cells_nominal_distances_considered.at(idx) << std::endl;
-//                }
-//            }
-            assert(nearest_indices.size() == 3);
-
-            // Move everything into grid aligned values
-            const Eigen::Vector3d nearest_cell_center = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(nearest_indices[0], nearest_indices[1], nearest_indices[2]));
-            const Eigen::Vector3d rounded_querry_location = EigenHelpers::StdVectorDoubleToEigenVector3d(GridIndexToLocation(x_idx, y_idx, z_idx));
-            const Eigen::Vector3d grid_aligned_location = GetInverseOriginTransform() * rounded_querry_location;
-            const Eigen::Vector3d grid_aligned_nearest = GetInverseOriginTransform() * nearest_cell_center;
-
-            // Determine what direction we moved based on the indices
-            const auto x_idx_offset = nearest_indices[0] - x_idx;
-            const auto y_idx_offset = nearest_indices[1] - y_idx;
-            const auto z_idx_offset = nearest_indices[2] - z_idx;
-
-            // Add up distances for each index offset that is non-zero
-            double total_distance_sq = 0.0;
-            if (x_idx_offset != 0)
-            {
-                const double collision_boundary = grid_aligned_nearest.x() - x_idx_offset * res;
-                const double delta = grid_aligned_location.x() - collision_boundary;
-//                std::cerr << std::setprecision(12) << "x: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
-                total_distance_sq += delta * delta;
-            }
-            if (y_idx_offset != 0)
-            {
-                const double collision_boundary = grid_aligned_nearest.y() - y_idx_offset * res;
-                const double delta = grid_aligned_location.y() - collision_boundary;
-//                std::cerr << std::setprecision(12) << "y: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
-                total_distance_sq += delta * delta;
-            }
-            if (z_idx_offset != 0)
-            {
-                const double collision_boundary = grid_aligned_nearest.z() - z_idx_offset * res;
-                const double delta = grid_aligned_location.z() - collision_boundary;
-//                std::cerr << std::setprecision(12) << "z: boundary: " << collision_boundary << "     delta: " << delta << std::endl;
-                total_distance_sq += delta * delta;
-            }
-
-//            std::cerr << std::setprecision(12)
-//                      << "Location:             " << location.transpose() << std::endl
-//                      << "Querry x, y, z idx: " << x_idx << " " << y_idx << " " << z_idx << std::endl
-//                      << "Num x, y, z, cells: " << GetNumXCells() << " " << GetNumYCells() << " " << GetNumZCells() << std::endl
-//                      << "Resolution:           " << res << std::endl
-//                      << "Nominal distance:     " << nominal_sdf_distance << std::endl
-//                      << "Grid aligned location:   " << grid_aligned_location.transpose() << std::endl
-//                      << "Grid aligned nearest:    " << grid_aligned_nearest.transpose() << std::endl
-//                      << "Offsets:                 " << x_idx_offset << " " << y_idx_offset << " " << z_idx_offset << std::endl
-//                      << "Total distance: " << std::sqrt(total_distance_sq) << std::endl;
-
-
-            if (querry_in_freespace)
-            {
-                return std::sqrt(total_distance_sq);
-            }
-            else
-            {
-                return -std::sqrt(total_distance_sq);
-            }
-        }
-    }
-
-    std::pair<double, bool> SignedDistanceField::EstimateDistance(const double x, const double y, const double z) const
-    {
-        return EstimateDistance4d(Eigen::Vector4d(x, y, z, 1.0));
-    }
-
-    std::pair<double, bool> SignedDistanceField::EstimateDistance3d(const Eigen::Vector3d& location) const
-    {
-        const std::vector<int64_t> indices = LocationToGridIndex3d(location);
+        const std::vector<int64_t> indices = LocationToGridIndex4d(location);
         if (indices.size() == 3)
         {
-            return std::make_pair(EstimateDistanceInternal(location.x(), location.y(), location.z(), indices[0], indices[1], indices[2]), true);
+            const Eigen::Vector4d location_in_local_frame = GetInverseOriginTransform() * location;
+            return {EstimateDistanceLegacyInternal(location_in_local_frame, indices[0], indices[1], indices[2]), true};
         }
         else
         {
@@ -704,84 +357,42 @@ namespace sdf_tools
         }
     }
 
-    std::pair<double, bool> SignedDistanceField::EstimateDistance4d(const Eigen::Vector4d& location) const
+    Eigen::Vector3d SignedDistanceField::ProjectOutOfCollision3dLegacy(const Eigen::Vector3d& location, const double stepsize_multiplier) const
     {
-        const std::vector<int64_t> indices = LocationToGridIndex4d(location);
-        if (indices.size() == 3)
+        const Eigen::Vector4d result = ProjectOutOfCollisionToMinimumDistance4dLegacy(Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0), 0.0, stepsize_multiplier);
+        return result.head<3>();
+    }
+
+    Eigen::Vector4d SignedDistanceField::ProjectOutOfCollisionToMinimumDistance4dLegacy(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier) const
+    {
+        const auto dist = EstimateDistance4dLegacy(location);
+        if (dist.second)
         {
-            return std::make_pair(EstimateDistanceInternal(location(0), location(1), location(2), indices[0], indices[1], indices[2]), true);
+            if (dist.first < minimum_distance)
+            {
+                return GetOriginTransform() * ProjectOutOfCollisionToMinimumDistanceLegacyInternal(GetInverseOriginTransform() * location, minimum_distance, stepsize_multiplier);
+            }
+            else
+            {
+                return location;
+            }
         }
         else
         {
-            return std::make_pair((double)distance_field_.GetOOBValue(), false);
+            std::cerr << std::endl << std::endl
+                      << "Input location to Project Legacy is not in bounds: " << location.transpose()
+                      << std::endl << std::endl;
+            return location;
         }
     }
 
-    std::pair<double, bool> SignedDistanceField::DistanceToBoundary(const double x, const double y, const double z) const
-    {
-        return DistanceToBoundary4d(Eigen::Vector4d(x, y, z, 1.0));
-    }
 
-    std::pair<double, bool> SignedDistanceField::DistanceToBoundary3d(const Eigen::Vector3d& location) const
-    {
-        return DistanceToBoundary4d(Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0));
-    }
+    ////////////////////////////////////////////////////////////////////////////
+    // These functions all assume that the location passed in is already
+    // in the local frame, or return a value on the local frame
+    ////////////////////////////////////////////////////////////////////////////
 
-    std::pair<double, bool> SignedDistanceField::DistanceToBoundary4d(const Eigen::Vector4d& location) const
-    {
-        const auto inverse_origin_transform = distance_field_.GetInverseOriginTransform();
-        const auto point_in_grid_frame = inverse_origin_transform * location;
-        const auto x_size = distance_field_.GetXSize();
-        const auto y_size = distance_field_.GetYSize();
-        const auto z_size = distance_field_.GetZSize();
-        const auto displacements = Eigen::Array3d(
-                    std::min(point_in_grid_frame(0), x_size - point_in_grid_frame(0)),
-                    std::min(point_in_grid_frame(1), y_size - point_in_grid_frame(1)),
-                    std::min(point_in_grid_frame(2), z_size - point_in_grid_frame(2)));
-        const bool point_inside = (displacements >= 0.0).all();
-        const Eigen::Array3d distances = displacements.abs();
-        Eigen::Array3d::Index min_index;
-        distances.minCoeff(&min_index);
-        return {displacements(min_index), point_inside};
-    }
-
-    std::vector<double> SignedDistanceField::GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients) const
-    {
-        return GetGradient4d(Eigen::Vector4d(x, y, z, 1.0), enable_edge_gradients);
-    }
-
-    std::vector<double> SignedDistanceField::GetGradient3d(const Eigen::Vector3d& location, const bool enable_edge_gradients) const
-    {
-        const std::vector<int64_t> indices = LocationToGridIndex3d(location);
-        if (indices.size() == 3)
-        {
-            return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
-        }
-        else
-        {
-            return std::vector<double>();
-        }
-    }
-
-    std::vector<double> SignedDistanceField::GetGradient4d(const Eigen::Vector4d& location, const bool enable_edge_gradients) const
-    {
-        const std::vector<int64_t> indices = LocationToGridIndex4d(location);
-        if (indices.size() == 3)
-        {
-            return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
-        }
-        else
-        {
-            return std::vector<double>();
-        }
-    }
-
-    std::vector<double> SignedDistanceField::GetGradient(const VoxelGrid::GRID_INDEX& index, const bool enable_edge_gradients) const
-    {
-        return GetGradient(index.x, index.y, index.z, enable_edge_gradients);
-    }
-
-    std::vector<double> SignedDistanceField::GetGradient(const int64_t x_index, const int64_t y_index, const int64_t z_index, const bool enable_edge_gradients) const
+    std::vector<double> SignedDistanceField::GetGradientInternal(const int64_t x_index, const int64_t y_index, const int64_t z_index, const bool enable_edge_gradients) const
     {
         // Make sure the index is inside bounds
         if ((x_index >= 0) && (y_index >= 0) && (z_index >= 0) && (x_index < GetNumXCells()) && (y_index < GetNumYCells()) && (z_index < GetNumZCells()))
@@ -854,6 +465,663 @@ namespace sdf_tools
         }
     }
 
+    std::vector<int64_t> SignedDistanceField::LocationToGridIndexInternal(const Eigen::Vector4d& location_in_local_frame) const
+    {
+        return distance_field_.LocationToGridIndex4d(GetOriginTransform() * location_in_local_frame);
+    }
+
+    Eigen::Vector4d SignedDistanceField::GridIndexToLocationInternal(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+    {
+        const Eigen::Vector3d location_in_world_frame = EigenHelpers::StdVectorDoubleToEigenVector3d(distance_field_.GridIndexToLocation(x_index, y_index, z_index));
+        const Eigen::Vector3d location_in_local_frame = GetInverseOriginTransform() * location_in_world_frame;
+        return Eigen::Vector4d(location_in_local_frame.x(), location_in_local_frame.y(), location_in_local_frame.z(), 1.0);
+    }
+
+    double SignedDistanceField::EstimateDistanceInternal(const Eigen::Vector4d& location_in_local_frame, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
+    {
+        const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
+        const bool querry_in_freespace = nominal_sdf_distance > 0.0;
+
+//        std::cout << "Location in local frame: " << location_in_local_frame.transpose() << std::endl;
+//        std::cout << "Indices: " << x_idx << " " << y_idx << " " << z_idx << std::endl;
+//        std::cout << "Nominal dist: " << nominal_sdf_distance << std::endl;
+
+        // TODO: HACK: Fix this!
+        // If we are more than 1 cell from the boundary, just subtract a margin and move on.
+        // 1.8 comes from being larger than sqrt(3) to handle the "diagonal" cases
+        const double res = GetResolution();
+        if (std::fabs(nominal_sdf_distance) > res * std::sqrt(3.001))
+        {
+            // Assign a smaller distance as a "buffer"
+            const double adjustment = res * 0.5;
+            if (querry_in_freespace)
+            {
+                return std::max(res, nominal_sdf_distance - adjustment);
+            }
+            else
+            {
+                return std::min(-res, nominal_sdf_distance + adjustment);
+            }
+        }
+        // Otherwise, measure the distance to the nearest boundary directly
+        else
+        {
+            // Check all 26 neighbours to see which one is closest and is in the opposite collision state
+            std::vector<int64_t> nearest_indices;
+            double nearest_abs_dist = std::numeric_limits<float>::infinity();
+            for (int64_t test_x_idx = x_idx - 1; test_x_idx <= x_idx + 1; ++test_x_idx)
+            {
+                for (int64_t test_y_idx = y_idx - 1; test_y_idx <= y_idx + 1; ++test_y_idx)
+                {
+                    for (int64_t test_z_idx = z_idx - 1; test_z_idx <= z_idx + 1; ++test_z_idx)
+                    {
+                        const bool test_indices_are_querry_indices = (x_idx == test_x_idx) && (y_idx == test_y_idx) && (z_idx == test_z_idx);
+                        if (distance_field_.IndexInBounds(test_x_idx, test_y_idx, test_z_idx) && !test_indices_are_querry_indices)
+                        {
+                            const auto test_cell_nominal_dist = Get(test_x_idx, test_y_idx, test_z_idx);
+                            // Does this cell have an opposite collision value?
+                            if (test_cell_nominal_dist * nominal_sdf_distance < 0.0)
+                            {
+                                const auto test_cell_center = GridIndexToLocationInternal(test_x_idx, test_y_idx, test_z_idx);
+                                const auto location_to_test_cell_center = (test_cell_center - location_in_local_frame);
+                                const double dist_to_test_cell_center = location_to_test_cell_center.norm();
+
+                                // Is the center of this cell closer to the querry than any previously tested?
+                                if (dist_to_test_cell_center < nearest_abs_dist)
+                                {
+                                    nearest_indices = std::vector<int64_t>({test_x_idx, test_y_idx, test_z_idx});
+                                    nearest_abs_dist = dist_to_test_cell_center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            assert(nearest_indices.size() == 3);
+
+            const Eigen::Vector4d grid_aligned_nearest_neighbour = GridIndexToLocationInternal(nearest_indices[0], nearest_indices[1], nearest_indices[2]);
+            const Eigen::Vector4d grid_rounded_querry_location = GridIndexToLocationInternal(x_idx, y_idx, z_idx);
+
+            // Determine what direction we moved based on the indices
+            const auto x_idx_offset = nearest_indices[0] - x_idx;
+            const auto y_idx_offset = nearest_indices[1] - y_idx;
+            const auto z_idx_offset = nearest_indices[2] - z_idx;
+
+            // Add up distances for each index offset that is non-zero
+            double total_distance_sq = 0.0;
+            if (x_idx_offset != 0)
+            {
+                const double collision_boundary = grid_aligned_nearest_neighbour.x() - x_idx_offset * res;
+                const double delta = grid_rounded_querry_location.x() - collision_boundary;
+                total_distance_sq += delta * delta;
+            }
+            if (y_idx_offset != 0)
+            {
+                const double collision_boundary = grid_aligned_nearest_neighbour.y() - y_idx_offset * res;
+                const double delta = grid_rounded_querry_location.y() - collision_boundary;
+                total_distance_sq += delta * delta;
+            }
+            if (z_idx_offset != 0)
+            {
+                const double collision_boundary = grid_aligned_nearest_neighbour.z() - z_idx_offset * res;
+                const double delta = grid_rounded_querry_location.z() - collision_boundary;
+                total_distance_sq += delta * delta;
+            }
+
+            if (querry_in_freespace)
+            {
+                return std::sqrt(total_distance_sq);
+            }
+            else
+            {
+                return -std::sqrt(total_distance_sq);
+            }
+        }
+    }
+
+    // Assumes that the passed location is already in bounds
+    Eigen::Vector4d SignedDistanceField::ProjectOutOfCollisionToMinimumDistanceInternal(const Eigen::Vector4d& location_in_local_frame, const double minimum_distance, const double stepsize_multiplier) const
+    {
+        // TODO: make this additional margin configurable
+        // Add a small collision margin to account for rounding and similar
+        const double minimum_distance_with_margin = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
+        const double max_stepsize = GetResolution() * stepsize_multiplier;
+        const bool enable_edge_gradients = true;
+
+        // To avoid potential problems with alignment, we need to pass location by reference, so we make a local copy
+        // here that we can change. https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
+        Eigen::Vector4d mutable_location = location_in_local_frame;
+        std::vector<int64_t> grid_indices = LocationToGridIndexInternal(mutable_location);
+        assert(grid_indices.size() == 3);
+        double sdf_dist = EstimateDistanceInternal(mutable_location, grid_indices[0], grid_indices[1], grid_indices[2]);
+
+//        std::cout << "ProjectOutOfCollision starting location: " << mutable_location.transpose() << std::endl;
+//        std::cout << "ProjectOutOfCollision starting indices:  " << PrettyPrint::PrettyPrint(grid_indices, false, " ") << std::endl;
+//        std::cout << "ProjectOutOfCollision starting dist:     " << sdf_dist << std::endl;
+//        std::cout << "Required distance:                       " << minimum_distance_with_margin << std::endl;
+
+        while (sdf_dist <= minimum_distance)
+        {
+            const std::vector<double> gradient = GetGradientInternal(grid_indices[0], grid_indices[1], grid_indices[2], enable_edge_gradients);
+            assert(gradient.size() == 3);
+            const Eigen::Vector4d grad_eigen(gradient[0], gradient[1], gradient[2], 0.0);
+            assert(grad_eigen.norm() > GetResolution() * 0.25); // Sanity check
+            // Don't step any farther than is needed
+            const double step_distance = std::min(max_stepsize, minimum_distance_with_margin - sdf_dist);
+
+            const Eigen::Vector4d next_location = mutable_location + grad_eigen.normalized() * step_distance;
+            const std::vector<int64_t> next_grid_indices = LocationToGridIndexInternal(next_location);
+            if (next_grid_indices.size() != 3)
+            {
+                std::cerr << "\n\n";
+
+                void* callstack[128];
+                int frames = backtrace(callstack, 128);
+                char** strs = backtrace_symbols(callstack, frames);
+                for (int i = 0; i < frames; ++i)
+                {
+                    std::cerr << strs[i] << std::endl;
+                }
+                free(strs);
+
+                std::cerr << "starting location: " << location_in_local_frame.transpose() << std::endl
+                          << "current location:  " << mutable_location.transpose() << std::endl
+                          << "Current gradient:  " << grad_eigen.transpose() << std::endl
+                          << "Out of bounds loc: " << next_location.transpose() << std::endl;
+                std::cerr << std::endl << std::endl;
+
+                assert(false && "Projection moved outside of the valid region of the SDF");
+            }
+            const double next_dist = EstimateDistanceInternal(next_location, next_grid_indices[0], next_grid_indices[1], next_grid_indices[2]);
+
+
+//            std::cout << std::endl
+//                      << "Mutable location: " << mutable_location.transpose() << std::endl
+//                      << "Gradient:         " << grad_eigen.transpose() << std::endl
+//                      << std::endl
+//                      << "current dist:     " << sdf_dist << std::endl
+//                      << "Target distance:  " << minimum_distance << std::endl
+//                      << "Target distance w/margin:  " << minimum_distance_with_margin << std::endl
+//                      << "Step distance:    " << step_distance << std::endl
+//                      << std::endl
+//                      << "next location:    " << next_location.transpose() << std::endl
+//                      << "next distance:    " << next_dist << std::endl
+//                      << std::endl;
+
+
+            mutable_location = next_location;
+            grid_indices = next_grid_indices;
+            sdf_dist = next_dist;
+        }
+
+        return mutable_location;
+    }
+
+
+    double SignedDistanceField::EstimateDistanceLegacyInternal(const Eigen::Vector4d& location_in_local_frame, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
+    {
+        // This function is only intended for locations that are in bounds
+        const auto raw_dist = distance_field_.GetImmutable(x_idx, y_idx, z_idx);
+        assert(raw_dist.second);
+
+        const double nominal_sdf_distance = (double)raw_dist.first;
+        const Eigen::Vector4d cell_center = GridIndexToLocationInternal(x_idx, y_idx, z_idx);
+        const Eigen::Vector4d cell_center_to_location_vector = location_in_local_frame - cell_center;
+
+        // Determine vector from "entry surface" to center of voxel
+        const std::vector<double> grad_std = GetGradientInternal(x_idx, y_idx, z_idx, true);
+        const Eigen::Vector4d gradient(grad_std[0], grad_std[1], grad_std[2], 0.0);
+        const Eigen::Vector4d direction_to_boundary = (nominal_sdf_distance >= 0.0) ? -gradient : gradient;
+        const std::pair<Eigen::Vector4d, double> entry_surface_information = GetPrimaryEntrySurfaceVectorLegacy(direction_to_boundary, cell_center_to_location_vector);
+        const Eigen::Vector4d& entry_surface_vector = entry_surface_information.first;
+        const double minimum_distance_magnitude = entry_surface_information.second;
+
+        // Adjust for calculating distance to boundary of voxels instead of center of voxels
+        const double center_adjusted_nominal_distance = (nominal_sdf_distance >= 0.0) ? nominal_sdf_distance - (GetResolution() * 0.5) : nominal_sdf_distance + (GetResolution() * 0.5);
+        const double minimum_adjusted_distance = arc_helpers::SpreadValue(center_adjusted_nominal_distance, -minimum_distance_magnitude, 0.0, minimum_distance_magnitude);
+
+        // Account for target location being not at the exact center of the voxel
+        const double raw_distance_adjustment = EigenHelpers::VectorProjection(entry_surface_vector, cell_center_to_location_vector).norm();
+        const double real_distance_adjustment = (minimum_adjusted_distance >= 0.0) ? -raw_distance_adjustment: raw_distance_adjustment;
+        const double final_adjusted_distance = minimum_adjusted_distance + real_distance_adjustment;
+
+        // Perform minimum distance thresholding and error checking
+        // TODO: do we need to address this magic number somehow?
+        if (std::abs(final_adjusted_distance) < GetResolution() * 0.001)
+        {
+            return 0.0;
+        }
+        if ((minimum_adjusted_distance >= 0.0) == (final_adjusted_distance >= 0.0))
+        {
+            return final_adjusted_distance;
+        }
+        else
+        {
+            std::cerr << "\n\n";
+
+            void* callstack[128];
+            int frames = backtrace(callstack, 128);
+            char** strs = backtrace_symbols(callstack, frames);
+            for (int i = 0; i < frames; ++i)
+            {
+                std::cerr << strs[i] << std::endl;
+            }
+            free(strs);
+
+            std::cerr << "\n\nIdx: " << x_idx << " " << y_idx << " " << z_idx << std::endl;
+            std::cerr << "Loc:           " << location_in_local_frame.transpose() << std::endl;
+            std::cerr << "Cell center:   " << cell_center.transpose() << std::endl;
+            std::cerr << "center to loc: " << cell_center_to_location_vector.transpose() << std::endl;
+            std::cerr << "Nominal dist:  " << nominal_sdf_distance << std::endl;
+            std::cerr << "Gradient:      " << gradient.transpose() << std::endl;
+            std::cerr << "Dir to bdy:           " << direction_to_boundary.transpose() << std::endl;
+            std::cerr << "Entry surface vector: " << entry_surface_vector.transpose() << std::endl;
+
+
+
+            std::cerr << "Center adjusted nominal distance " << minimum_adjusted_distance << " final adjusted_distance " << final_adjusted_distance << std::endl;
+            assert(false && "Mismatched minimum and final adjusted distance signs");
+            return std::numeric_limits<double>::quiet_NaN();
+        }
+    }
+
+    // Assumes that the passed location is already in bounds
+    Eigen::Vector4d SignedDistanceField::ProjectOutOfCollisionToMinimumDistanceLegacyInternal(const Eigen::Vector4d& location_in_local_frame, const double minimum_distance, const double stepsize_multiplier) const
+    {
+        // TODO: make this additional margin configurable
+        // Add a small collision margin to account for rounding and similar
+        const double minimum_distance_with_margin = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
+        const double max_stepsize = GetResolution() * stepsize_multiplier;
+        const bool enable_edge_gradients = true;
+
+        // To avoid potential problems with alignment, we need to pass location by reference, so we make a local copy
+        // here that we can change. https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
+        Eigen::Vector4d mutable_location = location_in_local_frame;
+        std::vector<int64_t> grid_indices = LocationToGridIndexInternal(mutable_location);
+        assert(grid_indices.size() == 3);
+        double sdf_dist = EstimateDistanceLegacyInternal(mutable_location, grid_indices[0], grid_indices[1], grid_indices[2]);
+        while (sdf_dist <= minimum_distance)
+        {
+            const std::vector<double> gradient = GetGradientInternal(grid_indices[0], grid_indices[1], grid_indices[2], enable_edge_gradients);
+            assert(gradient.size() == 3);
+            const Eigen::Vector4d grad_eigen(gradient[0], gradient[1], gradient[2], 0.0);
+            assert(grad_eigen.norm() > GetResolution() * 0.25); // Sanity check
+            // Don't step any farther than is needed
+            const double step_distance = std::min(max_stepsize, minimum_distance_with_margin - sdf_dist);
+
+            const Eigen::Vector4d next_location = mutable_location + grad_eigen.normalized() * step_distance;
+            const std::vector<int64_t> next_grid_indices = LocationToGridIndexInternal(next_location);
+            if (next_grid_indices.size() != 3)
+            {
+                std::cerr << "\n\n";
+
+                void* callstack[128];
+                int frames = backtrace(callstack, 128);
+                char** strs = backtrace_symbols(callstack, frames);
+                for (int i = 0; i < frames; ++i)
+                {
+                    std::cerr << strs[i] << std::endl;
+                }
+                free(strs);
+
+                std::cerr << "starting location: " << location_in_local_frame.transpose() << std::endl
+                          << "current location:  " << mutable_location.transpose() << std::endl
+                          << "Current gradient:  " << grad_eigen.transpose() << std::endl
+                          << "Out of bounds loc: " << next_location.transpose() << std::endl;
+                std::cerr << std::endl << std::endl;
+
+                assert(false && "Projection moved outside of the valid region of the SDF");
+            }
+            const double next_dist = EstimateDistanceLegacyInternal(next_location, next_grid_indices[0], next_grid_indices[1], next_grid_indices[2]);
+
+            mutable_location = next_location;
+            grid_indices = next_grid_indices;
+            sdf_dist = next_dist;
+        }
+
+        return mutable_location;
+    }
+
+
+
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Externally visible functions
+    ////////////////////////////////////////////////////////////////////////////
+
+    SignedDistanceField::SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
+        : initialized_(true), locked_(false)
+    {
+        frame_ = frame;
+        VoxelGrid::VoxelGrid<float> new_field(resolution, x_size, y_size, z_size, OOB_value);
+        distance_field_ = new_field;
+    }
+
+    SignedDistanceField::SignedDistanceField(const Eigen::Isometry3d& origin_transform, std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value)
+        : initialized_(true), locked_(false)
+    {
+        frame_ = frame;
+        VoxelGrid::VoxelGrid<float> new_field(origin_transform, resolution, x_size, y_size, z_size, OOB_value);
+        distance_field_ = new_field;
+    }
+
+    SignedDistanceField::SignedDistanceField()
+        : initialized_(false), locked_(false) {}
+
+
+    bool SignedDistanceField::IsInitialized() const
+    {
+        return initialized_;
+    }
+
+    bool SignedDistanceField::IsLocked() const
+    {
+        return locked_;
+    }
+
+    void SignedDistanceField::Lock()
+    {
+        locked_ = true;
+    }
+
+    void SignedDistanceField::Unlock()
+    {
+        locked_ = false;
+    }
+
+
+    float SignedDistanceField::Get(const double x, const double y, const double z) const
+    {
+        return distance_field_.GetImmutable(x, y, z).first;
+    }
+
+    float SignedDistanceField::Get3d(const Eigen::Vector3d& location) const
+    {
+        return distance_field_.GetImmutable3d(location).first;
+    }
+
+    float SignedDistanceField::Get4d(const Eigen::Vector4d& location) const
+    {
+        return distance_field_.GetImmutable4d(location).first;
+    }
+
+    float SignedDistanceField::Get(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+    {
+        return distance_field_.GetImmutable(x_index, y_index, z_index).first;
+    }
+
+    std::pair<float, bool> SignedDistanceField::GetSafe(const double x, const double y, const double z) const
+    {
+        return distance_field_.GetImmutable(x, y, z);
+    }
+
+    std::pair<float, bool> SignedDistanceField::GetSafe3d(const Eigen::Vector3d& location) const
+    {
+        return distance_field_.GetImmutable3d(location);
+    }
+
+    std::pair<float, bool> SignedDistanceField::GetSafe4d(const Eigen::Vector4d& location) const
+    {
+        return distance_field_.GetImmutable4d(location);
+    }
+
+    std::pair<float, bool> SignedDistanceField::GetSafe(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+    {
+        return distance_field_.GetImmutable(x_index, y_index, z_index);
+    }
+
+
+    /*
+     * Setter functions MUST be used carefully - If you arbitrarily change SDF values, it is not a proper SDF any more!
+     *
+     * Use of these functions can be prevented by calling SignedDistanceField::Lock() on the SDF, at which point these functions
+     * will fail with a warning printed to std_err.
+     */
+    bool SignedDistanceField::Set(const double x, const double y, const double z, float value)
+    {
+        if (!locked_)
+        {
+            return distance_field_.SetValue(x, y, z, value);
+        }
+        else
+        {
+            std::cerr << "Attempt to set value in locked SDF" << std::endl;
+            return false;
+        }
+    }
+
+    bool SignedDistanceField::Set3d(const Eigen::Vector3d& location, float value)
+    {
+        if (!locked_)
+        {
+            return distance_field_.SetValue3d(location, value);
+        }
+        else
+        {
+            std::cerr << "Attempt to set value in locked SDF" << std::endl;
+            return false;
+        }
+    }
+
+    bool SignedDistanceField::Set4d(const Eigen::Vector4d& location, float value)
+    {
+        if (!locked_)
+        {
+            return distance_field_.SetValue4d(location, value);
+        }
+        else
+        {
+            std::cerr << "Attempt to set value in locked SDF" << std::endl;
+            return false;
+        }
+    }
+
+    bool SignedDistanceField::Set(const int64_t x_index, const int64_t y_index, const int64_t z_index, const float value)
+    {
+        if (!locked_)
+        {
+            return distance_field_.SetValue(x_index, y_index, z_index, value);
+        }
+        else
+        {
+            std::cerr << "Attempt to set value in locked SDF" << std::endl;
+            return false;
+        }
+    }
+
+    bool SignedDistanceField::Set(const VoxelGrid::GRID_INDEX& index, const float value)
+    {
+        if (!locked_)
+        {
+            return distance_field_.SetValue(index, value);
+        }
+        else
+        {
+            std::cerr << "Attempt to set value in locked SDF" << std::endl;
+            return false;
+        }
+    }
+
+
+    bool SignedDistanceField::CheckInBounds3d(const Eigen::Vector3d& location) const
+    {
+        return distance_field_.GetImmutable3d(location).second;
+    }
+
+    bool SignedDistanceField::CheckInBounds4d(const Eigen::Vector4d& location) const
+    {
+        return distance_field_.GetImmutable4d(location).second;
+    }
+
+    bool SignedDistanceField::CheckInBounds(const double x, const double y, const double z) const
+    {
+        return distance_field_.GetImmutable(x, y, z).second;
+    }
+
+    bool SignedDistanceField::CheckInBounds(const VoxelGrid::GRID_INDEX& index) const
+    {
+        return distance_field_.GetImmutable(index.x, index.y, index.z).second;
+    }
+
+    bool SignedDistanceField::CheckInBounds(const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+    {
+        return distance_field_.GetImmutable(x_index, y_index, z_index).second;
+    }
+
+
+    double SignedDistanceField::GetXSize() const
+    {
+        return distance_field_.GetXSize();
+    }
+
+    double SignedDistanceField::GetYSize() const
+    {
+        return distance_field_.GetYSize();
+    }
+
+    double SignedDistanceField::GetZSize() const
+    {
+        return distance_field_.GetZSize();
+    }
+
+    double SignedDistanceField::GetResolution() const
+    {
+        return distance_field_.GetCellSizes()[0];
+    }
+
+    float SignedDistanceField::GetOOBValue() const
+    {
+        return distance_field_.GetDefaultValue();
+    }
+
+    int64_t SignedDistanceField::GetNumXCells() const
+    {
+        return distance_field_.GetNumXCells();
+    }
+
+    int64_t SignedDistanceField::GetNumYCells() const
+    {
+        return distance_field_.GetNumYCells();
+    }
+
+    int64_t SignedDistanceField::GetNumZCells() const
+    {
+        return distance_field_.GetNumZCells();
+    }
+
+
+    std::pair<double, bool> SignedDistanceField::EstimateDistance(const double x, const double y, const double z) const
+    {
+        return EstimateDistance4d(Eigen::Vector4d(x, y, z, 1.0));
+    }
+
+    std::pair<double, bool> SignedDistanceField::EstimateDistance3d(const Eigen::Vector3d& location) const
+    {
+        return EstimateDistance4d(Eigen::Vector4d(location(0), location(1), location(2), 1));
+    }
+
+    std::pair<double, bool> SignedDistanceField::EstimateDistance4d(const Eigen::Vector4d& location) const
+    {
+        const Eigen::Vector4d location_in_local_frame = GetInverseOriginTransform() * location;
+        const std::vector<int64_t> indices = LocationToGridIndex4d(location);
+
+//        std::cout << "EstimateDistance4d_loc_world_frame = [" << location.transpose() << "]';\n"
+//                  << "EstimateDistance4d_loc_local_frame = [" << location_in_local_frame.transpose() << "]';\n"
+//                  << "Indices: " << PrettyPrint::PrettyPrint(indices, false, " ") << "\n";
+
+        if (indices.size() == 3)
+        {
+            return std::make_pair(EstimateDistanceInternal(location_in_local_frame, indices[0], indices[1], indices[2]), true);
+        }
+        else
+        {
+            return std::make_pair((double)distance_field_.GetOOBValue(), false);
+        }
+    }
+
+
+    std::pair<double, bool> SignedDistanceField::DistanceToBoundary(const double x, const double y, const double z) const
+    {
+        return DistanceToBoundary4d(Eigen::Vector4d(x, y, z, 1.0));
+    }
+
+    std::pair<double, bool> SignedDistanceField::DistanceToBoundary3d(const Eigen::Vector3d& location) const
+    {
+        return DistanceToBoundary4d(Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0));
+    }
+
+    std::pair<double, bool> SignedDistanceField::DistanceToBoundary4d(const Eigen::Vector4d& location) const
+    {
+        const auto inverse_origin_transform = distance_field_.GetInverseOriginTransform();
+        const auto point_in_grid_frame = inverse_origin_transform * location;
+        const auto x_size = distance_field_.GetXSize();
+        const auto y_size = distance_field_.GetYSize();
+        const auto z_size = distance_field_.GetZSize();
+        const auto displacements = Eigen::Array3d(
+                    std::min(point_in_grid_frame(0), x_size - point_in_grid_frame(0)),
+                    std::min(point_in_grid_frame(1), y_size - point_in_grid_frame(1)),
+                    std::min(point_in_grid_frame(2), z_size - point_in_grid_frame(2)));
+        const bool point_inside = (displacements >= 0.0).all();
+        const Eigen::Array3d distances = displacements.abs();
+        Eigen::Array3d::Index min_index;
+        distances.minCoeff(&min_index);
+        return {displacements(min_index), point_inside};
+    }
+
+
+    std::vector<double> SignedDistanceField::GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients) const
+    {
+        return GetGradient4d(Eigen::Vector4d(x, y, z, 1.0), enable_edge_gradients);
+    }
+
+    std::vector<double> SignedDistanceField::GetGradient3d(const Eigen::Vector3d& location, const bool enable_edge_gradients) const
+    {
+        const std::vector<int64_t> indices = LocationToGridIndex3d(location);
+        if (indices.size() == 3)
+        {
+            return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
+        }
+        else
+        {
+            return std::vector<double>();
+        }
+    }
+
+    std::vector<double> SignedDistanceField::GetGradient4d(const Eigen::Vector4d& location, const bool enable_edge_gradients) const
+    {
+        const std::vector<int64_t> indices = LocationToGridIndex4d(location);
+        if (indices.size() == 3)
+        {
+            return GetGradient(indices[0], indices[1], indices[2], enable_edge_gradients);
+        }
+        else
+        {
+            return std::vector<double>();
+        }
+    }
+
+    std::vector<double> SignedDistanceField::GetGradient(const VoxelGrid::GRID_INDEX& index, const bool enable_edge_gradients) const
+    {
+        return GetGradient(index.x, index.y, index.z, enable_edge_gradients);
+    }
+
+    std::vector<double> SignedDistanceField::GetGradient(const int64_t x_index, const int64_t y_index, const int64_t z_index, const bool enable_edge_gradients) const
+    {
+        const std::vector<double> raw_gradient = GetGradientInternal(x_index, y_index, z_index, enable_edge_gradients);
+        if (raw_gradient.size() == 3)
+        {
+            const Eigen::Vector3d gradient_as_eigen = EigenHelpers::StdVectorDoubleToEigenVector3d(raw_gradient);
+            const Eigen::Vector3d gradient_in_world_frame = GetOriginTransform().linear() * gradient_as_eigen;
+            return {gradient_in_world_frame.x(), gradient_in_world_frame.y(), gradient_in_world_frame.z()};
+        }
+        else
+        {
+            return raw_gradient;
+        }
+    }
+
+
     Eigen::Vector3d SignedDistanceField::ProjectOutOfCollision(const double x, const double y, const double z, const double stepsize_multiplier) const
     {
         const Eigen::Vector4d result = ProjectOutOfCollision4d(Eigen::Vector4d(x, y, z, 1.0), stepsize_multiplier);
@@ -883,345 +1151,54 @@ namespace sdf_tools
 
     Eigen::Vector4d SignedDistanceField::ProjectOutOfCollisionToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier) const
     {
-        // To avoid potential problems with alignment, we need to pass location by reference, so we make a local copy
-        // here that we can change. https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
-        Eigen::Vector4d mutable_location = location;
-
-        // Verify that the input location is in bounds
-        const auto distance_check = EstimateDistance4d(location);
-        if (!distance_check.second)
+        if (CheckInBounds4d(location))
         {
+//            std::cout << std::setprecision(20) << "\n\n\n\n\n"
+//                      << "input_loc_world_frame = [" << location.transpose() << "]';\n"
+//                      << "input_loc_local_frame = [" << (GetInverseOriginTransform() * location).transpose() << "]';\n"
+//                      << "local_to_world_tf = [\n" << GetInverseOriginTransform().matrix() << "];\n"
+//                      << "world_to_local_tf = [\n" << GetOriginTransform().matrix() << "];\n";
+
+            const Eigen::Vector4d result_in_local_frame = ProjectOutOfCollisionToMinimumDistanceInternal(GetInverseOriginTransform() * location, minimum_distance, stepsize_multiplier);
+            const Eigen::Vector4d result_in_world_frame = GetOriginTransform() * result_in_local_frame;
+
+//            std::cout << std::setprecision(20)
+//                      << "local_frame_result = [" << result_in_local_frame.transpose() << "]';\n"
+//                      << "world_frame_result = [" << result_in_world_frame.transpose() << "]';\n";
+
+//            const std::vector<int64_t> grid_indices_from_local_result = LocationToGridIndexInternal(result_in_local_frame);
+//            const std::vector<int64_t> grid_indices_from_world_result = LocationToGridIndex4d(result_in_world_frame);
+
+//            std::cout << "grid_indices_local_result = [" << PrettyPrint::PrettyPrint(grid_indices_from_local_result, false, " ") << "]';\n"
+//                      << "grid_indices_world_result = [" << PrettyPrint::PrettyPrint(grid_indices_from_world_result, false, " ") << "]';\n";
+
+//            const double local_frame_dist = EstimateDistanceInternal(result_in_local_frame, grid_indices_from_local_result[0], grid_indices_from_local_result[1], grid_indices_from_local_result[2]);
+            const auto world_frame_dist = EstimateDistance4d(result_in_world_frame);
+
+//            std::cout << std::setprecision(20)
+//                      << "\n\n"
+//                      << "local_frame_dist: " << local_frame_dist << std::endl
+//                      << "world_frame_dist: " << world_frame_dist.first << std::endl;
+
+            assert(CheckInBounds4d(result_in_world_frame));
+//            assert(local_frame_dist >= minimum_distance);
+            assert(world_frame_dist.first >= minimum_distance);
+
+            return result_in_world_frame;
+        }
+        else
+        {
+            std::cerr << std::endl << std::endl;
             std::cerr << "starting location out of bounds: " << location.transpose() << std::endl;
             std::cerr << std::endl << std::endl;
-        }
-
-        // If we are in bounds, start the projection process, otherwise return the location unchanged
-        if (distance_check.second)
-        {
-            // TODO: make this additional margin configurable
-            // Add a small collision margin to account for rounding and similar
-            const double minimum_distance_with_margin = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
-            const double max_stepsize = GetResolution() * stepsize_multiplier;
-            const bool enable_edge_gradients = true;
-
-            double sdf_dist = EstimateDistance4d(mutable_location).first;
-            while (sdf_dist <= minimum_distance)
-            {
-                const std::vector<double> gradient = GetGradient4d(mutable_location, enable_edge_gradients);
-                assert(gradient.size() == 3);
-                const Eigen::Vector4d grad_eigen(gradient[0], gradient[1], gradient[2], 0.0);
-                assert(grad_eigen.norm() > GetResolution() * 0.25); // Sanity check
-                // Don't step any farther than is needed
-                const double step_distance = std::min(max_stepsize, minimum_distance_with_margin - sdf_dist);
-                const Eigen::Vector4d next_location = mutable_location + grad_eigen.normalized() * step_distance;
-
-                // Ensure that we are still operating in the valid range of the SDF
-                const auto distance_check = EstimateDistance4d(next_location);
-                if (!distance_check.second)
-                {
-                    std::cerr << "starting location: " << location.transpose() << std::endl
-                              << "current location:  " << mutable_location.transpose() << std::endl
-                              << "Current gradient:  " << grad_eigen.transpose() << std::endl
-                              << "Out of bounds loc: " << next_location.transpose() << std::endl;
-                    std::cerr << std::endl << std::endl;
-                }
-                mutable_location = next_location;
-                sdf_dist = distance_check.first;
-            }
-        }
-        return mutable_location;
-    }
-
-
-
-
-
-
-    std::pair<Eigen::Vector3d, double> SignedDistanceField::GetPrimaryComponentsVectorLegacy(const Eigen::Vector3d& raw_vector) const
-    {
-        if (std::abs(raw_vector.x()) > std::abs(raw_vector.y()) && std::abs(raw_vector.x()) > std::abs(raw_vector.z()))
-        {
-            if (raw_vector.x() >= 0.0)
-            {
-                return std::make_pair(Eigen::Vector3d(GetResolution() * 0.5, 0.0, 0.0), GetResolution() * 0.5);
-            }
-            else
-            {
-                return std::make_pair(Eigen::Vector3d(GetResolution() * -0.5, 0.0, 0.0), GetResolution() * 0.5);
-            }
-        }
-        else if (std::abs(raw_vector.y()) > std::abs(raw_vector.x()) && std::abs(raw_vector.y()) > std::abs(raw_vector.z()))
-        {
-            if (raw_vector.y() >= 0.0)
-            {
-                return std::make_pair(Eigen::Vector3d(0.0, GetResolution() * 0.5, 0.0), GetResolution() * 0.5);
-            }
-            else
-            {
-                return std::make_pair(Eigen::Vector3d(0.0, GetResolution() * -0.5, 0.0), GetResolution() * 0.5);
-            }
-        }
-        else if (std::abs(raw_vector.z()) > std::abs(raw_vector.x()) && std::abs(raw_vector.z()) > std::abs(raw_vector.y()))
-        {
-            if (raw_vector.z() >= 0.0)
-            {
-                return std::make_pair(Eigen::Vector3d(0.0, 0.0, GetResolution() * 0.5), GetResolution() * 0.5);
-            }
-            else
-            {
-                return std::make_pair(Eigen::Vector3d(0.0, 0.0, GetResolution() * -0.5), GetResolution() * 0.5);
-            }
-        }
-        else if (std::abs(raw_vector.x()) == std::abs(raw_vector.y()))
-        {
-            const Eigen::Vector3d temp_vector(raw_vector.x(), raw_vector.y(), 0.0);
-            return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
-        }
-        else if (std::abs(raw_vector.y()) == std::abs(raw_vector.z()))
-        {
-            const Eigen::Vector3d temp_vector(0.0, raw_vector.y(), raw_vector.x());
-            return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
-        }
-        else if (std::abs(raw_vector.x()) == std::abs(raw_vector.z()))
-        {
-            const Eigen::Vector3d temp_vector(raw_vector.x(), 0.0, raw_vector.z());
-            return std::make_pair((temp_vector / (temp_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 2.0));
-        }
-        else
-        {
-            return std::make_pair((raw_vector / (raw_vector.norm())) * std::sqrt((GetResolution() * GetResolution() * 0.25) * 3.0), std::sqrt((GetResolution() * GetResolution() * 0.25) * 3.0));
+            return location;
         }
     }
-
-    double SignedDistanceField::ComputeAxisMatchLegacy(const double axis_value, const double check_value) const
-    {
-        if ((axis_value >= 0.0) == (check_value >= 0.0))
-        {
-            return std::abs(check_value - axis_value);
-        }
-        else
-        {
-            return -std::abs(check_value - axis_value);
-        }
-    }
-
-    Eigen::Vector3d SignedDistanceField::GetBestMatchSurfaceVectorLegacy(const Eigen::Vector3d& possible_surfaces_vector, const Eigen::Vector3d& center_to_location_vector) const
-    {
-        const Eigen::Vector3d location_rejected_on_possible = EigenHelpers::VectorRejection(possible_surfaces_vector, center_to_location_vector);
-        // Find the axis with the best-match components
-        const double x_axis_match = ComputeAxisMatchLegacy(possible_surfaces_vector.x(), location_rejected_on_possible.x());
-        const double y_axis_match = ComputeAxisMatchLegacy(possible_surfaces_vector.y(), location_rejected_on_possible.y());
-        const double z_axis_match = ComputeAxisMatchLegacy(possible_surfaces_vector.z(), location_rejected_on_possible.z());
-        // Cases where one is better
-        if ((x_axis_match > y_axis_match) && (x_axis_match > z_axis_match))
-        {
-            return Eigen::Vector3d(possible_surfaces_vector.x(), 0.0, 0.0);
-        }
-        else if ((y_axis_match > x_axis_match) && (y_axis_match > z_axis_match))
-        {
-            return Eigen::Vector3d(0.0, possible_surfaces_vector.y(), 0.0);
-        }
-        else if ((z_axis_match > x_axis_match) && (z_axis_match > y_axis_match))
-        {
-            return Eigen::Vector3d(0.0, 0.0, possible_surfaces_vector.z());
-        }
-        // Cases where two are equally good
-        else if ((x_axis_match < y_axis_match) && (x_axis_match < z_axis_match))
-        {
-            return Eigen::Vector3d(0.0, possible_surfaces_vector.y(), possible_surfaces_vector.z());
-        }
-        else if ((y_axis_match < x_axis_match) && (y_axis_match < z_axis_match))
-        {
-            return Eigen::Vector3d(possible_surfaces_vector.x(), 0.0, possible_surfaces_vector.z());
-        }
-        else if ((z_axis_match < x_axis_match) && (z_axis_match < y_axis_match))
-        {
-            return Eigen::Vector3d(possible_surfaces_vector.x(), possible_surfaces_vector.y(), 0.0);
-        }
-        // When all are equally good
-        else
-        {
-            std::cerr << "Possible surfaces vector " << possible_surfaces_vector << " simple match failed: " << x_axis_match << ", " << y_axis_match << ", " << z_axis_match << " (x, y, z)" << std::endl;
-            return possible_surfaces_vector;
-        }
-    }
-
-    /**
-     * @brief GetPrimaryEntrySurfaceVector Estimates the real distance of the provided point, comparing it with the cell center location and gradient vector
-     * @param boundary_direction_vector
-     * @param center_to_location_vector
-     * @return vector from center of voxel to primary entry surface, and magnitude of that vector
-     */
-    std::pair<Eigen::Vector3d, double> SignedDistanceField::GetPrimaryEntrySurfaceVectorLegacy(const Eigen::Vector3d& boundary_direction_vector, const Eigen::Vector3d& center_to_location_vector) const
-    {
-        if (boundary_direction_vector.squaredNorm() > std::numeric_limits<double>::epsilon())
-        {
-            const std::pair<Eigen::Vector3d, double> primary_components_vector_query = GetPrimaryComponentsVectorLegacy(boundary_direction_vector);
-            // If the cell is on a surface
-            if (primary_components_vector_query.second == (GetResolution() * 0.5))
-            {
-                return primary_components_vector_query;
-            }
-            // If the cell is on an edge or surface
-            else
-            {
-                // Pick the best-match of the two/three exposed surfaces
-                return std::make_pair(GetBestMatchSurfaceVectorLegacy(primary_components_vector_query.first, center_to_location_vector), GetResolution() * 0.5);
-            }
-        }
-        else
-        {
-            return GetPrimaryComponentsVectorLegacy(center_to_location_vector);
-        }
-    }
-
-    double SignedDistanceField::EstimateDistanceInternalLegacy(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
-    {
-        const double nominal_sdf_distance = (double)distance_field_.GetImmutable(x_idx, y_idx, z_idx).first;
-        const std::vector<double> cell_center = GridIndexToLocation(x_idx, y_idx, z_idx);
-        const Eigen::Vector3d cell_center_to_location_vector_global_frame(x - cell_center[0], y - cell_center[1], z - cell_center[2]);
-
-        #pragma message "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!HACK for addressing origin frame orientation problems - only implemented here, not in projection too"
-        const Eigen::Vector3d cell_center_to_location_vector = GetInverseOriginTransform().linear() * cell_center_to_location_vector_global_frame;
-
-        // Determine vector from "entry surface" to center of voxel
-        // TODO: Needs special handling if there's no gradient to work with
-        const std::vector<double> raw_gradient = GetGradient(x_idx, y_idx, z_idx, true);
-        const Eigen::Vector3d gradient = EigenHelpers::StdVectorDoubleToEigenVector3d(raw_gradient);
-        const Eigen::Vector3d direction_to_boundary = (nominal_sdf_distance >= 0.0) ? -gradient : gradient;
-        const std::pair<Eigen::Vector3d, double> entry_surface_information = GetPrimaryEntrySurfaceVectorLegacy(direction_to_boundary, cell_center_to_location_vector);
-        const Eigen::Vector3d& entry_surface_vector = entry_surface_information.first;
-        const double minimum_distance_magnitude = entry_surface_information.second;
-
-        // Adjust for calculating distance to boundary of voxels instead of center of voxels
-        const double center_adjusted_nominal_distance = (nominal_sdf_distance >= 0.0) ? nominal_sdf_distance - (GetResolution() * 0.5) : nominal_sdf_distance + (GetResolution() * 0.5);
-        const double minimum_adjusted_distance = arc_helpers::SpreadValue(center_adjusted_nominal_distance, -minimum_distance_magnitude, 0.0, minimum_distance_magnitude);
-
-        // Account for target location being not at the exact center of the voxel
-        const double raw_distance_adjustment = EigenHelpers::VectorProjection(entry_surface_vector, cell_center_to_location_vector).norm();
-        const double real_distance_adjustment = (minimum_adjusted_distance >= 0.0) ? -raw_distance_adjustment: raw_distance_adjustment;
-        const double final_adjusted_distance = minimum_adjusted_distance + real_distance_adjustment;
-
-        // Perform minimum distance thresholding and error checking
-        // TODO: do we need to address this magic number somehow?
-        if (std::abs(final_adjusted_distance) < GetResolution() * 0.01)
-        {
-            return 0.0;
-        }
-        if ((minimum_adjusted_distance >= 0.0) == (final_adjusted_distance >= 0.0))
-        {
-            return final_adjusted_distance;
-        }
-        else
-        {
-            std::cerr << "\n\n";
-
-            void* callstack[128];
-            int frames = backtrace(callstack, 128);
-            char** strs = backtrace_symbols(callstack, frames);
-            for (int i = 0; i < frames; ++i)
-            {
-                std::cerr << strs[i] << std::endl;
-            }
-            free(strs);
-
-            std::cerr << "\n\nIdx: " << x_idx << " " << y_idx << " " << z_idx << std::endl;
-            std::cerr << "Loc:           " << Eigen::Vector3d(x, y, z).transpose() << std::endl;
-            std::cerr << "Cell center:   " << Eigen::Vector3d(cell_center[0], cell_center[1], cell_center[2]).transpose() << std::endl;
-            std::cerr << "center to loc: " << cell_center_to_location_vector.transpose() << std::endl;
-            std::cerr << "Nominal dist:  " << nominal_sdf_distance << std::endl;
-            std::cerr << "Gradient   (in grid aligned coords)" << gradient.transpose() << std::endl;
-            std::cerr << "Dir to bdy (in grid aligned coords)" << direction_to_boundary.transpose() << std::endl;
-            std::cerr << "Entry surface vector: " << entry_surface_vector.transpose() << std::endl;
-
-
-
-            std::cerr << "Center adjusted nominal distance " << minimum_adjusted_distance << " final adjusted_distance " << final_adjusted_distance << std::endl;
-            assert(false && "Mismatched minimum and final adjusted distance signs");
-            return std::numeric_limits<double>::quiet_NaN();
-        }
-    }
-
-    std::pair<double, bool> SignedDistanceField::EstimateDistance4dLegacy(const Eigen::Vector4d& location) const
-    {
-        const std::vector<int64_t> indices = LocationToGridIndex4d(location);
-        if (indices.size() == 3)
-        {
-            return std::make_pair(EstimateDistanceInternalLegacy(location(0), location(1), location(2), indices[0], indices[1], indices[2]), true);
-        }
-        else
-        {
-            return std::make_pair((double)distance_field_.GetOOBValue(), false);
-        }
-    }
-
-    Eigen::Vector3d SignedDistanceField::ProjectOutOfCollision3dLegacy(const Eigen::Vector3d& location, const double stepsize_multiplier) const
-    {
-        const Eigen::Vector4d result = ProjectOutOfCollisionToMinimumDistance4dLegacy(Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0), 0.0, stepsize_multiplier);
-        return result.head<3>();
-    }
-
-    Eigen::Vector4d SignedDistanceField::ProjectOutOfCollisionToMinimumDistance4dLegacy(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier) const
-    {
-        // To avoid potential problems with alignment, we need to pass location by reference, so we make a local copy
-        // here that we can change. https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
-        Eigen::Vector4d mutable_location = location;
-
-        // Verify that the input location is in bounds
-        const auto distance_check = EstimateDistance4dLegacy(location);
-        if (!distance_check.second)
-        {
-            std::cerr << "starting location out of bounds: " << location.transpose() << std::endl;
-            std::cerr << std::endl << std::endl;
-        }
-
-        // If we are in bounds, start the projection process, otherwise return the location unchanged
-        if (distance_check.second)
-        {
-            // TODO: make this additional margin configurable
-            // Add a small collision margin to account for rounding and similar
-            const double minimum_distance_with_margin = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
-            const double max_stepsize = GetResolution() * stepsize_multiplier;
-            const bool enable_edge_gradients = true;
-
-            double sdf_dist = EstimateDistance4dLegacy(mutable_location).first;
-            while (sdf_dist <= minimum_distance)
-            {
-                const std::vector<double> gradient = GetGradient4d(mutable_location, enable_edge_gradients);
-                assert(gradient.size() == 3);
-                const Eigen::Vector4d grad_eigen(gradient[0], gradient[1], gradient[2], 0.0);
-                assert(grad_eigen.norm() > GetResolution() * 0.25); // Sanity check
-                // Don't step any farther than is needed
-                const double step_distance = std::min(max_stepsize, minimum_distance_with_margin - sdf_dist);
-                const Eigen::Vector4d next_location = mutable_location + grad_eigen.normalized() * step_distance;
-
-                // Ensure that we are still operating in the valid range of the SDF
-                const auto distance_check = EstimateDistance4dLegacy(next_location);
-                if (!distance_check.second)
-                {
-                    std::cerr << "starting location: " << location.transpose() << std::endl
-                              << "current location:  " << mutable_location.transpose() << std::endl
-                              << "Current gradient:  " << grad_eigen.transpose() << std::endl
-                              << "Out of bounds loc: " << next_location.transpose() << std::endl;
-                    std::cerr << std::endl << std::endl;
-                }
-                mutable_location = next_location;
-                sdf_dist = distance_check.first;
-            }
-        }
-        return mutable_location;
-    }
-
-
-
-
-
 
 
     Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolume(const double x, const double y, const double z) const
     {
-        const Eigen::Vector4d result = ProjectIntoValidVolume4d(Eigen::Vector4d(x, y, z, 1.0));
-        return result.head<3>();
+        return ProjectIntoValidVolumeToMinimumDistance(x, y, z, 0.0);
     }
 
     Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolumeToMinimumDistance(const double x, const double y, const double z, const double minimum_distance) const
@@ -1232,12 +1209,13 @@ namespace sdf_tools
 
     Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolume3d(const Eigen::Vector3d& location) const
     {
-        return ProjectIntoValidVolume(location.x(), location.y(), location.z());
+        return ProjectIntoValidVolumeToMinimumDistance3d(location, 0.0);
     }
 
     Eigen::Vector3d SignedDistanceField::ProjectIntoValidVolumeToMinimumDistance3d(const Eigen::Vector3d& location, const double minimum_distance) const
     {
-        return ProjectIntoValidVolumeToMinimumDistance(location.x(), location.y(), location.z(), minimum_distance);
+        const Eigen::Vector4d result = ProjectIntoValidVolumeToMinimumDistance4d(Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0), minimum_distance);
+        return result.head<3>();
     }
 
     Eigen::Vector4d SignedDistanceField::ProjectIntoValidVolume4d(const Eigen::Vector4d& location) const
@@ -1247,6 +1225,8 @@ namespace sdf_tools
 
     Eigen::Vector4d SignedDistanceField::ProjectIntoValidVolumeToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance) const
     {
+        assert(minimum_distance >= 0.0);
+
         const auto inverse_origin_transform = distance_field_.GetInverseOriginTransform();
         const auto point_in_grid_frame = inverse_origin_transform * location;
         const auto x_size = distance_field_.GetXSize();
@@ -1264,13 +1244,17 @@ namespace sdf_tools
         change_made |= (z != point_in_grid_frame(2));
         if (change_made)
         {
-            return GetOriginTransform() * Eigen::Vector4d(x, y, z, 1.0);
+            const auto result = GetOriginTransform() * Eigen::Vector4d(x, y, z, 1.0);
+            assert(CheckInBounds4d(result));
+            return result;
         }
         else
         {
+            assert(CheckInBounds4d(location));
             return location;
         }
     }
+
 
     const Eigen::Isometry3d& SignedDistanceField::GetOriginTransform() const
     {
@@ -1286,6 +1270,7 @@ namespace sdf_tools
     {
         return frame_;
     }
+
 
     std::vector<int64_t> SignedDistanceField::LocationToGridIndex3d(const Eigen::Vector3d& location) const
     {
@@ -1311,6 +1296,7 @@ namespace sdf_tools
     {
         return distance_field_.GridIndexToLocation(x_index, y_index, z_index);
     }
+
 
     bool SignedDistanceField::SaveToFile(const std::string& filepath)
     {
@@ -1415,6 +1401,7 @@ namespace sdf_tools
         locked_ = message.locked;
         return true;
     }
+
 
     visualization_msgs::Marker SignedDistanceField::ExportForDisplay(const float alpha) const
     {
@@ -1593,6 +1580,7 @@ namespace sdf_tools
         }
         return display_rep;
     }
+
 
     VoxelGrid::VoxelGrid<Eigen::Vector3d> SignedDistanceField::ComputeLocalMaximaMap() const
     {

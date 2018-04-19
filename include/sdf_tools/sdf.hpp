@@ -34,6 +34,56 @@ namespace sdf_tools
          */
         void FollowGradientsToLocalMaximaUnsafe(VoxelGrid::VoxelGrid<Eigen::Vector3d>& watershed_map, const int64_t x_index, const int64_t y_index, const int64_t z_index) const;
 
+
+
+
+        ////////////////////////////////////////////////////////////////////////////
+        // Helper functions for EstimateDistanceLegacy - TODO: to be replaced at a later date
+        ////////////////////////////////////////////////////////////////////////////
+
+        std::pair<Eigen::Vector4d, double> GetPrimaryComponentsVectorLegacy(const Eigen::Vector4d& raw_vector) const;
+
+        double ComputeAxisMatchLegacy(const double axis_value, const double check_value) const;
+
+        Eigen::Vector4d GetBestMatchSurfaceVectorLegacy(const Eigen::Vector4d& possible_surfaces_vector, const Eigen::Vector4d& center_to_location_vector) const;
+
+        std::pair<Eigen::Vector4d, double> GetPrimaryEntrySurfaceVectorLegacy(const Eigen::Vector4d& boundary_direction_vector, const Eigen::Vector4d& center_to_location_vector) const;
+
+        Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4dLegacy(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 8.0) const;
+
+    public:
+
+        std::pair<double, bool> EstimateDistance4dLegacy(const Eigen::Vector4d& location) const;
+
+        Eigen::Vector3d ProjectOutOfCollision3dLegacy(const Eigen::Vector3d& location, const double stepsize_multiplier = 1.0 / 8.0) const;
+
+
+
+
+
+    protected:
+        ////////////////////////////////////////////////////////////////////////////
+        // These functions all assume that the location passed in is already
+        // in the local frame, or return a value on the local frame
+        ////////////////////////////////////////////////////////////////////////////
+
+        std::vector<double> GetGradientInternal(const int64_t x_index, const int64_t y_index, const int64_t z_index, const bool enable_edge_gradients = false) const;
+
+        std::vector<int64_t> LocationToGridIndexInternal(const Eigen::Vector4d& location_in_local_frame) const;
+
+        Eigen::Vector4d GridIndexToLocationInternal(const int64_t x_index, const int64_t y_index, const int64_t z_index) const;
+
+        double EstimateDistanceInternal(const Eigen::Vector4d& location_in_local_frame, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const;
+
+        Eigen::Vector4d ProjectOutOfCollisionToMinimumDistanceInternal(const Eigen::Vector4d& location_in_local_frame, const double minimum_distance, const double stepsize_multiplier = 1.0 / 8.0) const;
+
+        double EstimateDistanceLegacyInternal(const Eigen::Vector4d& location_in_local_frame, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const;
+
+        Eigen::Vector4d ProjectOutOfCollisionToMinimumDistanceLegacyInternal(const Eigen::Vector4d& location_in_local_frame, const double minimum_distance, const double stepsize_multiplier) const;
+
+
+
+
     public:
 
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -44,6 +94,7 @@ namespace sdf_tools
 
         SignedDistanceField();
 
+
         bool IsInitialized() const;
 
         bool IsLocked() const;
@@ -51,6 +102,7 @@ namespace sdf_tools
         void Lock();
 
         void Unlock();
+
 
         float Get(const double x, const double y, const double z) const;
 
@@ -84,6 +136,7 @@ namespace sdf_tools
 
         bool Set(const VoxelGrid::GRID_INDEX& index, const float value);
 
+
         bool CheckInBounds3d(const Eigen::Vector3d& location) const;
 
         bool CheckInBounds4d(const Eigen::Vector4d& location) const;
@@ -93,6 +146,7 @@ namespace sdf_tools
         bool CheckInBounds(const VoxelGrid::GRID_INDEX& index) const;
 
         bool CheckInBounds(const int64_t x_index, const int64_t y_index, const int64_t z_index) const;
+
 
         double GetXSize() const;
 
@@ -110,50 +164,6 @@ namespace sdf_tools
 
         int64_t GetNumZCells() const;
 
-    protected:
-
-        std::pair<Eigen::Vector3d, double> GetPrimaryComponentsVector(const Eigen::Vector3d& raw_vector) const;
-
-        double ComputeAxisMatch(const double axis_value, const double check_value) const;
-
-        Eigen::Vector3d GetBestMatchSurfaceVector(const Eigen::Vector3d& possible_surfaces_vector, const Eigen::Vector3d& center_to_location_vector) const;
-
-        /**
-         * @brief GetPrimaryEntrySurfaceVector Estimates the real distance of the provided point, comparing it with the cell center location and gradient vector
-         * @param boundary_direction_vector
-         * @param center_to_location_vector
-         * @return vector from center of voxel to primary entry surface, and magnitude of that vector
-         */
-        std::pair<Eigen::Vector3d, double> GetPrimaryEntrySurfaceVector(const Eigen::Vector3d& boundary_direction_vector, const Eigen::Vector3d& center_to_location_vector) const;
-
-        double EstimateDistanceInternal(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const;
-
-
-
-
-
-        std::pair<Eigen::Vector3d, double> GetPrimaryComponentsVectorLegacy(const Eigen::Vector3d& raw_vector) const;
-
-        double ComputeAxisMatchLegacy(const double axis_value, const double check_value) const;
-
-        Eigen::Vector3d GetBestMatchSurfaceVectorLegacy(const Eigen::Vector3d& possible_surfaces_vector, const Eigen::Vector3d& center_to_location_vector) const;
-
-        std::pair<Eigen::Vector3d, double> GetPrimaryEntrySurfaceVectorLegacy(const Eigen::Vector3d& boundary_direction_vector, const Eigen::Vector3d& center_to_location_vector) const;
-
-        double EstimateDistanceInternalLegacy(const double x, const double y, const double z, const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const;
-
-        Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4dLegacy(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 8.0) const;
-
-    public:
-
-        std::pair<double, bool> EstimateDistance4dLegacy(const Eigen::Vector4d& location) const;
-
-        Eigen::Vector3d ProjectOutOfCollision3dLegacy(const Eigen::Vector3d& location, const double stepsize_multiplier = 1.0 / 8.0) const;
-
-
-
-
-
 
         std::pair<double, bool> EstimateDistance(const double x, const double y, const double z) const;
 
@@ -161,12 +171,14 @@ namespace sdf_tools
 
         std::pair<double, bool> EstimateDistance4d(const Eigen::Vector4d& location) const;
 
+
         // Estimate the distance between the given point and the outer boundary of the SDF
         std::pair<double, bool> DistanceToBoundary(const double x, const double y, const double z) const;
 
         std::pair<double, bool> DistanceToBoundary3d(const Eigen::Vector3d& location) const;
 
         std::pair<double, bool> DistanceToBoundary4d(const Eigen::Vector4d& location) const;
+
 
         std::vector<double> GetGradient(const double x, const double y, const double z, const bool enable_edge_gradients = false) const;
 
@@ -177,6 +189,7 @@ namespace sdf_tools
         std::vector<double> GetGradient(const VoxelGrid::GRID_INDEX& index, const bool enable_edge_gradients = false) const;
 
         std::vector<double> GetGradient(const int64_t x_index, const int64_t y_index, const int64_t z_index, const bool enable_edge_gradients = false) const;
+
 
         Eigen::Vector3d ProjectOutOfCollision(const double x, const double y, const double z, const double stepsize_multiplier = 1.0 / 8.0) const;
 
@@ -190,6 +203,7 @@ namespace sdf_tools
 
         Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance, const double stepsize_multiplier = 1.0 / 8.0) const;
 
+
         Eigen::Vector3d ProjectIntoValidVolume(const double x, const double y, const double z) const;
 
         Eigen::Vector3d ProjectIntoValidVolumeToMinimumDistance(const double x, const double y, const double z, const double minimum_distance) const;
@@ -202,11 +216,13 @@ namespace sdf_tools
 
         Eigen::Vector4d ProjectIntoValidVolumeToMinimumDistance4d(const Eigen::Vector4d& location, const double minimum_distance) const;
 
+
         const Eigen::Isometry3d& GetOriginTransform() const;
 
         const Eigen::Isometry3d& GetInverseOriginTransform() const;
 
         std::string GetFrame() const;
+
 
         std::vector<int64_t> LocationToGridIndex3d(const Eigen::Vector3d& location) const;
 
@@ -218,6 +234,7 @@ namespace sdf_tools
 
         std::vector<double> GridIndexToLocation(const int64_t x_index, const int64_t y_index, const int64_t z_index) const;
 
+
         bool SaveToFile(const std::string& filepath);
 
         bool LoadFromFile(const std::string& filepath);
@@ -226,11 +243,13 @@ namespace sdf_tools
 
         bool LoadFromMessageRepresentation(const sdf_tools::SDF& message);
 
+
         visualization_msgs::Marker ExportForDisplay(const float alpha = 0.01f) const;
 
         visualization_msgs::Marker ExportForDisplayCollisionOnly(const float alpha = 0.01f) const;
 
         visualization_msgs::Marker ExportForDebug(const float alpha = 0.5f) const;
+
 
         /*
          * The following function can be *VERY EXPENSIVE* to compute, since it performs gradient ascent across the SDF
