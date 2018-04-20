@@ -102,10 +102,14 @@ else()
     target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 endif()
 
-# Simple test node for voxel_grid
+# Simple test nodes for voxel_grid
 add_executable(voxel_grid_test src/test_voxel_grid.cpp)
 add_dependencies(voxel_grid_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
 target_link_libraries(voxel_grid_test ${catkin_LIBRARIES} ${PROJECT_NAME})
+
+add_executable(estimate_distance_test src/estimate_distance_test.cpp)
+add_dependencies(estimate_distance_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(estimate_distance_test ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 # Image to SDF node
 add_executable(image_2d_sdf_node src/image_2d_sdf_node.cpp)

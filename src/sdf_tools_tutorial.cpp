@@ -52,26 +52,26 @@ int main(int argc, char** argv)
                 if ((x_index < (collision_map.GetNumXCells() / 2)) && (y_index < (collision_map.GetNumYCells() / 2)) && (z_index < (collision_map.GetNumZCells() / 2)))
                 {
                     sdf_tools::COLLISION_CELL obstacle_cell(1.0); // Occupancy values > 0.5 are obstacles
-                    collision_map.Set(x_index, y_index, z_index, obstacle_cell);
+                    collision_map.SetValue(x_index, y_index, z_index, obstacle_cell);
                 }
             }
         }
     }
     // We can also set by location
     sdf_tools::COLLISION_CELL obstacle_cell(1.0); // Occupancy values > 0.5 are obstacles
-    collision_map.Set(0.0, 0.0, 0.0, obstacle_cell);
+    collision_map.SetValue(0.0, 0.0, 0.0, obstacle_cell);
     // Let's get some values
     // We can query by index
     int64_t x_index = 10;
     int64_t y_index = 10;
     int64_t z_index = 10;
-    std::pair<sdf_tools::COLLISION_CELL, bool> index_query = collision_map.Get(x_index, y_index, z_index);
+    std::pair<sdf_tools::COLLISION_CELL, bool> index_query = collision_map.GetImmutable(x_index, y_index, z_index);
     std::cout << "Index query result - stored value " << index_query.first.occupancy << " (occupancy) " << index_query.first.component << " (component) was it in the grid? - " << index_query.second << std::endl;
     // Or we can query by location
     double x_location = 0.0;
     double y_location = 0.0;
     double z_location = 0.0;
-    std::pair<sdf_tools::COLLISION_CELL, bool> location_query = collision_map.Get(x_location, y_location, z_location);
+    std::pair<sdf_tools::COLLISION_CELL, bool> location_query = collision_map.GetImmutable(x_location, y_location, z_location);
     std::cout << "Location query result - stored value " << location_query.first.occupancy << " (occupancy) " << location_query.first.component << " (component) was it in the grid? - " << location_query.second << std::endl;
     // Let's compute connected components
     uint32_t num_connected_components = collision_map.UpdateConnectedComponents();
@@ -106,21 +106,21 @@ int main(int argc, char** argv)
     connected_components_marker.ns = "connected_components";
     connected_components_marker.id = 1;
     visualization_pub.publish(connected_components_marker);
-    // Let's export the CollisionMap - this is how you can transfer it to another ROS node
-    collision_map_pub.publish(collision_map.GetMessageRepresentation());
-    // You can also save it to a file
-    std::string collision_map_filename = "collision_map.cmg";
-    collision_map.SaveToFile(collision_map_filename);
-    // And load it back in
-    bool loaded = collision_map.LoadFromFile(collision_map_filename);
-    if (loaded)
-    {
-        std::cout << "Reloaded CollisionMap from file" << std::endl;
-    }
-    else
-    {
-        std::cerr << "Whoa, something broke!" << std::endl;
-    }
+//    // Let's export the CollisionMap - this is how you can transfer it to another ROS node
+//    collision_map_pub.publish(collision_map.GetMessageRepresentation());
+//    // You can also save it to a file
+//    std::string collision_map_filename = "collision_map.cmg";
+//    collision_map.SaveToFile(collision_map_filename);
+//    // And load it back in
+//    bool loaded = collision_map.LoadFromFile(collision_map_filename);
+//    if (loaded)
+//    {
+//        std::cout << "Reloaded CollisionMap from file" << std::endl;
+//    }
+//    else
+//    {
+//        std::cerr << "Whoa, something broke!" << std::endl;
+//    }
     ///////////////////////////
     //// Let's make an SDF ////
     ///////////////////////////
@@ -134,9 +134,9 @@ int main(int argc, char** argv)
     // We lock the SDF to prevent unintended changes that would invalidate it
     sdf.Lock();
     // Let's get some values
-    std::pair<float, bool> index_sdf_query = sdf.GetSafe(x_index, y_index, z_index);
+    std::pair<float, bool> index_sdf_query = sdf.GetImmutable(x_index, y_index, z_index);
     std::cout << "Index query result - stored distance " << index_sdf_query.first << " was it in the grid? - " << index_sdf_query.second << std::endl;
-    std::pair<float, bool> location_sdf_query = sdf.GetSafe(x_location, y_location, z_location);
+    std::pair<float, bool> location_sdf_query = sdf.GetImmutable(x_location, y_location, z_location);
     std::cout << "Location query result - stored distance " << location_sdf_query.first << " was it in the grid? - " << location_sdf_query.second << std::endl;
     // Let's get some gradients
     std::vector<double> index_gradient_query = sdf.GetGradient(x_index, y_index, z_index, true); // Usually, you want to enable 'edge gradients' i.e. gradients for cells on the edge of the grid that don't have 6 neighbors
@@ -148,8 +148,8 @@ int main(int argc, char** argv)
     sdf_marker.ns = "sdf";
     sdf_marker.id = 1;
     visualization_pub.publish(sdf_marker);
-    // Let's export the SDF
-    sdf_pub.publish(sdf.GetMessageRepresentation());
+//    // Let's export the SDF
+//    sdf_pub.publish(sdf.GetMessageRepresentation());
     std::cout << "...done" << std::endl;
     return 0;
 }

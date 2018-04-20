@@ -309,7 +309,7 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDis
                 if (sdf_found_itr != per_object_sdfs.end())
                 {
                     const sdf_tools::SignedDistanceField& object_sdf = sdf_found_itr->second;
-                    const float distance = object_sdf.Get(new_point.x, new_point.y, new_point.z);
+                    const float distance = object_sdf.GetImmutable(new_point.x, new_point.y, new_point.z).first;
                     // Check if we're on the surface of the object
                     if (distance < 0.0 && distance > -GetResolution())
                     {
@@ -370,7 +370,7 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDis
                 if (sdf_found_itr != per_object_sdfs.end())
                 {
                     const sdf_tools::SignedDistanceField& object_sdf = sdf_found_itr->second;
-                    const float distance = object_sdf.Get(new_point.x, new_point.y, new_point.z);
+                    const float distance = object_sdf.GetImmutable(new_point.x, new_point.y, new_point.z).first;
                     // Check if we're on the surface of the object
                     if (distance < 0.0 && distance > -GetResolution())
                     {

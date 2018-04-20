@@ -262,7 +262,7 @@ namespace sdf_generation
                     {
                         min_distance = distance;
                     }
-                    new_sdf.Set(x_index, y_index, z_index, distance);
+                    new_sdf.SetValue(x_index, y_index, z_index, distance);
                 }
             }
         }

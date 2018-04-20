@@ -245,15 +245,6 @@ void test_dsh_voxel_grid_locations()
     }
 }
 
-
-void test_float_binary_conversion(float test_val)
-{
-    std::cout << "Initial value " << test_val << std::endl;
-    std::vector<uint8_t> binary_value = FloatToBinary(test_val);
-    float final_val = FloatFromBinary(binary_value);
-    std::cout << "Final value " << final_val << std::endl;
-}
-
 Eigen::Vector3d get_random_location(std::default_random_engine& generator, const double min_x, const double min_y, const double min_z, const double max_x, const double max_y, const double max_z)
 {
     std::uniform_real_distribution<double> x_distribution(min_x, max_x);
@@ -323,36 +314,6 @@ visualization_msgs::MarkerArray test_dsh_collision_map(std::default_random_engin
     return display_rep;
 }
 
-void test_estimate_distance()
-{
-    const double res = 1.0;
-    const double size = 10.0;
-    auto map = sdf_tools::CollisionMapGrid(Eigen::Isometry3d::Identity(), "mocap_world", res, size, size, size, sdf_tools::COLLISION_CELL(0.0));
-    map.Set(5.0, 5.0, 5.0, sdf_tools::COLLISION_CELL(1.0));
-    map.Set(5.0, 5.0, 6.0, sdf_tools::COLLISION_CELL(1.0));
-    map.Set(5.0, 6.0, 5.0, sdf_tools::COLLISION_CELL(1.0));
-    map.Set(5.0, 6.0, 6.0, sdf_tools::COLLISION_CELL(1.0));
-    map.Set(6.0, 5.0, 5.0, sdf_tools::COLLISION_CELL(1.0));
-    map.Set(6.0, 5.0, 6.0, sdf_tools::COLLISION_CELL(1.0));
-    map.Set(6.0, 6.0, 5.0, sdf_tools::COLLISION_CELL(1.0));
-    map.Set(6.0, 6.0, 6.0, sdf_tools::COLLISION_CELL(1.0));
-    const auto sdf = map.ExtractSignedDistanceField(1e6).first;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.4, 6.4, 6.4).first << std::endl;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.5, 6.5, 6.5).first << std::endl;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.5, 6.5, 6.6).first << std::endl;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.5, 6.6, 6.5).first << std::endl;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.5, 6.5).first << std::endl;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.6, 6.6).first << std::endl;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.6, 6.7).first << std::endl;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.7, 6.6).first << std::endl;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.7, 6.6, 6.6).first << std::endl;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(6.7, 6.7, 6.7).first << std::endl;
-    std::cout << "-----" << std::endl;
-    std::cout << std::setprecision(12) << sdf.EstimateDistance(5.8, 5.9, 5.7).first << std::endl;
-    std::cout << PrettyPrint::PrettyPrint(sdf.ProjectOutOfCollisionToMinimumDistance4d(Eigen::Vector4d(5.8, 5.9, 5.7, 1.0), 0.001, 0.06125)) << std::endl;
-}
-
-
 int main(int argc, char** argv)
 {
     // construct a trivial random generator engine from a time-based seed:
@@ -365,8 +326,6 @@ int main(int argc, char** argv)
     test_voxel_grid_locations();
     test_voxel_grid_serialization();
     test_dsh_voxel_grid_locations();
-    test_float_binary_conversion(5280.0);
-    test_estimate_distance();
     visualization_msgs::MarkerArray display_rep = test_dsh_collision_map(generator);
     display_pub.publish(display_rep);
     ros::spin();
