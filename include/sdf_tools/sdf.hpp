@@ -470,7 +470,108 @@ public:
     }
   }
 
+  inline std::vector<double> GetSmoothGradient3d(
+      const Eigen::Vector3d& location,
+      const double nominal_window_size) const
+  {
+    return GetSmoothGradient(location.x(), location.y(), location.z(),
+                             nominal_window_size);
+  }
+
+  inline std::vector<double> GetSmoothGradient4d(
+      const Eigen::Vector4d& location,
+      const double nominal_window_size) const
+  {
+    return GetSmoothGradient(location(0), location(1), location(2),
+                             nominal_window_size);
+  }
+
+  inline std::vector<double> GetSmoothGradient(
+      const double x, const double y, const double z,
+      const double nominal_window_size) const
+  {
+    const double ideal_window_size = std::abs(nominal_window_size);
+    if (LocationInBounds(x, y, z))
+    {
+      const double min_x = x - ideal_window_size;
+      const double max_x = x + ideal_window_size;
+      const double min_y = y - ideal_window_size;
+      const double max_y = y + ideal_window_size;
+      const double min_z = z - ideal_window_size;
+      const double max_z = z + ideal_window_size;
+      // Retrieve distance estimates
+      const std::pair<double, bool> point_distance = EstimateDistance(x, y, z);
+      const std::pair<double, bool> mx_distance = EstimateDistance(min_x, y, z);
+      const std::pair<double, bool> px_distance = EstimateDistance(max_x, y, z);
+      const std::pair<double, bool> my_distance = EstimateDistance(x, min_y, z);
+      const std::pair<double, bool> py_distance = EstimateDistance(x, max_y, z);
+      const std::pair<double, bool> mz_distance = EstimateDistance(x, y, min_z);
+      const std::pair<double, bool> pz_distance = EstimateDistance(x, y, max_z);
+      // Compute gradient for each axis
+      const double gx = ComputeAxisSmoothGradient(point_distance,
+                                                  mx_distance,
+                                                  px_distance,
+                                                  x, min_x, max_x);
+      const double gy = ComputeAxisSmoothGradient(point_distance,
+                                                  my_distance,
+                                                  py_distance,
+                                                  y, min_y, max_y);
+      const double gz = ComputeAxisSmoothGradient(point_distance,
+                                                  mz_distance,
+                                                  pz_distance,
+                                                  z, min_z, max_z);
+      return std::vector<double>{gx, gy, gz};
+    }
+    else
+    {
+      return std::vector<double>();
+    }
+  }
+
 protected:
+
+  inline double ComputeAxisSmoothGradient(
+      const std::pair<double, bool>& query_point_distance_estimate,
+      const std::pair<double, bool>& minus_axis_distance_estimate,
+      const std::pair<double, bool>& plus_axis_distance_estimate,
+      const double query_point_axis_value,
+      const double minus_point_axis_value,
+      const double plus_point_axis_value) const
+  {
+    if (query_point_distance_estimate.second
+        && minus_axis_distance_estimate.second
+        && plus_axis_distance_estimate.second)
+    {
+      const double window_size = plus_point_axis_value
+                                 - minus_point_axis_value;
+      const double distance_delta = plus_axis_distance_estimate.first
+                                    - minus_axis_distance_estimate.first;
+      return distance_delta / window_size;
+    }
+    else if (query_point_distance_estimate.second
+             && minus_axis_distance_estimate.second)
+    {
+      const double window_size = query_point_axis_value
+                                 - minus_point_axis_value;
+      const double distance_delta = query_point_distance_estimate.first
+                                    - minus_axis_distance_estimate.first;
+      return distance_delta / window_size;
+    }
+    else if (query_point_distance_estimate.second
+             && plus_axis_distance_estimate.second)
+    {
+      const double window_size = plus_point_axis_value
+                                 - query_point_axis_value;
+      const double distance_delta = plus_axis_distance_estimate.first
+                                    - query_point_distance_estimate.first;
+      return distance_delta / window_size;
+    }
+    else
+    {
+      throw std::runtime_error(
+            "Window size for GetSmoothGradient is too large for SDF");
+    }
+  }
 
   inline double BilinearInterpolate(const double low_d1,
                                     const double high_d1,
