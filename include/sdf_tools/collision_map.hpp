@@ -222,7 +222,7 @@ public:
 
   inline CollisionMapGrid()
     : VoxelGrid::VoxelGrid<COLLISION_CELL>(),
-      number_of_components_(0), components_valid_(false) {}
+      number_of_components_(0), frame_(""), components_valid_(false) {}
 
   inline bool AreComponentsValid() const
   {
@@ -445,6 +445,119 @@ public:
     return std::pair<uint32_t, bool>(number_of_components_, components_valid_);
   }
 
+  inline std::pair<bool, bool> CheckIfCandidateCorner3d(
+      const Eigen::Vector3d& location) const
+  {
+    const GRID_INDEX index = LocationToGridIndex3d(location);
+    if (IndexInBounds(index))
+    {
+      return CheckIfCandidateCorner(index);
+    }
+    else
+    {
+      return std::pair<bool, bool>(false, false);
+    }
+  }
+
+  inline std::pair<bool, bool> CheckIfCandidateCorner4d(
+      const Eigen::Vector4d& location) const
+  {
+    const GRID_INDEX index = LocationToGridIndex4d(location);
+    if (IndexInBounds(index))
+    {
+      return CheckIfCandidateCorner(index);
+    }
+    else
+    {
+      return std::pair<bool, bool>(false, false);
+    }
+  }
+
+  inline std::pair<bool, bool> CheckIfCandidateCorner(
+      const double x, const double y, const double z) const
+  {
+    const Eigen::Vector4d location(x, y, z, 1.0);
+    return CheckIfCandidateCorner4d(location);
+  }
+
+  inline std::pair<bool, bool> CheckIfCandidateCorner(
+      const GRID_INDEX& index) const
+  {
+    return CheckIfCandidateCorner(index.x, index.y, index.z);
+  }
+
+  inline std::pair<bool, bool> CheckIfCandidateCorner(
+      const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+  {
+    const std::pair<const COLLISION_CELL&, bool> current_cell
+        = GetImmutable(x_index, y_index, z_index);
+    if (current_cell.second)
+    {
+      // Grab the six neighbors & check if they belong to a different component
+      uint32_t different_neighbors = 0u;
+      const std::pair<const COLLISION_CELL&, bool> xm1yz_cell
+          = GetImmutable(x_index - 1, y_index, z_index);
+      if (xm1yz_cell.second
+          && (xm1yz_cell.first.component != current_cell.first.component))
+      {
+        different_neighbors++;
+      }
+      const std::pair<const COLLISION_CELL&, bool> xp1yz_cell
+          = GetImmutable(x_index + 1, y_index, z_index);
+      if (xp1yz_cell.second
+          && (xp1yz_cell.first.component != current_cell.first.component))
+      {
+        different_neighbors++;
+      }
+      const std::pair<const COLLISION_CELL&, bool> xym1z_cell
+          = GetImmutable(x_index, y_index - 1, z_index);
+      if (xym1z_cell.second
+          && (xym1z_cell.first.component != current_cell.first.component))
+      {
+        different_neighbors++;
+      }
+      const std::pair<const COLLISION_CELL&, bool> xyp1z_cell
+          = GetImmutable(x_index, y_index + 1, z_index);
+      if (xyp1z_cell.second
+          && (xyp1z_cell.first.component != current_cell.first.component))
+      {
+        different_neighbors++;
+      }
+      const std::pair<const COLLISION_CELL&, bool> xyzm1_cell
+          = GetImmutable(x_index, y_index, z_index - 1);
+      if (xyzm1_cell.second
+          && (xyzm1_cell.first.component != current_cell.first.component))
+      {
+        different_neighbors++;
+      }
+      const std::pair<const COLLISION_CELL&, bool> xyzp1_cell
+          = GetImmutable(x_index, y_index, z_index + 1);
+      if (xyzp1_cell.second
+          && (xyzp1_cell.first.component != current_cell.first.component))
+      {
+        different_neighbors++;
+      }
+      // We now have between zero and six neighbors to work with
+      if (different_neighbors <= 1u)
+      {
+        // If there is one or fewer neighbors to work with,
+        // we are clearly not a corner
+        return std::pair<bool, bool>(false, true);
+      }
+      else
+      {
+        // If there are 2 or more neighbors to work with,
+        // we are a candidate corner
+        return std::pair<bool, bool>(true, true);
+      }
+    }
+    else
+    {
+      // Not in the grid
+      return std::pair<bool, bool>(false, false);
+    }
+  }
+
   virtual uint64_t SerializeSelf(
       std::vector<uint8_t>& buffer,
       const std::function<uint64_t(
@@ -470,6 +583,34 @@ public:
       const sdf_tools::CollisionMap& message);
 
   uint32_t UpdateConnectedComponents();
+
+  enum COMPONENT_TYPES : uint8_t { FILLED_COMPONENTS=0x01,
+                                   EMPTY_COMPONENTS=0x02,
+                                   UNKNOWN_COMPONENTS=0x04 };
+
+  std::map<uint32_t, std::unordered_map<GRID_INDEX, uint8_t>>
+  ExtractComponentSurfaces(
+      const COMPONENT_TYPES component_types_to_extract) const;
+
+  std::map<uint32_t, std::unordered_map<GRID_INDEX, uint8_t>>
+  ExtractFilledComponentSurfaces() const
+  {
+    return ExtractComponentSurfaces(FILLED_COMPONENTS);
+  }
+
+  std::map<uint32_t, std::unordered_map<GRID_INDEX, uint8_t>>
+  ExtractUnknownComponentSurfaces() const
+  {
+    return ExtractComponentSurfaces(UNKNOWN_COMPONENTS);
+  }
+
+  std::map<uint32_t, std::unordered_map<GRID_INDEX, uint8_t>>
+  ExtractEmptyComponentSurfaces() const
+  {
+    return ExtractComponentSurfaces(EMPTY_COMPONENTS);
+  }
+
+  CollisionMapGrid Resample(const double new_resolution) const;
 
   std::map<uint32_t, std::pair<int32_t, int32_t>>
   ComputeComponentTopology(const bool ignore_empty_components,

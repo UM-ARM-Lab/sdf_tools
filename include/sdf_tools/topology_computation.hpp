@@ -674,6 +674,53 @@ ComputeComponentTopology(
   }
   return component_holes_and_voids;
 }
+
+// Extracts the active indices from a surface map as a vector, which is useful
+// in contexts where a 1-dimensional index into the surface is needed
+inline std::vector<GRID_INDEX> ExtractStaticSurface(
+    const std::unordered_map<GRID_INDEX, uint8_t>& raw_surface)
+{
+  std::vector<GRID_INDEX> static_surface;
+  // This may be larger than the actual surface we'll extract
+  static_surface.reserve(raw_surface.size());
+  for (auto itr = raw_surface.begin(); itr != raw_surface.end(); ++itr)
+  {
+    const GRID_INDEX& index = itr->first;
+    const uint8_t value = itr->second;
+    if (value == 1)
+    {
+      static_surface.push_back(index);
+    }
+  }
+  // Try to reclaim the unnecessary vector capacity
+  static_surface.shrink_to_fit();
+  return static_surface;
+}
+
+inline std::unordered_map<GRID_INDEX, uint8_t> ConvertToDynamicSurface(
+    const std::vector<GRID_INDEX>& static_surface)
+{
+  std::unordered_map<GRID_INDEX, uint8_t> dynamic_surface(
+        static_surface.size());
+  for (size_t idx = 0; idx < static_surface.size(); idx++)
+  {
+    const GRID_INDEX& grid_index = static_surface[idx];
+    dynamic_surface[grid_index] = 1u;
+  }
+  return dynamic_surface;
+}
+
+inline std::unordered_map<GRID_INDEX, size_t> BuildSurfaceIndexMap(
+    const std::vector<GRID_INDEX>& static_surface)
+{
+  std::unordered_map<GRID_INDEX, size_t> dynamic_surface(static_surface.size());
+  for (size_t idx = 0; idx < static_surface.size(); idx++)
+  {
+    const GRID_INDEX& current_index = static_surface[idx];
+    dynamic_surface[current_index] = idx;
+  }
+  return dynamic_surface;
+}
 }
 
 #endif // TOPOLOGY_COMPUTATION_HPP

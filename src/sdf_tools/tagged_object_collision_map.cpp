@@ -19,756 +19,1027 @@
 
 using namespace sdf_tools;
 
-bool TaggedObjectCollisionMapGrid::SaveToFile(const std::string &filepath) const
+uint64_t TaggedObjectCollisionMapGrid::SerializeSelf(
+    std::vector<uint8_t>& buffer,
+    const std::function<uint64_t(
+      const TAGGED_OBJECT_COLLISION_CELL&,
+      std::vector<uint8_t>&)>& value_serializer) const
 {
-    // Convert to message representation
-    sdf_tools::TaggedObjectCollisionMap message_rep = GetMessageRepresentation();
-    // Save message to file
-    try
-    {
-        std::ofstream output_file(filepath.c_str(), std::ios::out|std::ios::binary);
-        uint32_t serialized_size = ros::serialization::serializationLength(message_rep);
-        std::unique_ptr<uint8_t> ser_buffer(new uint8_t[serialized_size]);
-        ros::serialization::OStream ser_stream(ser_buffer.get(), serialized_size);
-        ros::serialization::serialize(ser_stream, message_rep);
-        output_file.write((char*)ser_buffer.get(), serialized_size);
-        output_file.close();
-        return true;
-    }
-    catch (...)
-    {
-        return false;
-    }
+  UNUSED(value_serializer);
+  const uint64_t start_buffer_size = buffer.size();
+  // Serialize the initialized
+  arc_helpers::SerializeFixedSizePOD<uint8_t>((uint8_t)initialized_, buffer);
+  // Serialize the transforms
+  EigenHelpers::Serialize<Eigen::Isometry3d>(origin_transform_, buffer);
+  EigenHelpers::Serialize<Eigen::Isometry3d>(inverse_origin_transform_,
+                                             buffer);
+  // Serialize the data
+  arc_helpers::SerializeVector<TAGGED_OBJECT_COLLISION_CELL>(
+        data_, buffer,
+        arc_helpers::SerializeFixedSizePOD<TAGGED_OBJECT_COLLISION_CELL>);
+  // Serialize the cell sizes
+  arc_helpers::SerializeFixedSizePOD<double>(cell_x_size_, buffer);
+  arc_helpers::SerializeFixedSizePOD<double>(cell_y_size_, buffer);
+  arc_helpers::SerializeFixedSizePOD<double>(cell_z_size_, buffer);
+  arc_helpers::SerializeFixedSizePOD<double>(inv_cell_x_size_, buffer);
+  arc_helpers::SerializeFixedSizePOD<double>(inv_cell_y_size_, buffer);
+  arc_helpers::SerializeFixedSizePOD<double>(inv_cell_z_size_, buffer);
+  // Serialize the grid sizes
+  arc_helpers::SerializeFixedSizePOD<double>(x_size_, buffer);
+  arc_helpers::SerializeFixedSizePOD<double>(y_size_, buffer);
+  arc_helpers::SerializeFixedSizePOD<double>(z_size_, buffer);
+  // Serialize the control/bounds values
+  arc_helpers::SerializeFixedSizePOD<int64_t>(stride1_, buffer);
+  arc_helpers::SerializeFixedSizePOD<int64_t>(stride2_, buffer);
+  arc_helpers::SerializeFixedSizePOD<int64_t>(num_x_cells_, buffer);
+  arc_helpers::SerializeFixedSizePOD<int64_t>(num_y_cells_, buffer);
+  arc_helpers::SerializeFixedSizePOD<int64_t>(num_z_cells_, buffer);
+  // Serialize the default value
+  arc_helpers::SerializeFixedSizePOD<TAGGED_OBJECT_COLLISION_CELL>(
+        default_value_, buffer);
+  // Serialize the OOB value
+  arc_helpers::SerializeFixedSizePOD<TAGGED_OBJECT_COLLISION_CELL>(
+        oob_value_, buffer);
+  // Serialize TaggedObjectCollisionMapGrid stuff
+  arc_helpers::SerializeFixedSizePOD<uint32_t>(number_of_components_, buffer);
+  arc_helpers::SerializeString(frame_, buffer);
+  arc_helpers::SerializeFixedSizePOD<uint8_t>((uint8_t)components_valid_,
+                                              buffer);
+  arc_helpers::SerializeFixedSizePOD<uint8_t>((uint8_t)convex_segments_valid_,
+                                              buffer);
+  // Figure out how many bytes were written
+  const uint64_t end_buffer_size = buffer.size();
+  const uint64_t bytes_written = end_buffer_size - start_buffer_size;
+  return bytes_written;
 }
 
-bool TaggedObjectCollisionMapGrid::LoadFromFile(const std::string& filepath)
+uint64_t TaggedObjectCollisionMapGrid::DeserializeSelf(
+    const std::vector<uint8_t>& buffer, const uint64_t current,
+    const std::function<std::pair<TAGGED_OBJECT_COLLISION_CELL, uint64_t>(
+      const std::vector<uint8_t>&, const uint64_t)>& value_deserializer)
 {
-    try
-    {
-        // Load message from file
-        std::ifstream input_file(filepath.c_str(), std::ios::in|std::ios::binary);
-        input_file.seekg(0, std::ios::end);
-        std::streampos end = input_file.tellg();
-        input_file.seekg(0, std::ios::beg);
-        std::streampos begin = input_file.tellg();
-        uint32_t serialized_size = end - begin;
-        std::unique_ptr<uint8_t> deser_buffer(new uint8_t[serialized_size]);
-        input_file.read((char*) deser_buffer.get(), serialized_size);
-        ros::serialization::IStream deser_stream(deser_buffer.get(), serialized_size);
-        sdf_tools::TaggedObjectCollisionMap new_message;
-        ros::serialization::deserialize(deser_stream, new_message);
-        // Load state from the message
-        bool success = LoadFromMessageRepresentation(new_message);
-        return success;
-    }
-    catch (...)
-    {
-        return false;
-    }
+  UNUSED(value_deserializer);
+  uint64_t current_position = current;
+  // Deserialize the initialized
+  const std::pair<uint8_t, uint64_t> initialized_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<uint8_t>(buffer,
+                                                      current_position);
+  initialized_ = (bool)initialized_deserialized.first;
+  current_position += initialized_deserialized.second;
+  // Deserialize the transforms
+  const std::pair<Eigen::Isometry3d, uint64_t> origin_transform_deserialized
+      = EigenHelpers::Deserialize<Eigen::Isometry3d>(buffer,
+                                                     current_position);
+  origin_transform_ = origin_transform_deserialized.first;
+  current_position += origin_transform_deserialized.second;
+  const std::pair<Eigen::Isometry3d, uint64_t>
+      inverse_origin_transform_deserialized
+      = EigenHelpers::Deserialize<Eigen::Isometry3d>(buffer,
+                                                     current_position);
+  inverse_origin_transform_ = inverse_origin_transform_deserialized.first;
+  current_position += inverse_origin_transform_deserialized.second;
+  // Deserialize the data
+  const std::pair<std::vector<TAGGED_OBJECT_COLLISION_CELL>, uint64_t>
+      data_deserialized
+      = arc_helpers::DeserializeVector<TAGGED_OBJECT_COLLISION_CELL>(
+        buffer, current_position,
+        arc_helpers::DeserializeFixedSizePOD<TAGGED_OBJECT_COLLISION_CELL>);
+  data_ = data_deserialized.first;
+  current_position += data_deserialized.second;
+  // Deserialize the cell sizes
+  const std::pair<double, uint64_t> cell_x_size_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<double>(buffer,
+                                                     current_position);
+  cell_x_size_ = cell_x_size_deserialized.first;
+  current_position += cell_x_size_deserialized.second;
+  const std::pair<double, uint64_t> cell_y_size_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<double>(buffer,
+                                                     current_position);
+  cell_y_size_ = cell_y_size_deserialized.first;
+  current_position += cell_y_size_deserialized.second;
+  const std::pair<double, uint64_t> cell_z_size_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<double>(buffer,
+                                                     current_position);
+  cell_z_size_ = cell_z_size_deserialized.first;
+  current_position += cell_z_size_deserialized.second;
+  const std::pair<double, uint64_t> inv_cell_x_size_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<double>(buffer,
+                                                     current_position);
+  inv_cell_x_size_ = inv_cell_x_size_deserialized.first;
+  current_position += inv_cell_x_size_deserialized.second;
+  const std::pair<double, uint64_t> inv_cell_y_size_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<double>(buffer,
+                                                     current_position);
+  inv_cell_y_size_ = inv_cell_y_size_deserialized.first;
+  current_position += inv_cell_y_size_deserialized.second;
+  const std::pair<double, uint64_t> inv_cell_z_size_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<double>(buffer,
+                                                     current_position);
+  inv_cell_z_size_ = inv_cell_z_size_deserialized.first;
+  current_position += inv_cell_z_size_deserialized.second;
+  // Deserialize the grid sizes
+  const std::pair<double, uint64_t> x_size_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<double>(buffer,
+                                                     current_position);
+  x_size_ = x_size_deserialized.first;
+  current_position += x_size_deserialized.second;
+  const std::pair<double, uint64_t> y_size_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<double>(buffer,
+                                                     current_position);
+  y_size_ = y_size_deserialized.first;
+  current_position += y_size_deserialized.second;
+  const std::pair<double, uint64_t> z_size_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<double>(buffer,
+                                                     current_position);
+  z_size_ = z_size_deserialized.first;
+  current_position += z_size_deserialized.second;
+  // Deserialize the control/bounds values
+  const std::pair<int64_t, uint64_t> stride1_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<int64_t>(buffer,
+                                                      current_position);
+  stride1_ = stride1_deserialized.first;
+  current_position += stride1_deserialized.second;
+  const std::pair<int64_t, uint64_t> stride2_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<int64_t>(buffer,
+                                                      current_position);
+  stride2_ = stride2_deserialized.first;
+  current_position += stride2_deserialized.second;
+  const std::pair<int64_t, uint64_t> num_x_cells_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<int64_t>(buffer,
+                                                      current_position);
+  num_x_cells_ = num_x_cells_deserialized.first;
+  current_position += num_x_cells_deserialized.second;
+  const std::pair<int64_t, uint64_t> num_y_cells_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<int64_t>(buffer,
+                                                      current_position);
+  num_y_cells_ = num_y_cells_deserialized.first;
+  current_position += num_y_cells_deserialized.second;
+  const std::pair<int64_t, uint64_t> num_z_cells_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<int64_t>(buffer,
+                                                      current_position);
+  num_z_cells_ = num_z_cells_deserialized.first;
+  current_position += num_z_cells_deserialized.second;
+  // Deserialize the default value
+  const std::pair<TAGGED_OBJECT_COLLISION_CELL, uint64_t>
+      default_value_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<TAGGED_OBJECT_COLLISION_CELL>(
+          buffer, current_position);
+  default_value_ = default_value_deserialized.first;
+  current_position += default_value_deserialized.second;
+  // Deserialize the OOB value
+  const std::pair<TAGGED_OBJECT_COLLISION_CELL, uint64_t>
+      oob_value_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<TAGGED_OBJECT_COLLISION_CELL>(
+          buffer, current_position);
+  oob_value_ = oob_value_deserialized.first;
+  current_position += oob_value_deserialized.second;
+  // Deserialize CollisionMapGrid stuff
+  const std::pair<uint32_t, uint64_t> number_of_components_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<uint32_t>(buffer,
+                                                       current_position);
+  number_of_components_ = number_of_components_deserialized.first;
+  current_position += number_of_components_deserialized.second;
+  const std::pair<std::string, uint64_t> frame_deserialized
+      = arc_helpers::DeserializeString<char>(buffer, current_position);
+  frame_ = frame_deserialized.first;
+  current_position += frame_deserialized.second;
+  const std::pair<uint8_t, uint64_t> components_valid_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<uint8_t>(buffer, current_position);
+  components_valid_ = (bool)components_valid_deserialized.first;
+  current_position += components_valid_deserialized.second;
+  const std::pair<uint8_t, uint64_t> convex_segments_valid_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<uint8_t>(buffer, current_position);
+  convex_segments_valid_ = (bool)convex_segments_valid_deserialized.first;
+  current_position += convex_segments_valid_deserialized.second;
+  // Figure out how many bytes were read
+  const uint64_t bytes_read = current_position - current;
+  return bytes_read;
 }
 
-std::vector<uint8_t> TaggedObjectCollisionMapGrid::PackBinaryRepresentation(const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw) const
+void TaggedObjectCollisionMapGrid::SaveToFile(
+    const TaggedObjectCollisionMapGrid& map,
+    const std::string& filepath,
+    const bool compress)
 {
-    std::vector<uint8_t> packed(raw.size() * sizeof(TAGGED_OBJECT_COLLISION_CELL));
-    for (size_t field_idx = 0, binary_index = 0; field_idx < raw.size(); field_idx++, binary_index+=sizeof(TAGGED_OBJECT_COLLISION_CELL))
-    {
-        const TAGGED_OBJECT_COLLISION_CELL& raw_cell = raw[field_idx];
-        std::vector<uint8_t> packed_cell = TaggedObjectCollisionCellToBinary(raw_cell);
-        memcpy(&packed[binary_index], &packed_cell.front(), sizeof(TAGGED_OBJECT_COLLISION_CELL));
-    }
-    return packed;
+  std::vector<uint8_t> buffer;
+  map.SerializeSelf(buffer);
+  std::ofstream output_file(filepath, std::ios::out|std::ios::binary);
+  if (compress)
+  {
+    output_file.write("TCMZ", 4);
+    const std::vector<uint8_t> compressed = ZlibHelpers::CompressBytes(buffer);
+    const size_t serialized_size = compressed.size();
+    output_file.write(reinterpret_cast<const char*>(
+                        compressed.data()), (std::streamsize)serialized_size);
+  }
+  else
+  {
+    output_file.write("TCMR", 4);
+    const size_t serialized_size = buffer.size();
+    output_file.write(reinterpret_cast<const char*>(
+                        buffer.data()), (std::streamsize)serialized_size);
+  }
+  output_file.close();
 }
 
-std::vector<TAGGED_OBJECT_COLLISION_CELL> TaggedObjectCollisionMapGrid::UnpackBinaryRepresentation(const std::vector<uint8_t>& packed) const
+TaggedObjectCollisionMapGrid TaggedObjectCollisionMapGrid::LoadFromFile(
+    const std::string& filepath)
 {
-    if ((packed.size() % sizeof(TAGGED_OBJECT_COLLISION_CELL)) != 0)
+  std::ifstream input_file(filepath, std::ios::in|std::ios::binary);
+  if (input_file.good() == false)
+  {
+    throw std::invalid_argument("File does not exist");
+  }
+  input_file.seekg(0, std::ios::end);
+  std::streampos end = input_file.tellg();
+  input_file.seekg(0, std::ios::beg);
+  std::streampos begin = input_file.tellg();
+  const std::streamsize serialized_size = end - begin;
+  const std::streamsize header_size = 4;
+  if (serialized_size >= header_size)
+  {
+    // Load the header
+    std::vector<uint8_t> file_header(header_size + 1, 0x00);
+    input_file.read(reinterpret_cast<char*>(file_header.data()),
+                    header_size);
+    const std::string header_string(
+          reinterpret_cast<const char*>(file_header.data()));
+    // Load the rest of the file
+    std::vector<uint8_t> file_buffer(
+          (size_t)serialized_size - header_size, 0x00);
+    input_file.read(reinterpret_cast<char*>(file_buffer.data()),
+                    serialized_size - header_size);
+    // Deserialize
+    if (header_string == "TCMZ")
     {
-        std::cerr << "Invalid binary representation - length is not a multiple of " << sizeof(TAGGED_OBJECT_COLLISION_CELL) << std::endl;
-        return std::vector<TAGGED_OBJECT_COLLISION_CELL>();
+      const std::vector<uint8_t> decompressed
+          = ZlibHelpers::DecompressBytes(file_buffer);
+      TaggedObjectCollisionMapGrid map;
+      map.DeserializeSelf(decompressed, 0);
+      return map;
     }
-    uint64_t data_size = packed.size() / sizeof(TAGGED_OBJECT_COLLISION_CELL);
-    std::vector<TAGGED_OBJECT_COLLISION_CELL> unpacked(data_size);
-    for (size_t field_idx = 0, binary_index = 0; field_idx < unpacked.size(); field_idx++, binary_index+=sizeof(TAGGED_OBJECT_COLLISION_CELL))
+    else if (header_string == "TCMR")
     {
-        std::vector<uint8_t> binary_block(sizeof(TAGGED_OBJECT_COLLISION_CELL));
-        memcpy(&binary_block.front(), &packed[binary_index], sizeof(TAGGED_OBJECT_COLLISION_CELL));
-        unpacked[field_idx] = TaggedObjectCollisionCellFromBinary(binary_block);
+      TaggedObjectCollisionMapGrid map;
+      map.DeserializeSelf(file_buffer, 0);
+      return map;
     }
-    return unpacked;
+    else
+    {
+      throw std::invalid_argument(
+            "File has invalid header [" + header_string + "]");
+    }
+  }
+  else
+  {
+    throw std::invalid_argument("File is too small");
+  }
 }
 
-sdf_tools::TaggedObjectCollisionMap TaggedObjectCollisionMapGrid::GetMessageRepresentation() const
+sdf_tools::TaggedObjectCollisionMap
+TaggedObjectCollisionMapGrid::GetMessageRepresentation(
+    const TaggedObjectCollisionMapGrid& map)
 {
-    sdf_tools::TaggedObjectCollisionMap message_rep;
-//    // Populate message
-//    message_rep.header.frame_id = frame_;
-//    Eigen::Isometry3d origin_transform = GetOriginTransform();
-//    message_rep.origin_transform.translation.x = origin_transform.translation().x();
-//    message_rep.origin_transform.translation.y = origin_transform.translation().y();
-//    message_rep.origin_transform.translation.z = origin_transform.translation().z();
-//    Eigen::Quaterniond origin_transform_rotation(origin_transform.rotation());
-//    message_rep.origin_transform.rotation.x = origin_transform_rotation.x();
-//    message_rep.origin_transform.rotation.y = origin_transform_rotation.y();
-//    message_rep.origin_transform.rotation.z = origin_transform_rotation.z();
-//    message_rep.origin_transform.rotation.w = origin_transform_rotation.w();
-//    message_rep.dimensions.x = GetXSize();
-//    message_rep.dimensions.y = GetYSize();
-//    message_rep.dimensions.z = GetZSize();
-//    message_rep.cell_size = GetResolution();
-//    message_rep.OOB_value = TaggedObjectCollisionCellToBinary(GetOOBValue());
-//    message_rep.number_of_components = number_of_components_;
-//    message_rep.components_valid = components_valid_;
-//    message_rep.convex_segments_valid = convex_segments_valid_;
-//    message_rep.initialized = initialized_;
-//    const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw_data = collision_field_.GetImmutableRawData();
-//    const std::vector<uint8_t> binary_data = PackBinaryRepresentation(raw_data);
-//    message_rep.data = ZlibHelpers::CompressBytes(binary_data);
-    return message_rep;
+  sdf_tools::TaggedObjectCollisionMap map_message;
+  map_message.header.stamp = ros::Time::now();
+  map_message.header.frame_id = map.GetFrame();
+  std::vector<uint8_t> buffer;
+  map.SerializeSelf(buffer);
+  map_message.serialized_map = ZlibHelpers::CompressBytes(buffer);
+  map_message.is_compressed = true;
+  return map_message;
 }
 
-bool TaggedObjectCollisionMapGrid::LoadFromMessageRepresentation(const sdf_tools::TaggedObjectCollisionMap& message)
+TaggedObjectCollisionMapGrid
+TaggedObjectCollisionMapGrid::LoadFromMessageRepresentation(
+    const sdf_tools::TaggedObjectCollisionMap& message)
 {
-  UNUSED(message);
-//    // Make a new voxel grid inside
-//    Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
-//    Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
-//    Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
-//    TAGGED_OBJECT_COLLISION_CELL OOB_value = TaggedObjectCollisionCellFromBinary(message.OOB_value);
-//    VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
-//    // Unpack the binary data
-//    std::vector<uint8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
-//    std::vector<TAGGED_OBJECT_COLLISION_CELL> unpacked = UnpackBinaryRepresentation(binary_representation);
-//    if (unpacked.empty())
-//    {
-//        std::cerr << "Unpack returned an empty TaggedObjectCollisionMapGrid" << std::endl;
-//        return false;
-//    }
-//    bool success = new_field.SetRawData(unpacked);
-//    if (!success)
-//    {
-//        std::cerr << "Unable to set internal representation of the TaggedObjectCollisionMapGrid" << std::endl;
-//        return false;
-//    }
-//    // Set it
-//    collision_field_ = new_field;
-//    frame_ = message.header.frame_id;
-//    number_of_components_ = message.number_of_components;
-//    components_valid_ = message.components_valid;
-//    convex_segments_valid_ = message.convex_segments_valid;
-//    initialized_ = message.initialized;
-    return true;
+  if (message.is_compressed)
+  {
+    const std::vector<uint8_t> uncompressed_map
+        = ZlibHelpers::DecompressBytes(message.serialized_map);
+    TaggedObjectCollisionMapGrid map;
+    map.DeserializeSelf(uncompressed_map, 0);
+    return map;
+  }
+  else
+  {
+    TaggedObjectCollisionMapGrid map;
+    map.DeserializeSelf(message.serialized_map, 0);
+    return map;
+  }
 }
 
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const float alpha, const std::vector<uint32_t>& objects_to_draw) const
+uint32_t TaggedObjectCollisionMapGrid::UpdateConnectedComponents()
 {
-    std::map<uint32_t, uint32_t> objects_to_draw_map;
-    for (size_t idx = 0; idx < objects_to_draw.size(); idx++)
+  // If the connected components are already valid, skip computing them again
+  if (components_valid_)
+  {
+    return number_of_components_;
+  }
+  components_valid_ = false;
+  // Make the helper functions
+  const std::function<bool(const GRID_INDEX&, const GRID_INDEX&)>
+    are_connected_fn = [&] (const GRID_INDEX& index1, const GRID_INDEX& index2)
+  {
+    auto query1 = GetImmutable(index1);
+    auto query2 = GetImmutable(index2);
+    assert(query1.second);
+    assert(query2.second);
+    if ((query1.first.occupancy > 0.5) == (query2.first.occupancy > 0.5))
     {
-        objects_to_draw_map[objects_to_draw[idx]] = 1u;
+      return true;
     }
-    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
-    visualization_msgs::Marker display_rep;
-    // Populate the header
-    display_rep.header.frame_id = frame_;
-    // Populate the options
-    display_rep.ns = "tagged_object_collision_map_display";
-    display_rep.id = 1;
-    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-    display_rep.action = visualization_msgs::Marker::ADD;
-    display_rep.lifetime = ros::Duration(0.0);
-    display_rep.frame_locked = false;
-    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
-    display_rep.scale.x = GetResolution();
-    display_rep.scale.y = GetResolution();
-    display_rep.scale.z = GetResolution();
-    // Add all the cells of the SDF to the message
-    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+    else
     {
-        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+      return false;
+    }
+  };
+  const std::function<int64_t(const GRID_INDEX&)> get_component_fn
+      = [&] (const GRID_INDEX& index)
+  {
+    auto query = GetImmutable(index);
+    if (query.second)
+    {
+      return (int64_t)query.first.component;
+    }
+    else
+    {
+      return (int64_t)-1;
+    }
+  };
+  const std::function<void(const GRID_INDEX&, const uint32_t)> mark_component_fn
+      = [&] (const GRID_INDEX& index, const uint32_t component)
+  {
+    auto query = GetMutable(index);
+    if (query.second)
+    {
+      SetValue(index, TAGGED_OBJECT_COLLISION_CELL(query.first.occupancy,
+                                                   query.first.object_id,
+                                                   component,
+                                                   query.first.convex_segment));
+    }
+  };
+  number_of_components_
+      = topology_computation::ComputeConnectedComponents(*this,
+                                                         are_connected_fn,
+                                                         get_component_fn,
+                                                         mark_component_fn);
+  components_valid_ = true;
+  return number_of_components_;
+}
+
+TaggedObjectCollisionMapGrid
+TaggedObjectCollisionMapGrid::Resample(const double new_resolution) const
+{
+  TaggedObjectCollisionMapGrid resampled(GetOriginTransform(),
+                                         GetFrame(),
+                                         new_resolution,
+                                         GetXSize(), GetYSize(), GetZSize(),
+                                         GetOOBValue());
+  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  {
+    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    {
+      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      {
+        const TAGGED_OBJECT_COLLISION_CELL& current_cell
+            = GetImmutable(x_index, y_index, z_index).first;
+        const Eigen::Vector4d current_cell_location
+            = GridIndexToLocation(x_index, y_index, z_index);
+        resampled.SetValue4d(current_cell_location, current_cell);
+      }
+    }
+  }
+  return resampled;
+}
+
+std::map<uint32_t, std::pair<int32_t, int32_t>>
+TaggedObjectCollisionMapGrid::ComputeComponentTopology(
+    const COMPONENT_TYPES component_types_to_use,
+    const bool recompute_connected_components,
+    const bool verbose)
+{
+  // Recompute the connected components if need be
+  if (recompute_connected_components)
+  {
+    UpdateConnectedComponents();
+  }
+  // Make the helper functions
+  const std::function<int64_t(const GRID_INDEX&)> get_component_fn
+      = [&] (const GRID_INDEX& index)
+  {
+    auto query = GetImmutable(index);
+    if (query.second)
+    {
+        return (int64_t)query.first.component;
+    }
+    else
+    {
+        return (int64_t)-1;
+    }
+  };
+  const std::function<bool(const GRID_INDEX&)> is_surface_index_fn
+      = [&] (const GRID_INDEX& index)
+  {
+    const TAGGED_OBJECT_COLLISION_CELL& current_cell
+        = GetImmutable(index).first;
+    if (current_cell.occupancy > 0.5)
+    {
+      if ((component_types_to_use & FILLED_COMPONENTS) > 0x00)
+      {
+        if (IsConnectedComponentSurfaceIndex(index.x, index.y, index.y))
         {
-            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
-            {
-                // Convert grid indices into a real-world location
-                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
-                geometry_msgs::Point new_point;
-                new_point.x = location(0);
-                new_point.y = location(1);
-                new_point.z = location(2);
-                const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
-                const auto draw_found_itr = objects_to_draw_map.find(current_cell.object_id);
-                if (draw_found_itr != objects_to_draw_map.end() || objects_to_draw_map.size() == 0)
-                {
-                    const std_msgs::ColorRGBA object_color = GenerateComponentColor(current_cell.object_id, alpha);
-                    if (object_color.a > 0.0)
-                    {
-                        display_rep.points.push_back(new_point);
-                        display_rep.colors.push_back(object_color);
-                    }
-                }
-            }
+          return true;
         }
+      }
     }
-    return display_rep;
-}
-
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map) const
-{
-    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
-    visualization_msgs::Marker display_rep;
-    // Populate the header
-    display_rep.header.frame_id = frame_;
-    // Populate the options
-    display_rep.ns = "tagged_object_collision_map_display";
-    display_rep.id = 1;
-    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-    display_rep.action = visualization_msgs::Marker::ADD;
-    display_rep.lifetime = ros::Duration(0.0);
-    display_rep.frame_locked = false;
-    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
-    display_rep.scale.x = GetResolution();
-    display_rep.scale.y = GetResolution();
-    display_rep.scale.z = GetResolution();
-    // Add all the cells of the SDF to the message
-    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+    else if (current_cell.occupancy < 0.5)
     {
-        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+      if ((component_types_to_use & EMPTY_COMPONENTS) > 0x00)
+      {
+        if (IsConnectedComponentSurfaceIndex(index.x, index.y, index.z))
         {
-            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
-            {
-                // Convert grid indices into a real-world location
-                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
-                geometry_msgs::Point new_point;
-                new_point.x = location(0);
-                new_point.y = location(1);
-                new_point.z = location(2);
-                const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
-                // Check if we've been given a color to work with
-                auto found_itr = object_color_map.find(current_cell.object_id);
-                std_msgs::ColorRGBA object_color;
-                if (found_itr != object_color_map.end())
-                {
-                    object_color = found_itr->second;
-                }
-                else
-                {
-                    object_color = GenerateComponentColor(current_cell.object_id);
-                }
-                if (object_color.a > 0.0)
-                {
-                    display_rep.points.push_back(new_point);
-                    display_rep.colors.push_back(object_color);
-                }
-            }
+          return true;
         }
+      }
     }
-    return display_rep;
-}
-
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(const float alpha, const std::vector<uint32_t>& objects_to_draw) const
-{
-    std::map<uint32_t, uint32_t> objects_to_draw_map;
-    for (size_t idx = 0; idx < objects_to_draw.size(); idx++)
+    else
     {
-        objects_to_draw_map[objects_to_draw[idx]] = 1u;
-    }
-    // Make SDF
-    const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs = MakeObjectSDFs();
-    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
-    visualization_msgs::Marker display_rep;
-    // Populate the header
-    display_rep.header.frame_id = frame_;
-    // Populate the options
-    display_rep.ns = "tagged_object_collision_map_display";
-    display_rep.id = 1;
-    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-    display_rep.action = visualization_msgs::Marker::ADD;
-    display_rep.lifetime = ros::Duration(0.0);
-    display_rep.frame_locked = false;
-    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
-    display_rep.scale.x = GetResolution();
-    display_rep.scale.y = GetResolution();
-    display_rep.scale.z = GetResolution();
-    // Add all the cells of the SDF to the message
-    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
-    {
-        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+      if ((component_types_to_use & UNKNOWN_COMPONENTS) > 0x00)
+      {
+        if (IsConnectedComponentSurfaceIndex(index.x, index.z, index.z))
         {
-            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
-            {
-                // Convert grid indices into a real-world location
-                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
-                geometry_msgs::Point new_point;
-                new_point.x = location(0);
-                new_point.y = location(1);
-                new_point.z = location(2);
-                const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
-                // Get the SDF for the current object
-                auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
-                if (sdf_found_itr != per_object_sdfs.end())
-                {
-                    const sdf_tools::SignedDistanceField& object_sdf = sdf_found_itr->second;
-                    const float distance = object_sdf.GetImmutable(new_point.x, new_point.y, new_point.z).first;
-                    // Check if we're on the surface of the object
-                    if (distance < 0.0 && distance > -GetResolution())
-                    {
-                        const auto draw_found_itr = objects_to_draw_map.find(current_cell.object_id);
-                        if (draw_found_itr != objects_to_draw_map.end() || objects_to_draw_map.size() == 0)
-                        {
-                            const std_msgs::ColorRGBA object_color = GenerateComponentColor(current_cell.object_id, alpha);
-                            if (object_color.a > 0.0)
-                            {
-                                display_rep.points.push_back(new_point);
-                                display_rep.colors.push_back(object_color);
-                            }
-                        }
-                    }
-                }
-            }
+          return true;
         }
+      }
     }
-    return display_rep;
+    return false;
+  };
+  return topology_computation::ComputeComponentTopology(*this,
+                                                        get_component_fn,
+                                                        is_surface_index_fn,
+                                                        verbose);
 }
 
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map) const
+std::map<uint32_t, std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>>
+TaggedObjectCollisionMapGrid::ExtractComponentSurfaces(
+    const COMPONENT_TYPES component_types_to_extract) const
 {
-    // Make SDF
-    const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs = MakeObjectSDFs();
-    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
-    visualization_msgs::Marker display_rep;
-    // Populate the header
-    display_rep.header.frame_id = frame_;
-    // Populate the options
-    display_rep.ns = "tagged_object_collision_map_display";
-    display_rep.id = 1;
-    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-    display_rep.action = visualization_msgs::Marker::ADD;
-    display_rep.lifetime = ros::Duration(0.0);
-    display_rep.frame_locked = false;
-    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
-    display_rep.scale.x = GetResolution();
-    display_rep.scale.y = GetResolution();
-    display_rep.scale.z = GetResolution();
-    // Add all the cells of the SDF to the message
-    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  // Make the helper functions
+  const std::function<int64_t(const GRID_INDEX&)> get_component_fn
+      = [&] (const GRID_INDEX& index)
+  {
+    auto query = GetImmutable(index);
+    if (query.second)
     {
-        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+      return (int64_t)query.first.component;
+    }
+    else
+    {
+      return (int64_t)-1;
+    }
+  };
+  const std::function<bool(const GRID_INDEX&)> is_surface_index_fn
+      = [&] (const GRID_INDEX& index)
+  {
+    const TAGGED_OBJECT_COLLISION_CELL& current_cell
+        = GetImmutable(index).first;
+    if (current_cell.occupancy > 0.5)
+    {
+      if ((component_types_to_extract & FILLED_COMPONENTS) > 0x00)
+      {
+        if (IsConnectedComponentSurfaceIndex(index.x, index.y, index.y))
         {
-            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
-            {
-                // Convert grid indices into a real-world location
-                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
-                geometry_msgs::Point new_point;
-                new_point.x = location(0);
-                new_point.y = location(1);
-                new_point.z = location(2);
-                const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
-                // Get the SDF for the current object
-                auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
-                if (sdf_found_itr != per_object_sdfs.end())
-                {
-                    const sdf_tools::SignedDistanceField& object_sdf = sdf_found_itr->second;
-                    const float distance = object_sdf.GetImmutable(new_point.x, new_point.y, new_point.z).first;
-                    // Check if we're on the surface of the object
-                    if (distance < 0.0 && distance > -GetResolution())
-                    {
-                        // Check if we've been given a color to work with
-                        auto found_itr = object_color_map.find(current_cell.object_id);
-                        std_msgs::ColorRGBA object_color;
-                        if (found_itr != object_color_map.end())
-                        {
-                            object_color = found_itr->second;
-                        }
-                        else
-                        {
-                            object_color = GenerateComponentColor(current_cell.object_id);
-                        }
-                        if (object_color.a > 0.0)
-                        {
-                            display_rep.points.push_back(new_point);
-                            display_rep.colors.push_back(object_color);
-                        }
-                    }
-                }
-            }
+          return true;
         }
+      }
     }
-    return display_rep;
-}
-
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplayOccupancyOnly(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const
-{
-    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
-    visualization_msgs::Marker display_rep;
-    // Populate the header
-    display_rep.header.frame_id = frame_;
-    // Populate the options
-    display_rep.ns = "tagged_object_collision_map_occupancy_display";
-    display_rep.id = 1;
-    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-    display_rep.action = visualization_msgs::Marker::ADD;
-    display_rep.lifetime = ros::Duration(0.0);
-    display_rep.frame_locked = false;
-    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
-    display_rep.scale.x = GetResolution();
-    display_rep.scale.y = GetResolution();
-    display_rep.scale.z = GetResolution();
-    // Add all the cells of the SDF to the message
-    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+    else if (current_cell.occupancy < 0.5)
     {
-        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+      if ((component_types_to_extract & EMPTY_COMPONENTS) > 0x00)
+      {
+        if (IsConnectedComponentSurfaceIndex(index.x, index.y, index.z))
         {
-            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
-            {
-                // Convert grid indices into a real-world location
-                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
-                geometry_msgs::Point new_point;
-                new_point.x = location(0);
-                new_point.y = location(1);
-                new_point.z = location(2);
-                if (GetImmutable(x_index, y_index, z_index).first.occupancy > 0.5)
-                {
-                    if (collision_color.a > 0.0)
-                    {
-                        display_rep.points.push_back(new_point);
-                        display_rep.colors.push_back(collision_color);
-                    }
-                }
-                else if (GetImmutable(x_index, y_index, z_index).first.occupancy < 0.5)
-                {
-                    if (free_color.a > 0.0)
-                    {
-                        display_rep.points.push_back(new_point);
-                        display_rep.colors.push_back(free_color);
-                    }
-                }
-                else
-                {
-                    if (unknown_color.a > 0.0)
-                    {
-                        display_rep.points.push_back(new_point);
-                        display_rep.colors.push_back(unknown_color);
-                    }
-                }
-            }
+          return true;
         }
+      }
     }
-    return display_rep;
-}
-
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportConnectedComponentsForDisplay(bool color_unknown_components) const
-{
-    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
-    visualization_msgs::Marker display_rep;
-    // Populate the header
-    display_rep.header.frame_id = frame_;
-    // Populate the options
-    display_rep.ns = "tagged_object_connected_components_display";
-    display_rep.id = 1;
-    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-    display_rep.action = visualization_msgs::Marker::ADD;
-    display_rep.lifetime = ros::Duration(0.0);
-    display_rep.frame_locked = false;
-    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
-    display_rep.scale.x = GetResolution();
-    display_rep.scale.y = GetResolution();
-    display_rep.scale.z = GetResolution();
-    // Add all the cells of the SDF to the message
-    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+    else
     {
-        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+      if ((component_types_to_extract & UNKNOWN_COMPONENTS) > 0x00)
+      {
+        if (IsConnectedComponentSurfaceIndex(index.x, index.z, index.z))
         {
-            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
-            {
-                // Convert grid indices into a real-world location
-                const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
-                geometry_msgs::Point new_point;
-                new_point.x = location(0);
-                new_point.y = location(1);
-                new_point.z = location(2);
-                display_rep.points.push_back(new_point);
-                const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
-                if (current_cell.occupancy != 0.5)
-                {
-                    std_msgs::ColorRGBA color = GenerateComponentColor(current_cell.component);
-                    display_rep.colors.push_back(color);
-                }
-                else
-                {
-                    if (color_unknown_components)
-                    {
-                        std_msgs::ColorRGBA color = GenerateComponentColor(current_cell.component);
-                        display_rep.colors.push_back(color);
-                    }
-                    else
-                    {
-                        std_msgs::ColorRGBA color;
-                        color.a = 1.0;
-                        color.r = 0.5;
-                        color.g = 0.5;
-                        color.b = 0.5;
-                        display_rep.colors.push_back(color);
-                    }
-                }
-            }
+          return true;
         }
+      }
     }
-    return display_rep;
+    return false;
+  };
+  return topology_computation::ExtractComponentSurfaces(*this,
+                                                        get_component_fn,
+                                                        is_surface_index_fn);
 }
 
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(const uint32_t object_id, const uint32_t convex_segment) const
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
+    const float alpha, const std::vector<uint32_t>& objects_to_draw) const
 {
-    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
-    visualization_msgs::Marker display_rep;
-    // Populate the header
-    display_rep.header.frame_id = frame_;
-    // Populate the options
-    display_rep.ns = "tagged_object_" + std::to_string(object_id) + "_convex_segment_" + std::to_string(convex_segment) + "_display";
-    display_rep.id = 1;
-    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-    display_rep.action = visualization_msgs::Marker::ADD;
-    display_rep.lifetime = ros::Duration(0.0);
-    display_rep.frame_locked = false;
-    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
-    display_rep.scale.x = GetResolution();
-    display_rep.scale.y = GetResolution();
-    display_rep.scale.z = GetResolution();
-    // Add all the cells of the SDF to the message
-    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  std::map<uint32_t, uint32_t> objects_to_draw_map;
+  for (size_t idx = 0; idx < objects_to_draw.size(); idx++)
+  {
+    objects_to_draw_map[objects_to_draw[idx]] = 1u;
+  }
+  visualization_msgs::Marker display_rep;
+  // Populate the header
+  display_rep.header.frame_id = frame_;
+  // Populate the options
+  display_rep.ns = "tagged_object_collision_map_display";
+  display_rep.id = 1;
+  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.lifetime = ros::Duration(0.0);
+  display_rep.frame_locked = false;
+  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+  display_rep.pose
+      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.scale.x = GetResolution();
+  display_rep.scale.y = GetResolution();
+  display_rep.scale.z = GetResolution();
+  // Add all the cells of the SDF to the message
+  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  {
+    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
     {
-        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      {
+        // Convert grid indices into a real-world location
+        const Eigen::Vector4d location
+            = GridIndexToLocation(x_index, y_index, z_index);
+        geometry_msgs::Point new_point;
+        new_point.x = location(0);
+        new_point.y = location(1);
+        new_point.z = location(2);
+        const TAGGED_OBJECT_COLLISION_CELL& current_cell
+            = GetImmutable(x_index, y_index, z_index).first;
+        const auto draw_found_itr
+            = objects_to_draw_map.find(current_cell.object_id);
+        if (draw_found_itr != objects_to_draw_map.end()
+            || objects_to_draw_map.size() == 0)
         {
-            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
-            {
-                const TAGGED_OBJECT_COLLISION_CELL& current_cell = GetImmutable(x_index, y_index, z_index).first;
-                if ((current_cell.object_id == object_id) && (current_cell.IsPartOfConvexSegment(convex_segment)))
-                {
-                    // Convert grid indices into a real-world location
-                    const Eigen::Vector4d location = GridIndexToLocation(x_index, y_index, z_index);
-                    geometry_msgs::Point new_point;
-                    new_point.x = location(0);
-                    new_point.y = location(1);
-                    new_point.z = location(2);
-                    display_rep.points.push_back(new_point);
-                    // Generate a color
-                    const std_msgs::ColorRGBA color = GenerateComponentColor(convex_segment);
-                    display_rep.colors.push_back(color);
-                }
-            }
-        }
-    }
-    return display_rep;
-}
-
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportSurfaceForDisplay(const std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>& surface, const std_msgs::ColorRGBA& surface_color) const
-{
-    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
-    visualization_msgs::Marker display_rep;
-    // Populate the header
-    display_rep.header.frame_id = frame_;
-    // Populate the options
-    display_rep.ns = "tagged_object_collision_map_surface";
-    display_rep.id = 1;
-    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-    display_rep.action = visualization_msgs::Marker::ADD;
-    display_rep.lifetime = ros::Duration(0.0);
-    display_rep.frame_locked = false;
-    const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-    display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
-    display_rep.scale.x = GetResolution();
-    display_rep.scale.y = GetResolution();
-    display_rep.scale.z = GetResolution();
-    // Add all the cells of the surface
-    std::unordered_map<VoxelGrid::GRID_INDEX, uint8_t>::const_iterator surface_itr;
-    for (surface_itr = surface.begin(); surface_itr != surface.end(); ++surface_itr)
-    {
-        VoxelGrid::GRID_INDEX index = surface_itr->first;
-        int8_t validity = surface_itr->second;
-        if (validity == 1)
-        {
-            // Convert grid indices into a real-world location
-            const Eigen::Vector4d location = GridIndexToLocation(index);
-            geometry_msgs::Point new_point;
-            new_point.x = location(0);
-            new_point.y = location(1);
-            new_point.z = location(2);
+          const std_msgs::ColorRGBA object_color
+              = GenerateComponentColor(current_cell.object_id, alpha);
+          if (object_color.a > 0.0)
+          {
             display_rep.points.push_back(new_point);
-            display_rep.colors.push_back(surface_color);
+            display_rep.colors.push_back(object_color);
+          }
         }
+      }
     }
-    return display_rep;
+  }
+  return display_rep;
 }
 
-VoxelGrid::VoxelGrid<std::vector<uint32_t>> TaggedObjectCollisionMapGrid::ComputeConvexRegions(const double max_check_radius) const
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
+    const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map) const
 {
-    VoxelGrid::VoxelGrid<std::vector<uint32_t>> convex_region_grid(GetOriginTransform(), GetResolution(), GetXSize(), GetYSize(), GetZSize(), std::vector<uint32_t>());
-    uint32_t current_convex_region = 0;
-    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  visualization_msgs::Marker display_rep;
+  // Populate the header
+  display_rep.header.frame_id = frame_;
+  // Populate the options
+  display_rep.ns = "tagged_object_collision_map_display";
+  display_rep.id = 1;
+  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.lifetime = ros::Duration(0.0);
+  display_rep.frame_locked = false;
+  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+  display_rep.pose
+      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.scale.x = GetResolution();
+  display_rep.scale.y = GetResolution();
+  display_rep.scale.z = GetResolution();
+  // Add all the cells of the SDF to the message
+  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  {
+    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
     {
-        for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      {
+        // Convert grid indices into a real-world location
+        const Eigen::Vector4d location
+            = GridIndexToLocation(x_index, y_index, z_index);
+        geometry_msgs::Point new_point;
+        new_point.x = location(0);
+        new_point.y = location(1);
+        new_point.z = location(2);
+        const TAGGED_OBJECT_COLLISION_CELL& current_cell
+            = GetImmutable(x_index, y_index, z_index).first;
+        // Check if we've been given a color to work with
+        auto found_itr = object_color_map.find(current_cell.object_id);
+        std_msgs::ColorRGBA object_color;
+        if (found_itr != object_color_map.end())
         {
-            for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
-            {
-                // Check if cell is empty
-                if (GetImmutable(x_index, y_index, z_index).first.occupancy < 0.5)
-                {
-                    // Check if we've already marked it once
-                    const std::vector<uint32_t>& current_cell_regions = convex_region_grid.GetImmutable(x_index, y_index, z_index).first;
-                    if (current_cell_regions.empty())
-                    {
-                        current_convex_region++;
-                        std::cout << "Marking convex region " << current_convex_region << std::endl;
-                        GrowConvexRegion(VoxelGrid::GRID_INDEX(x_index, y_index, z_index), convex_region_grid, max_check_radius, current_convex_region);
-                    }
-                }
-            }
+          object_color = found_itr->second;
         }
+        else
+        {
+          object_color = GenerateComponentColor(current_cell.object_id);
+        }
+        if (object_color.a > 0.0)
+        {
+          display_rep.points.push_back(new_point);
+          display_rep.colors.push_back(object_color);
+        }
+      }
     }
-    std::cout << "Marked " << current_convex_region << " convex regions" << std::endl;
-    return convex_region_grid;
+  }
+  return display_rep;
 }
 
-std::vector<VoxelGrid::GRID_INDEX> TaggedObjectCollisionMapGrid::CheckIfConvex(const VoxelGrid::GRID_INDEX& candidate_index, std::unordered_map<VoxelGrid::GRID_INDEX, int8_t>& explored_indices, const VoxelGrid::VoxelGrid<std::vector<uint32_t>>& region_grid, const uint32_t current_convex_region) const
+visualization_msgs::Marker
+TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
+    const float alpha, const std::vector<uint32_t>& objects_to_draw) const
 {
-    std::vector<VoxelGrid::GRID_INDEX> convex_indices;
-    for (auto indices_itr = explored_indices.begin(); indices_itr != explored_indices.end(); ++indices_itr)
+  std::map<uint32_t, uint32_t> objects_to_draw_map;
+  for (size_t idx = 0; idx < objects_to_draw.size(); idx++)
+  {
+      objects_to_draw_map[objects_to_draw[idx]] = 1u;
+  }
+  // Make SDF
+  const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs
+      = MakeObjectSDFs();
+  visualization_msgs::Marker display_rep;
+  // Populate the header
+  display_rep.header.frame_id = frame_;
+  // Populate the options
+  display_rep.ns = "tagged_object_collision_map_display";
+  display_rep.id = 1;
+  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.lifetime = ros::Duration(0.0);
+  display_rep.frame_locked = false;
+  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+  display_rep.pose
+      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.scale.x = GetResolution();
+  display_rep.scale.y = GetResolution();
+  display_rep.scale.z = GetResolution();
+  // Add all the cells of the SDF to the message
+  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  {
+    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
     {
-        const VoxelGrid::GRID_INDEX& other_index = indices_itr->first;
-        const int8_t& other_status = indices_itr->second;
-        // We only care about indices that are already part of the convex set
-        if (other_status == 1)
+      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      {
+        // Convert grid indices into a real-world location
+        const Eigen::Vector4d location
+            = GridIndexToLocation(x_index, y_index, z_index);
+        geometry_msgs::Point new_point;
+        new_point.x = location(0);
+        new_point.y = location(1);
+        new_point.z = location(2);
+        const TAGGED_OBJECT_COLLISION_CELL& current_cell
+            = GetImmutable(x_index, y_index, z_index).first;
+        // Get the SDF for the current object
+        auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
+        if (sdf_found_itr != per_object_sdfs.end())
         {
-            // Walk from first index to second index. If any intervening cells are filled, return false
-            const Eigen::Vector4d start_location = GridIndexToLocation(other_index.x, other_index.y, other_index.z);
-            const Eigen::Vector4d end_location = GridIndexToLocation(candidate_index.x, candidate_index.y, candidate_index.z);
-            double distance = (end_location - start_location).norm();
-            uint32_t num_steps = (uint32_t)ceil(distance / (GetResolution() * 0.5));
-            for (uint32_t step_num = 0; step_num <= num_steps; step_num++)
+          const sdf_tools::SignedDistanceField& object_sdf
+              = sdf_found_itr->second;
+          const float distance
+              = object_sdf.GetImmutable(new_point.x,
+                                        new_point.y,
+                                        new_point.z).first;
+          // Check if we're on the surface of the object
+          if (distance < 0.0 && distance > -GetResolution())
+          {
+            const auto draw_found_itr
+                = objects_to_draw_map.find(current_cell.object_id);
+            if (draw_found_itr != objects_to_draw_map.end()
+                || objects_to_draw_map.size() == 0)
             {
-                const double ratio = (double)step_num / (double)num_steps;
-                const Eigen::Vector4d interpolated_location = EigenHelpers::Interpolate4d(start_location, end_location, ratio);
-                const VoxelGrid::GRID_INDEX interpolated_index = region_grid.LocationToGridIndex4d(interpolated_location);
-                // Grab the cell at that location
-                const TAGGED_OBJECT_COLLISION_CELL& intermediate_cell = GetImmutable(interpolated_index).first;
-                // Check for collision
-                if (intermediate_cell.occupancy >= 0.5)
-                {
-                    return convex_indices;
-                }
-                // Check if we've already explored it
-                if (explored_indices[interpolated_index] == 1)
-                {
-                    // Great
-                    ;
-                }
-                else if (explored_indices[interpolated_index] == -1)
-                {
-                    // We've already skipped it deliberately
-                    return convex_indices;
-                }
-                else
-                {
-                    if (interpolated_index == candidate_index)
-                    {
-                        // Great
-                        ;
-                    }
-                    else
-                    {
-                        // We have no idea, let's see if it is convex with our already-explored indices
-                        // Temporarily, we mark ourselves as successful
-                        explored_indices[candidate_index] = 1;
-                        // Call ourselves with the intermediate location
-                        std::vector<VoxelGrid::GRID_INDEX> intermediate_convex_indices = CheckIfConvex(interpolated_index, explored_indices, region_grid, current_convex_region);
-                        // Unmark ourselves since we don't really know
-                        explored_indices[candidate_index] = 0;
-                        // Save the intermediate index for addition
-                        convex_indices.insert(convex_indices.end(), intermediate_convex_indices.begin(), intermediate_convex_indices.end());
-                        // Check if the intermediate index is convex
-                        auto is_convex = std::find(convex_indices.begin(), convex_indices.end(), interpolated_index);
-                        if (is_convex == convex_indices.end())
-                        {
-                            // If not, we're done
-                            return convex_indices;
-                        }
-                    }
-                }
+              const std_msgs::ColorRGBA object_color
+                  = GenerateComponentColor(current_cell.object_id, alpha);
+              if (object_color.a > 0.0)
+              {
+                display_rep.points.push_back(new_point);
+                display_rep.colors.push_back(object_color);
+              }
             }
+          }
         }
+      }
     }
-    // If all indices were reachable, we are part of the convex set
-    convex_indices.push_back(candidate_index);
-    explored_indices[candidate_index] = 1;
-    return convex_indices;
+  }
+  return display_rep;
 }
 
-void TaggedObjectCollisionMapGrid::GrowConvexRegion(const VoxelGrid::GRID_INDEX& start_index, VoxelGrid::VoxelGrid<std::vector<uint32_t>>& region_grid, const double max_check_radius, const uint32_t current_convex_region) const
+visualization_msgs::Marker
+TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
+    const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map) const
 {
-    // Mark the region of the start index
-    region_grid.GetMutable(start_index).first.push_back(current_convex_region);
-    std::cout << "Added " << PrettyPrint::PrettyPrint(start_index) << " to region " << current_convex_region << std::endl;
-    const Eigen::Vector4d start_location = GridIndexToLocation(start_index.x, start_index.y, start_index.z);
-    std::list<VoxelGrid::GRID_INDEX> working_queue;
-    std::unordered_map<VoxelGrid::GRID_INDEX, int8_t> queued_hashtable;
-    working_queue.push_back(start_index);
-    queued_hashtable[start_index] = 1;
-    while (working_queue.size() > 0)
+  // Make SDF
+  const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs
+      = MakeObjectSDFs();
+  visualization_msgs::Marker display_rep;
+  // Populate the header
+  display_rep.header.frame_id = frame_;
+  // Populate the options
+  display_rep.ns = "tagged_object_collision_map_display";
+  display_rep.id = 1;
+  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.lifetime = ros::Duration(0.0);
+  display_rep.frame_locked = false;
+  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+  display_rep.pose
+      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.scale.x = GetResolution();
+  display_rep.scale.y = GetResolution();
+  display_rep.scale.z = GetResolution();
+  // Add all the cells of the SDF to the message
+  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  {
+    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
     {
-        // Get the top of the working queue
-        VoxelGrid::GRID_INDEX current_index = working_queue.front();
-        // Remove from the queue
-        working_queue.pop_front();
-        // See if we can add the neighbors
-        std::vector<VoxelGrid::GRID_INDEX> potential_neighbors(6);
-        potential_neighbors[0] = VoxelGrid::GRID_INDEX(current_index.x - 1, current_index.y, current_index.z);
-        potential_neighbors[1] = VoxelGrid::GRID_INDEX(current_index.x + 1, current_index.y, current_index.z);
-        potential_neighbors[2] = VoxelGrid::GRID_INDEX(current_index.x, current_index.y - 1, current_index.z);
-        potential_neighbors[3] = VoxelGrid::GRID_INDEX(current_index.x, current_index.y + 1, current_index.z);
-        potential_neighbors[4] = VoxelGrid::GRID_INDEX(current_index.x, current_index.y, current_index.z - 1);
-        potential_neighbors[5] = VoxelGrid::GRID_INDEX(current_index.x, current_index.y, current_index.z + 1);
-        for (size_t idx = 0; idx < potential_neighbors.size(); idx++)
+      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      {
+        // Convert grid indices into a real-world location
+        const Eigen::Vector4d location
+            = GridIndexToLocation(x_index, y_index, z_index);
+        geometry_msgs::Point new_point;
+        new_point.x = location(0);
+        new_point.y = location(1);
+        new_point.z = location(2);
+        const TAGGED_OBJECT_COLLISION_CELL& current_cell
+            = GetImmutable(x_index, y_index, z_index).first;
+        // Get the SDF for the current object
+        auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
+        if (sdf_found_itr != per_object_sdfs.end())
         {
-            const VoxelGrid::GRID_INDEX& candidate_neighbor = potential_neighbors[idx];
-            // Make sure the candidate neighbor is in range
-            if ((candidate_neighbor.x >= 0) && (candidate_neighbor.y >= 0) && (candidate_neighbor.z >= 0) && (candidate_neighbor.x < GetNumXCells()) && (candidate_neighbor.y < GetNumYCells()) && (candidate_neighbor.z < GetNumZCells()))
+          const sdf_tools::SignedDistanceField& object_sdf
+              = sdf_found_itr->second;
+          const float distance
+              = object_sdf.GetImmutable(new_point.x,
+                                        new_point.y,
+                                        new_point.z).first;
+          // Check if we're on the surface of the object
+          if (distance < 0.0 && distance > -GetResolution())
+          {
+            // Check if we've been given a color to work with
+            auto found_itr = object_color_map.find(current_cell.object_id);
+            std_msgs::ColorRGBA object_color;
+            if (found_itr != object_color_map.end())
             {
-                // Make sure it's within the check radius
-                const Eigen::Vector4d current_location = GridIndexToLocation(candidate_neighbor.x, candidate_neighbor.y, candidate_neighbor.z);
-                double distance = (current_location - start_location).norm();
-                if (distance <= max_check_radius)
-                {
-                    // Make sure the candidate neighbor is empty
-                    if (GetImmutable(candidate_neighbor).first.occupancy < 0.5)
-                    {
-                        // Make sure we haven't already checked
-                        if (queued_hashtable[candidate_neighbor] == 0)
-                        {
-                            // Now, let's check if the current index forms a convex set with the indices marked already
-                            std::vector<VoxelGrid::GRID_INDEX> convex_indices = CheckIfConvex(candidate_neighbor, queued_hashtable, region_grid, current_convex_region);
-                            // Set this to false. If it really is convex, this will get changed in the next loop
-                            queued_hashtable[candidate_neighbor] = -1;
-                            // Add the new convex indices
-                            for (size_t cdx = 0; cdx < convex_indices.size(); cdx++)
-                            {
-                                const VoxelGrid::GRID_INDEX& convex_index = convex_indices[cdx];
-                                // Add to the queue
-                                working_queue.push_back(convex_index);
-                                queued_hashtable[convex_index] = 1;
-                                // Mark it
-                                region_grid.GetMutable(convex_index).first.push_back(current_convex_region);
-                                std::cout << "Added " << PrettyPrint::PrettyPrint(convex_index) << " to region " << current_convex_region << std::endl;
-                            }
-                        }
-                    }
-                }
+              object_color = found_itr->second;
             }
+            else
+            {
+              object_color = GenerateComponentColor(current_cell.object_id);
+            }
+            if (object_color.a > 0.0)
+            {
+              display_rep.points.push_back(new_point);
+              display_rep.colors.push_back(object_color);
+            }
+          }
         }
+      }
     }
+  }
+  return display_rep;
 }
 
+visualization_msgs::Marker
+TaggedObjectCollisionMapGrid::ExportForDisplayOccupancyOnly(
+    const std_msgs::ColorRGBA& collision_color,
+    const std_msgs::ColorRGBA& free_color,
+    const std_msgs::ColorRGBA& unknown_color) const
+{
+  visualization_msgs::Marker display_rep;
+  // Populate the header
+  display_rep.header.frame_id = frame_;
+  // Populate the options
+  display_rep.ns = "tagged_object_collision_map_occupancy_display";
+  display_rep.id = 1;
+  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.lifetime = ros::Duration(0.0);
+  display_rep.frame_locked = false;
+  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+  display_rep.pose
+      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.scale.x = GetResolution();
+  display_rep.scale.y = GetResolution();
+  display_rep.scale.z = GetResolution();
+  // Add all the cells of the SDF to the message
+  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  {
+    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    {
+      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      {
+        // Convert grid indices into a real-world location
+        const Eigen::Vector4d location
+            = GridIndexToLocation(x_index, y_index, z_index);
+        geometry_msgs::Point new_point;
+        new_point.x = location(0);
+        new_point.y = location(1);
+        new_point.z = location(2);
+        if (GetImmutable(x_index, y_index, z_index).first.occupancy > 0.5)
+        {
+          if (collision_color.a > 0.0)
+          {
+            display_rep.points.push_back(new_point);
+            display_rep.colors.push_back(collision_color);
+          }
+        }
+        else if (GetImmutable(x_index, y_index, z_index).first.occupancy < 0.5)
+        {
+          if (free_color.a > 0.0)
+          {
+            display_rep.points.push_back(new_point);
+            display_rep.colors.push_back(free_color);
+          }
+        }
+        else
+        {
+          if (unknown_color.a > 0.0)
+          {
+            display_rep.points.push_back(new_point);
+            display_rep.colors.push_back(unknown_color);
+          }
+        }
+      }
+    }
+  }
+  return display_rep;
+}
+
+visualization_msgs::Marker
+TaggedObjectCollisionMapGrid::ExportConnectedComponentsForDisplay(
+    const bool color_unknown_components) const
+{
+  visualization_msgs::Marker display_rep;
+  // Populate the header
+  display_rep.header.frame_id = frame_;
+  // Populate the options
+  display_rep.ns = "tagged_object_connected_components_display";
+  display_rep.id = 1;
+  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.lifetime = ros::Duration(0.0);
+  display_rep.frame_locked = false;
+  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+  display_rep.pose
+      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.scale.x = GetResolution();
+  display_rep.scale.y = GetResolution();
+  display_rep.scale.z = GetResolution();
+  // Add all the cells of the SDF to the message
+  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  {
+    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    {
+      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      {
+        // Convert grid indices into a real-world location
+        const Eigen::Vector4d location
+            = GridIndexToLocation(x_index, y_index, z_index);
+        geometry_msgs::Point new_point;
+        new_point.x = location(0);
+        new_point.y = location(1);
+        new_point.z = location(2);
+        display_rep.points.push_back(new_point);
+        const TAGGED_OBJECT_COLLISION_CELL& current_cell
+            = GetImmutable(x_index, y_index, z_index).first;
+        if (current_cell.occupancy != 0.5)
+        {
+          std_msgs::ColorRGBA color
+              = GenerateComponentColor(current_cell.component);
+          display_rep.colors.push_back(color);
+        }
+        else
+        {
+          if (color_unknown_components)
+          {
+            std_msgs::ColorRGBA color
+                = GenerateComponentColor(current_cell.component);
+            display_rep.colors.push_back(color);
+          }
+          else
+          {
+            std_msgs::ColorRGBA color;
+            color.a = 1.0;
+            color.r = 0.5;
+            color.g = 0.5;
+            color.b = 0.5;
+            display_rep.colors.push_back(color);
+          }
+        }
+      }
+    }
+  }
+  return display_rep;
+}
+
+visualization_msgs::Marker
+TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(
+    const uint32_t object_id, const uint32_t convex_segment) const
+{
+  visualization_msgs::Marker display_rep;
+  // Populate the header
+  display_rep.header.frame_id = frame_;
+  // Populate the options
+  display_rep.ns = "tagged_object_"
+                   + std::to_string(object_id)
+                   + "_convex_segment_"
+                   + std::to_string(convex_segment)
+                   + "_display";
+  display_rep.id = 1;
+  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.lifetime = ros::Duration(0.0);
+  display_rep.frame_locked = false;
+  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+  display_rep.pose
+      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.scale.x = GetResolution();
+  display_rep.scale.y = GetResolution();
+  display_rep.scale.z = GetResolution();
+  // Add all the cells of the SDF to the message
+  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  {
+    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    {
+      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      {
+        const TAGGED_OBJECT_COLLISION_CELL& current_cell
+            = GetImmutable(x_index, y_index, z_index).first;
+        if ((current_cell.object_id == object_id)
+            && (current_cell.IsPartOfConvexSegment(convex_segment)))
+        {
+          // Convert grid indices into a real-world location
+          const Eigen::Vector4d location
+              = GridIndexToLocation(x_index, y_index, z_index);
+          geometry_msgs::Point new_point;
+          new_point.x = location(0);
+          new_point.y = location(1);
+          new_point.z = location(2);
+          display_rep.points.push_back(new_point);
+          // Generate a color
+          const std_msgs::ColorRGBA color
+              = GenerateComponentColor(convex_segment);
+          display_rep.colors.push_back(color);
+        }
+      }
+    }
+  }
+  return display_rep;
+}
+
+visualization_msgs::Marker
+TaggedObjectCollisionMapGrid::ExportSurfaceForDisplay(
+    const std::unordered_map<GRID_INDEX, uint8_t>& surface,
+    const std_msgs::ColorRGBA& surface_color) const
+{
+  visualization_msgs::Marker display_rep;
+  // Populate the header
+  display_rep.header.frame_id = frame_;
+  // Populate the options
+  display_rep.ns = "tagged_object_collision_map_surface";
+  display_rep.id = 1;
+  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.lifetime = ros::Duration(0.0);
+  display_rep.frame_locked = false;
+  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
+  display_rep.pose
+      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.scale.x = GetResolution();
+  display_rep.scale.y = GetResolution();
+  display_rep.scale.z = GetResolution();
+  // Add all the cells of the surface
+  std::unordered_map<GRID_INDEX, uint8_t>::const_iterator surface_itr;
+  for (surface_itr = surface.begin();
+       surface_itr != surface.end();
+       ++surface_itr)
+  {
+    const GRID_INDEX index = surface_itr->first;
+    const int8_t validity = surface_itr->second;
+    if (validity == 1)
+    {
+      // Convert grid indices into a real-world location
+      const Eigen::Vector4d location = GridIndexToLocation(index);
+      geometry_msgs::Point new_point;
+      new_point.x = location(0);
+      new_point.y = location(1);
+      new_point.z = location(2);
+      display_rep.points.push_back(new_point);
+      display_rep.colors.push_back(surface_color);
+    }
+  }
+  return display_rep;
+}

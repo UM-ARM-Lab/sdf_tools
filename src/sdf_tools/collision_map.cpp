@@ -672,3 +672,86 @@ CollisionMapGrid::ComputeComponentTopology(
                                                         is_surface_index_fn,
                                                         verbose);
 }
+
+CollisionMapGrid CollisionMapGrid::Resample(const double new_resolution) const
+{
+  CollisionMapGrid resampled(GetOriginTransform(),
+                             GetFrame(),
+                             new_resolution,
+                             GetXSize(), GetYSize(), GetZSize(),
+                             GetOOBValue());
+  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  {
+    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    {
+      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      {
+        const COLLISION_CELL& current_cell
+            = GetImmutable(x_index, y_index, z_index).first;
+        const Eigen::Vector4d current_cell_location
+            = GridIndexToLocation(x_index, y_index, z_index);
+        resampled.SetValue4d(current_cell_location, current_cell);
+      }
+    }
+  }
+  return resampled;
+}
+
+std::map<uint32_t, std::unordered_map<GRID_INDEX, uint8_t>>
+CollisionMapGrid::ExtractComponentSurfaces(
+    const COMPONENT_TYPES component_types_to_extract) const
+{
+  // Make the helper functions
+  const std::function<int64_t(const GRID_INDEX&)> get_component_fn
+      = [&] (const GRID_INDEX& index)
+  {
+    auto query = GetImmutable(index);
+    if (query.second)
+    {
+      return (int64_t)query.first.component;
+    }
+    else
+    {
+      return (int64_t)-1;
+    }
+  };
+  const std::function<bool(const GRID_INDEX&)> is_surface_index_fn
+      = [&] (const GRID_INDEX& index)
+  {
+    const COLLISION_CELL& current_cell = GetImmutable(index).first;
+    if (current_cell.occupancy > 0.5)
+    {
+      if ((component_types_to_extract & FILLED_COMPONENTS) > 0x00)
+      {
+        if (IsConnectedComponentSurfaceIndex(index.x, index.y, index.y))
+        {
+          return true;
+        }
+      }
+    }
+    else if (current_cell.occupancy < 0.5)
+    {
+      if ((component_types_to_extract & EMPTY_COMPONENTS) > 0x00)
+      {
+        if (IsConnectedComponentSurfaceIndex(index.x, index.y, index.z))
+        {
+          return true;
+        }
+      }
+    }
+    else
+    {
+      if ((component_types_to_extract & UNKNOWN_COMPONENTS) > 0x00)
+      {
+        if (IsConnectedComponentSurfaceIndex(index.x, index.z, index.z))
+        {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  return topology_computation::ExtractComponentSurfaces(*this,
+                                                        get_component_fn,
+                                                        is_surface_index_fn);
+}
