@@ -202,151 +202,117 @@ uint64_t CollisionMapGrid::DeserializeSelf(
   return bytes_read;
 }
 
-//bool CollisionMapGrid::SaveToFile(const std::string& filepath)
-//{
-//    // Convert to message representation
-//    sdf_tools::CollisionMap message_rep = GetMessageRepresentation();
-//    // Save message to file
-//    try
-//    {
-//        std::ofstream output_file(filepath.c_str(), std::ios::out|std::ios::binary);
-//        uint32_t serialized_size = ros::serialization::serializationLength(message_rep);
-//        std::unique_ptr<uint8_t> ser_buffer(new uint8_t[serialized_size]);
-//        ros::serialization::OStream ser_stream(ser_buffer.get(), serialized_size);
-//        ros::serialization::serialize(ser_stream, message_rep);
-//        output_file.write((char*)ser_buffer.get(), serialized_size);
-//        output_file.close();
-//        return true;
-//    }
-//    catch (...)
-//    {
-//        return false;
-//    }
-//}
+void CollisionMapGrid::SaveToFile(
+    const CollisionMapGrid& map,
+    const std::string& filepath,
+    const bool compress)
+{
+  std::vector<uint8_t> buffer;
+  map.SerializeSelf(buffer);
+  std::ofstream output_file(filepath, std::ios::out|std::ios::binary);
+  if (compress)
+  {
+    output_file.write("CMGZ", 4);
+    const std::vector<uint8_t> compressed = ZlibHelpers::CompressBytes(buffer);
+    const size_t serialized_size = compressed.size();
+    output_file.write(reinterpret_cast<const char*>(
+                        compressed.data()), (std::streamsize)serialized_size);
+  }
+  else
+  {
+    output_file.write("CMGR", 4);
+    const size_t serialized_size = buffer.size();
+    output_file.write(reinterpret_cast<const char*>(
+                        buffer.data()), (std::streamsize)serialized_size);
+  }
+  output_file.close();
+}
 
-//bool CollisionMapGrid::LoadFromFile(const std::string& filepath)
-//{
-//    try
-//    {
-//        // Load message from file
-//        std::ifstream input_file(filepath.c_str(), std::ios::in|std::ios::binary);
-//        input_file.seekg(0, std::ios::end);
-//        std::streampos end = input_file.tellg();
-//        input_file.seekg(0, std::ios::beg);
-//        std::streampos begin = input_file.tellg();
-//        uint32_t serialized_size = end - begin;
-//        std::unique_ptr<uint8_t> deser_buffer(new uint8_t[serialized_size]);
-//        input_file.read((char*) deser_buffer.get(), serialized_size);
-//        ros::serialization::IStream deser_stream(deser_buffer.get(), serialized_size);
-//        sdf_tools::CollisionMap new_message;
-//        ros::serialization::deserialize(deser_stream, new_message);
-//        // Load state from the message
-//        bool success = LoadFromMessageRepresentation(new_message);
-//        return success;
-//    }
-//    catch (...)
-//    {
-//        return false;
-//    }
-//}
+CollisionMapGrid CollisionMapGrid::LoadFromFile(
+    const std::string& filepath)
+{
+  std::ifstream input_file(filepath, std::ios::in|std::ios::binary);
+  if (input_file.good() == false)
+  {
+    throw std::invalid_argument("File does not exist");
+  }
+  input_file.seekg(0, std::ios::end);
+  std::streampos end = input_file.tellg();
+  input_file.seekg(0, std::ios::beg);
+  std::streampos begin = input_file.tellg();
+  const std::streamsize serialized_size = end - begin;
+  const std::streamsize header_size = 4;
+  if (serialized_size >= header_size)
+  {
+    // Load the header
+    std::vector<uint8_t> file_header(header_size + 1, 0x00);
+    input_file.read(reinterpret_cast<char*>(file_header.data()),
+                    header_size);
+    const std::string header_string(
+          reinterpret_cast<const char*>(file_header.data()));
+    // Load the rest of the file
+    std::vector<uint8_t> file_buffer(
+          (size_t)serialized_size - header_size, 0x00);
+    input_file.read(reinterpret_cast<char*>(file_buffer.data()),
+                    serialized_size - header_size);
+    // Deserialize
+    if (header_string == "CMGZ")
+    {
+      const std::vector<uint8_t> decompressed
+          = ZlibHelpers::DecompressBytes(file_buffer);
+      CollisionMapGrid map;
+      map.DeserializeSelf(decompressed, 0);
+      return map;
+    }
+    else if (header_string == "CMGR")
+    {
+      CollisionMapGrid map;
+      map.DeserializeSelf(file_buffer, 0);
+      return map;
+    }
+    else
+    {
+      throw std::invalid_argument(
+            "File has invalid header [" + header_string + "]");
+    }
+  }
+  else
+  {
+    throw std::invalid_argument("File is too small");
+  }
+}
 
-//std::vector<uint8_t> CollisionMapGrid::PackBinaryRepresentation(const std::vector<COLLISION_CELL>& raw) const
-//{
-//    std::vector<uint8_t> packed(raw.size() * 8);
-//    for (size_t field_idx = 0, binary_index = 0; field_idx < raw.size(); field_idx++, binary_index+=8)
-//    {
-//        COLLISION_CELL raw_cell = raw[field_idx];
-//        std::vector<uint8_t> packed_cell = CollisionCellToBinary(raw_cell);
-//        packed[binary_index] = packed_cell[0];
-//        packed[binary_index + 1] = packed_cell[1];
-//        packed[binary_index + 2] = packed_cell[2];
-//        packed[binary_index + 3] = packed_cell[3];
-//        packed[binary_index + 4] = packed_cell[4];
-//        packed[binary_index + 5] = packed_cell[5];
-//        packed[binary_index + 6] = packed_cell[6];
-//        packed[binary_index + 7] = packed_cell[7];
-//    }
-//    return packed;
-//}
+sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation(
+    const CollisionMapGrid& map)
+{
+  sdf_tools::CollisionMap map_message;
+  map_message.header.stamp = ros::Time::now();
+  map_message.header.frame_id = map.GetFrame();
+  std::vector<uint8_t> buffer;
+  map.SerializeSelf(buffer);
+  map_message.serialized_map = ZlibHelpers::CompressBytes(buffer);
+  map_message.is_compressed = true;
+  return map_message;
+}
 
-//std::vector<COLLISION_CELL> CollisionMapGrid::UnpackBinaryRepresentation(const std::vector<uint8_t>& packed) const
-//{
-//    if ((packed.size() % 8) != 0)
-//    {
-//        std::cerr << "Invalid binary representation - length is not a multiple of 8" << std::endl;
-//        return std::vector<COLLISION_CELL>();
-//    }
-//    uint64_t data_size = packed.size() / 8;
-//    std::vector<COLLISION_CELL> unpacked(data_size);
-//    for (size_t field_idx = 0, binary_index = 0; field_idx < unpacked.size(); field_idx++, binary_index+=8)
-//    {
-//        std::vector<uint8_t> binary_block{packed[binary_index], packed[binary_index + 1], packed[binary_index + 2], packed[binary_index + 3], packed[binary_index + 4], packed[binary_index + 5], packed[binary_index + 6], packed[binary_index + 7]};
-//        unpacked[field_idx] = CollisionCellFromBinary(binary_block);
-//    }
-//    return unpacked;
-//}
-
-//sdf_tools::CollisionMap CollisionMapGrid::GetMessageRepresentation()
-//{
-//    sdf_tools::CollisionMap message_rep;
-//    // Populate message
-//    message_rep.header.frame_id = frame_;
-//    const Eigen::Isometry3d& origin_transform = GetOriginTransform();
-//    message_rep.origin_transform.translation.x = origin_transform.translation().x();
-//    message_rep.origin_transform.translation.y = origin_transform.translation().y();
-//    message_rep.origin_transform.translation.z = origin_transform.translation().z();
-//    const Eigen::Quaterniond origin_transform_rotation(origin_transform.rotation());
-//    message_rep.origin_transform.rotation.x = origin_transform_rotation.x();
-//    message_rep.origin_transform.rotation.y = origin_transform_rotation.y();
-//    message_rep.origin_transform.rotation.z = origin_transform_rotation.z();
-//    message_rep.origin_transform.rotation.w = origin_transform_rotation.w();
-//    message_rep.dimensions.x = GetXSize();
-//    message_rep.dimensions.y = GetYSize();
-//    message_rep.dimensions.z = GetZSize();
-//    message_rep.cell_size = GetResolution();
-//    message_rep.OOB_occupancy_value = GetDefaultValue().occupancy;
-//    message_rep.OOB_component_value = GetDefaultValue().component;
-//    message_rep.number_of_components = number_of_components_;
-//    message_rep.components_valid = components_valid_;
-//    message_rep.initialized = initialized_;
-//    const std::vector<COLLISION_CELL>& raw_data = GetImmutableRawData();
-//    const std::vector<uint8_t> binary_data = PackBinaryRepresentation(raw_data);
-//    message_rep.data = ZlibHelpers::CompressBytes(binary_data);
-//    return message_rep;
-//}
-
-//bool CollisionMapGrid::LoadFromMessageRepresentation(sdf_tools::CollisionMap& message)
-//{
-//    // Make a new voxel grid inside
-//    const Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
-//    const Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
-//    const Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
-//    COLLISION_CELL OOB_value;
-//    OOB_value.occupancy = message.OOB_occupancy_value;
-//    OOB_value.component = message.OOB_component_value;
-//    VoxelGrid::VoxelGrid<COLLISION_CELL> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
-//    // Unpack the binary data
-//    const std::vector<uint8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
-//    const std::vector<COLLISION_CELL> unpacked = UnpackBinaryRepresentation(binary_representation);
-//    if (unpacked.empty())
-//    {
-//        std::cerr << "Unpack returned an empty CollisionMapGrid" << std::endl;
-//        return false;
-//    }
-//    bool success = new_field.SetRawData(unpacked);
-//    if (!success)
-//    {
-//        std::cerr << "Unable to set internal representation of the CollisionMapGrid" << std::endl;
-//        return false;
-//    }
-//    // Set it
-//    collision_field_ = new_field;
-//    frame_ = message.header.frame_id;
-//    number_of_components_ = message.number_of_components;
-//    components_valid_ = message.components_valid;
-//    initialized_ = message.initialized;
-//    return true;
-//}
+CollisionMapGrid CollisionMapGrid::LoadFromMessageRepresentation(
+    const sdf_tools::CollisionMap& message)
+{
+  if (message.is_compressed)
+  {
+    const std::vector<uint8_t> uncompressed_map
+        = ZlibHelpers::DecompressBytes(message.serialized_map);
+    CollisionMapGrid map;
+    map.DeserializeSelf(uncompressed_map, 0);
+    return map;
+  }
+  else
+  {
+    CollisionMapGrid map;
+    map.DeserializeSelf(message.serialized_map, 0);
+    return map;
+  }
+}
 
 visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(const std_msgs::ColorRGBA& collision_color, const std_msgs::ColorRGBA& free_color, const std_msgs::ColorRGBA& unknown_color) const
 {

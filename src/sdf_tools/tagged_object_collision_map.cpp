@@ -100,61 +100,62 @@ std::vector<TAGGED_OBJECT_COLLISION_CELL> TaggedObjectCollisionMapGrid::UnpackBi
 sdf_tools::TaggedObjectCollisionMap TaggedObjectCollisionMapGrid::GetMessageRepresentation() const
 {
     sdf_tools::TaggedObjectCollisionMap message_rep;
-    // Populate message
-    message_rep.header.frame_id = frame_;
-    Eigen::Isometry3d origin_transform = GetOriginTransform();
-    message_rep.origin_transform.translation.x = origin_transform.translation().x();
-    message_rep.origin_transform.translation.y = origin_transform.translation().y();
-    message_rep.origin_transform.translation.z = origin_transform.translation().z();
-    Eigen::Quaterniond origin_transform_rotation(origin_transform.rotation());
-    message_rep.origin_transform.rotation.x = origin_transform_rotation.x();
-    message_rep.origin_transform.rotation.y = origin_transform_rotation.y();
-    message_rep.origin_transform.rotation.z = origin_transform_rotation.z();
-    message_rep.origin_transform.rotation.w = origin_transform_rotation.w();
-    message_rep.dimensions.x = GetXSize();
-    message_rep.dimensions.y = GetYSize();
-    message_rep.dimensions.z = GetZSize();
-    message_rep.cell_size = GetResolution();
-    message_rep.OOB_value = TaggedObjectCollisionCellToBinary(GetOOBValue());
-    message_rep.number_of_components = number_of_components_;
-    message_rep.components_valid = components_valid_;
-    message_rep.convex_segments_valid = convex_segments_valid_;
-    message_rep.initialized = initialized_;
-    const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw_data = collision_field_.GetImmutableRawData();
-    const std::vector<uint8_t> binary_data = PackBinaryRepresentation(raw_data);
-    message_rep.data = ZlibHelpers::CompressBytes(binary_data);
+//    // Populate message
+//    message_rep.header.frame_id = frame_;
+//    Eigen::Isometry3d origin_transform = GetOriginTransform();
+//    message_rep.origin_transform.translation.x = origin_transform.translation().x();
+//    message_rep.origin_transform.translation.y = origin_transform.translation().y();
+//    message_rep.origin_transform.translation.z = origin_transform.translation().z();
+//    Eigen::Quaterniond origin_transform_rotation(origin_transform.rotation());
+//    message_rep.origin_transform.rotation.x = origin_transform_rotation.x();
+//    message_rep.origin_transform.rotation.y = origin_transform_rotation.y();
+//    message_rep.origin_transform.rotation.z = origin_transform_rotation.z();
+//    message_rep.origin_transform.rotation.w = origin_transform_rotation.w();
+//    message_rep.dimensions.x = GetXSize();
+//    message_rep.dimensions.y = GetYSize();
+//    message_rep.dimensions.z = GetZSize();
+//    message_rep.cell_size = GetResolution();
+//    message_rep.OOB_value = TaggedObjectCollisionCellToBinary(GetOOBValue());
+//    message_rep.number_of_components = number_of_components_;
+//    message_rep.components_valid = components_valid_;
+//    message_rep.convex_segments_valid = convex_segments_valid_;
+//    message_rep.initialized = initialized_;
+//    const std::vector<TAGGED_OBJECT_COLLISION_CELL>& raw_data = collision_field_.GetImmutableRawData();
+//    const std::vector<uint8_t> binary_data = PackBinaryRepresentation(raw_data);
+//    message_rep.data = ZlibHelpers::CompressBytes(binary_data);
     return message_rep;
 }
 
 bool TaggedObjectCollisionMapGrid::LoadFromMessageRepresentation(const sdf_tools::TaggedObjectCollisionMap& message)
 {
-    // Make a new voxel grid inside
-    Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
-    Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
-    Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
-    TAGGED_OBJECT_COLLISION_CELL OOB_value = TaggedObjectCollisionCellFromBinary(message.OOB_value);
-    VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
-    // Unpack the binary data
-    std::vector<uint8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
-    std::vector<TAGGED_OBJECT_COLLISION_CELL> unpacked = UnpackBinaryRepresentation(binary_representation);
-    if (unpacked.empty())
-    {
-        std::cerr << "Unpack returned an empty TaggedObjectCollisionMapGrid" << std::endl;
-        return false;
-    }
-    bool success = new_field.SetRawData(unpacked);
-    if (!success)
-    {
-        std::cerr << "Unable to set internal representation of the TaggedObjectCollisionMapGrid" << std::endl;
-        return false;
-    }
-    // Set it
-    collision_field_ = new_field;
-    frame_ = message.header.frame_id;
-    number_of_components_ = message.number_of_components;
-    components_valid_ = message.components_valid;
-    convex_segments_valid_ = message.convex_segments_valid;
-    initialized_ = message.initialized;
+  UNUSED(message);
+//    // Make a new voxel grid inside
+//    Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
+//    Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
+//    Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
+//    TAGGED_OBJECT_COLLISION_CELL OOB_value = TaggedObjectCollisionCellFromBinary(message.OOB_value);
+//    VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL> new_field(origin_transform, message.cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, OOB_value);
+//    // Unpack the binary data
+//    std::vector<uint8_t> binary_representation = ZlibHelpers::DecompressBytes(message.data);
+//    std::vector<TAGGED_OBJECT_COLLISION_CELL> unpacked = UnpackBinaryRepresentation(binary_representation);
+//    if (unpacked.empty())
+//    {
+//        std::cerr << "Unpack returned an empty TaggedObjectCollisionMapGrid" << std::endl;
+//        return false;
+//    }
+//    bool success = new_field.SetRawData(unpacked);
+//    if (!success)
+//    {
+//        std::cerr << "Unable to set internal representation of the TaggedObjectCollisionMapGrid" << std::endl;
+//        return false;
+//    }
+//    // Set it
+//    collision_field_ = new_field;
+//    frame_ = message.header.frame_id;
+//    number_of_components_ = message.number_of_components;
+//    components_valid_ = message.components_valid;
+//    convex_segments_valid_ = message.convex_segments_valid;
+//    initialized_ = message.initialized;
     return true;
 }
 

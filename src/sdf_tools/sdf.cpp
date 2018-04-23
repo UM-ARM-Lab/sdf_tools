@@ -7,7 +7,6 @@
 #include <fstream>
 #include <stdexcept>
 #include <unordered_map>
-#include <zlib.h>
 #include <ros/ros.h>
 #include <arc_utilities/eigen_helpers_conversions.hpp>
 #include <arc_utilities/zlib_helpers.hpp>
@@ -194,142 +193,117 @@ uint64_t SignedDistanceField::DeserializeSelf(
   return bytes_read;
 }
 
-//std::vector<uint8_t> SignedDistanceField::GetInternalBinaryRepresentation(const std::vector<float>& field_data) const
-//{
-//    std::vector<uint8_t> raw_binary_data(field_data.size() * 4);
-//    for (size_t field_index = 0, binary_index = 0; field_index < field_data.size(); field_index++, binary_index+=4)
-//    {
-//        // Convert the float at the current index into 4 bytes and store them
-//        float field_value = field_data[field_index];
-//        std::vector<uint8_t> binary_value = FloatToBinary(field_value);
-//        raw_binary_data[binary_index] = binary_value[0];
-//        raw_binary_data[binary_index + 1] = binary_value[1];
-//        raw_binary_data[binary_index + 2] = binary_value[2];
-//        raw_binary_data[binary_index + 3] = binary_value[3];
-//    }
-//    return raw_binary_data;
-//}
+void SignedDistanceField::SaveToFile(
+    const SignedDistanceField& sdf,
+    const std::string& filepath,
+    const bool compress)
+{
+  std::vector<uint8_t> buffer;
+  sdf.SerializeSelf(buffer);
+  std::ofstream output_file(filepath, std::ios::out|std::ios::binary);
+  if (compress)
+  {
+    output_file.write("SDFZ", 4);
+    const std::vector<uint8_t> compressed = ZlibHelpers::CompressBytes(buffer);
+    const size_t serialized_size = compressed.size();
+    output_file.write(reinterpret_cast<const char*>(
+                        compressed.data()), (std::streamsize)serialized_size);
+  }
+  else
+  {
+    output_file.write("SDFR", 4);
+    const size_t serialized_size = buffer.size();
+    output_file.write(reinterpret_cast<const char*>(
+                        buffer.data()), (std::streamsize)serialized_size);
+  }
+  output_file.close();
+}
 
-//std::vector<float> SignedDistanceField::UnpackFieldFromBinaryRepresentation(const std::vector<uint8_t>& binary) const
-//{
-//    if ((binary.size() % 4) != 0)
-//    {
-//        std::cerr << "Invalid binary representation - length is not a multiple of 4" << std::endl;
-//        return std::vector<float>();
-//    }
-//    uint64_t data_size = binary.size() / 4;
-//    std::vector<float> field_data(data_size);
-//    for (size_t field_index = 0, binary_index = 0; field_index < field_data.size(); field_index++, binary_index+=4)
-//    {
-//        std::vector<uint8_t> binary_block{binary[binary_index], binary[binary_index + 1], binary[binary_index + 2], binary[binary_index + 3]};
-//        field_data[field_index] = FloatFromBinary(binary_block);
-//    }
-//    return field_data;
-//}
+SignedDistanceField SignedDistanceField::LoadFromFile(
+    const std::string& filepath)
+{
+  std::ifstream input_file(filepath, std::ios::in|std::ios::binary);
+  if (input_file.good() == false)
+  {
+    throw std::invalid_argument("File does not exist");
+  }
+  input_file.seekg(0, std::ios::end);
+  std::streampos end = input_file.tellg();
+  input_file.seekg(0, std::ios::beg);
+  std::streampos begin = input_file.tellg();
+  const std::streamsize serialized_size = end - begin;
+  const std::streamsize header_size = 4;
+  if (serialized_size >= header_size)
+  {
+    // Load the header
+    std::vector<uint8_t> file_header(header_size + 1, 0x00);
+    input_file.read(reinterpret_cast<char*>(file_header.data()),
+                    header_size);
+    const std::string header_string(
+          reinterpret_cast<const char*>(file_header.data()));
+    // Load the rest of the file
+    std::vector<uint8_t> file_buffer(
+          (size_t)serialized_size - header_size, 0x00);
+    input_file.read(reinterpret_cast<char*>(file_buffer.data()),
+                    serialized_size - header_size);
+    // Deserialize
+    if (header_string == "SDFZ")
+    {
+      const std::vector<uint8_t> decompressed
+          = ZlibHelpers::DecompressBytes(file_buffer);
+      SignedDistanceField sdf;
+      sdf.DeserializeSelf(decompressed, 0);
+      return sdf;
+    }
+    else if (header_string == "SDFR")
+    {
+      SignedDistanceField sdf;
+      sdf.DeserializeSelf(file_buffer, 0);
+      return sdf;
+    }
+    else
+    {
+      throw std::invalid_argument(
+            "File has invalid header [" + header_string + "]");
+    }
+  }
+  else
+  {
+    throw std::invalid_argument("File is too small");
+  }
+}
 
-//bool SignedDistanceField::SaveToFile(const std::string& filepath)
-//{
-//    // Convert to message representation
-//    sdf_tools::SDF message_rep = GetMessageRepresentation();
-//    // Save message to file
-//    try
-//    {
-//        std::ofstream output_file(filepath.c_str(), std::ios::out|std::ios::binary);
-//        uint32_t serialized_size = ros::serialization::serializationLength(message_rep);
-//        std::unique_ptr<uint8_t> ser_buffer(new uint8_t[serialized_size]);
-//        ros::serialization::OStream ser_stream(ser_buffer.get(), serialized_size);
-//        ros::serialization::serialize(ser_stream, message_rep);
-//        output_file.write((char*)ser_buffer.get(), serialized_size);
-//        output_file.close();
-//        return true;
-//    }
-//    catch (...)
-//    {
-//        return false;
-//    }
-//}
+sdf_tools::SDF SignedDistanceField::GetMessageRepresentation(
+    const SignedDistanceField& sdf)
+{
+  sdf_tools::SDF sdf_message;
+  sdf_message.header.stamp = ros::Time::now();
+  sdf_message.header.frame_id = sdf.GetFrame();
+  std::vector<uint8_t> buffer;
+  sdf.SerializeSelf(buffer);
+  sdf_message.serialized_sdf = ZlibHelpers::CompressBytes(buffer);
+  sdf_message.is_compressed = true;
+  return sdf_message;
+}
 
-//bool SignedDistanceField::LoadFromFile(const std::string &filepath)
-//{
-//    try
-//    {
-//        // Load message from file
-//        std::ifstream input_file(filepath.c_str(), std::ios::in|std::ios::binary);
-//        input_file.seekg(0, std::ios::end);
-//        std::streampos end = input_file.tellg();
-//        input_file.seekg(0, std::ios::beg);
-//        std::streampos begin = input_file.tellg();
-//        uint32_t serialized_size = end - begin;
-//        std::unique_ptr<uint8_t> deser_buffer(new uint8_t[serialized_size]);
-//        input_file.read((char*) deser_buffer.get(), serialized_size);
-//        ros::serialization::IStream deser_stream(deser_buffer.get(), serialized_size);
-//        sdf_tools::SDF new_message;
-//        ros::serialization::deserialize(deser_stream, new_message);
-//        // Load state from the message
-//        bool success = LoadFromMessageRepresentation(new_message);
-//        return success;
-//    }
-//    catch (...)
-//    {
-//        return false;
-//    }
-//}
-
-//sdf_tools::SDF SignedDistanceField::GetMessageRepresentation()
-//{
-//    sdf_tools::SDF message_rep;
-//    // Populate message
-//    message_rep.header.frame_id = frame_;
-//    const Eigen::Isometry3d& origin_transform = distance_field_.GetOriginTransform();
-//    message_rep.origin_transform.translation.x = origin_transform.translation().x();
-//    message_rep.origin_transform.translation.y = origin_transform.translation().y();
-//    message_rep.origin_transform.translation.z = origin_transform.translation().z();
-//    const Eigen::Quaterniond origin_transform_rotation(origin_transform.rotation());
-//    message_rep.origin_transform.rotation.x = origin_transform_rotation.x();
-//    message_rep.origin_transform.rotation.y = origin_transform_rotation.y();
-//    message_rep.origin_transform.rotation.z = origin_transform_rotation.z();
-//    message_rep.origin_transform.rotation.w = origin_transform_rotation.w();
-//    message_rep.dimensions.x = distance_field_.GetXSize();
-//    message_rep.dimensions.y = distance_field_.GetYSize();
-//    message_rep.dimensions.z = distance_field_.GetZSize();
-//    message_rep.sdf_cell_size = GetResolution();
-//    message_rep.OOB_value = distance_field_.GetDefaultValue();
-//    message_rep.initialized = initialized_;
-//    message_rep.locked = locked_;
-//    const std::vector<float>& raw_data = distance_field_.GetImmutableRawData();
-//    const std::vector<uint8_t> binary_data = GetInternalBinaryRepresentation(raw_data);
-//    message_rep.data = ZlibHelpers::CompressBytes(binary_data);
-//    return message_rep;
-//}
-
-//bool SignedDistanceField::LoadFromMessageRepresentation(sdf_tools::SDF& message)
-//{
-//    // Make a new voxel grid inside
-//    Eigen::Translation3d origin_translation(message.origin_transform.translation.x, message.origin_transform.translation.y, message.origin_transform.translation.z);
-//    Eigen::Quaterniond origin_rotation(message.origin_transform.rotation.w, message.origin_transform.rotation.x, message.origin_transform.rotation.y, message.origin_transform.rotation.z);
-//    Eigen::Isometry3d origin_transform = origin_translation * origin_rotation;
-//    VoxelGrid::VoxelGrid<float> new_field(origin_transform, message.sdf_cell_size, message.dimensions.x, message.dimensions.y, message.dimensions.z, message.OOB_value);
-//    // Unpack the binary data
-//    std::vector<uint8_t> binary_data = ZlibHelpers::DecompressBytes(message.data);
-//    std::vector<float> unpacked = UnpackFieldFromBinaryRepresentation(binary_data);
-//    if (unpacked.empty())
-//    {
-//        std::cerr << "Unpack returned an empty SDF" << std::endl;
-//        return false;
-//    }
-//    bool success = new_field.SetRawData(unpacked);
-//    if (!success)
-//    {
-//        std::cerr << "Unable to set internal representation of the SDF" << std::endl;
-//        return false;
-//    }
-//    // Set it
-//    distance_field_ = new_field;
-//    frame_ = message.header.frame_id;
-//    initialized_ = message.initialized;
-//    locked_ = message.locked;
-//    return true;
-//}
+SignedDistanceField SignedDistanceField::LoadFromMessageRepresentation(
+    const sdf_tools::SDF& message)
+{
+  if (message.is_compressed)
+  {
+    const std::vector<uint8_t> uncompressed_sdf
+        = ZlibHelpers::DecompressBytes(message.serialized_sdf);
+    SignedDistanceField sdf;
+    sdf.DeserializeSelf(uncompressed_sdf, 0);
+    return sdf;
+  }
+  else
+  {
+    SignedDistanceField sdf;
+    sdf.DeserializeSelf(message.serialized_sdf, 0);
+    return sdf;
+  }
+}
 
 visualization_msgs::Marker SignedDistanceField::ExportForDisplay(
     const float alpha) const

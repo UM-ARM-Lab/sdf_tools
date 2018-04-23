@@ -36,28 +36,6 @@ struct COLLISION_CELL
     : occupancy(in_occupancy), component(in_component) {}
 };
 
-//inline std::vector<uint8_t> CollisionCellToBinary(const COLLISION_CELL& value)
-//{
-//  std::vector<uint8_t> binary(sizeof(COLLISION_CELL));
-//  memcpy(&binary.front(), &value, sizeof(COLLISION_CELL));
-//  return binary;
-//}
-
-//inline COLLISION_CELL CollisionCellFromBinary(const std::vector<uint8_t>& binary)
-//{
-//  if (binary.size() != sizeof(COLLISION_CELL))
-//  {
-//    std::cerr << "Binary value is not " << sizeof(COLLISION_CELL) << " bytes" << std::endl;
-//    return COLLISION_CELL(NAN, 0u);
-//  }
-//  else
-//  {
-//    COLLISION_CELL loaded;
-//    memcpy(&loaded, &binary.front(), sizeof(COLLISION_CELL));
-//    return loaded;
-//  }
-//}
-
 class CollisionMapGrid : public VoxelGrid::VoxelGrid<COLLISION_CELL>
 {
 protected:
@@ -183,10 +161,6 @@ protected:
   uint32_t number_of_components_;
   std::string frame_;
   bool components_valid_;
-
-//  std::vector<uint8_t> PackBinaryRepresentation(const std::vector<COLLISION_CELL>& raw) const;
-
-//  std::vector<COLLISION_CELL> UnpackBinaryRepresentation(const std::vector<uint8_t>& packed) const;
 
 public:
 
@@ -483,13 +457,17 @@ public:
         const std::vector<uint8_t>&, const uint64_t)>& value_deserializer
       =arc_helpers::DeserializeFixedSizePOD<COLLISION_CELL>);
 
-//  bool SaveToFile(const std::string& filepath);
+  static void SaveToFile(const CollisionMapGrid& map,
+                         const std::string& filepath,
+                         const bool compress);
 
-//  bool LoadFromFile(const std::string& filepath);
+  static CollisionMapGrid LoadFromFile(const std::string& filepath);
 
-//  sdf_tools::CollisionMap GetMessageRepresentation();
+  static sdf_tools::CollisionMap GetMessageRepresentation(
+      const CollisionMapGrid& map);
 
-//  bool LoadFromMessageRepresentation(sdf_tools::CollisionMap& message);
+  static CollisionMapGrid LoadFromMessageRepresentation(
+      const sdf_tools::CollisionMap& message);
 
   uint32_t UpdateConnectedComponents();
 

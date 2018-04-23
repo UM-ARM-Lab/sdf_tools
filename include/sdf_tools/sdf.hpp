@@ -908,13 +908,17 @@ public:
     return mutable_location;
   }
 
-//        bool SaveToFile(const std::string& filepath);
+  static void SaveToFile(const SignedDistanceField& sdf,
+                         const std::string& filepath,
+                         const bool compress);
 
-//        bool LoadFromFile(const std::string& filepath);
+  static SignedDistanceField LoadFromFile(const std::string& filepath);
 
-//        sdf_tools::SDF GetMessageRepresentation();
+  static sdf_tools::SDF GetMessageRepresentation(
+      const SignedDistanceField& sdf);
 
-//        bool LoadFromMessageRepresentation(sdf_tools::SDF& message);
+  static SignedDistanceField LoadFromMessageRepresentation(
+      const sdf_tools::SDF& message);
 
   visualization_msgs::Marker ExportForDisplay(const float alpha = 0.01f) const;
 
