@@ -308,8 +308,6 @@ SignedDistanceField SignedDistanceField::LoadFromMessageRepresentation(
 visualization_msgs::Marker SignedDistanceField::ExportForDisplay(
     const float alpha) const
 {
-  // Assemble a visualization_markers::Marker representation of the SDF to
-  // display in RViz
   visualization_msgs::Marker display_rep;
   // Populate the header
   display_rep.header.frame_id = frame_;
@@ -396,8 +394,6 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplay(
 visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(
     const float alpha) const
 {
-  // Assemble a visualization_markers::Marker representation of the SDF to
-  // display in RViz
   visualization_msgs::Marker display_rep;
   // Populate the header
   display_rep.header.frame_id = frame_;
