@@ -329,9 +329,8 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(
   display_rep.action = visualization_msgs::Marker::ADD;
   display_rep.lifetime = ros::Duration(0.0);
   display_rep.frame_locked = false;
-  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-  display_rep.pose
-      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
+                       GetOriginTransform());
   display_rep.scale.x = GetResolution();
   display_rep.scale.y = GetResolution();
   display_rep.scale.z = GetResolution();
@@ -344,7 +343,7 @@ visualization_msgs::Marker CollisionMapGrid::ExportForDisplay(
       {
         // Convert grid indices into a real-world location
         const Eigen::Vector4d location
-            = GridIndexToLocation(x_index, y_index, z_index);
+            = GridIndexToLocationGridFrame(x_index, y_index, z_index);
         geometry_msgs::Point new_point;
         new_point.x = location(0);
         new_point.y = location(1);
@@ -418,9 +417,8 @@ visualization_msgs::Marker CollisionMapGrid::ExportSurfacesForDisplay(
   display_rep.action = visualization_msgs::Marker::ADD;
   display_rep.lifetime = ros::Duration(0.0);
   display_rep.frame_locked = false;
-  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-  display_rep.pose
-      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
+                       GetOriginTransform());
   display_rep.scale.x = GetResolution();
   display_rep.scale.y = GetResolution();
   display_rep.scale.z = GetResolution();
@@ -435,7 +433,7 @@ visualization_msgs::Marker CollisionMapGrid::ExportSurfacesForDisplay(
         {
           // Convert grid indices into a real-world location
           const Eigen::Vector4d location
-              = GridIndexToLocation(x_index, y_index, z_index);
+              = GridIndexToLocationGridFrame(x_index, y_index, z_index);
           geometry_msgs::Point new_point;
           new_point.x = location(0);
           new_point.y = location(1);
@@ -511,9 +509,8 @@ CollisionMapGrid::ExportConnectedComponentsForDisplay(
   display_rep.action = visualization_msgs::Marker::ADD;
   display_rep.lifetime = ros::Duration(0.0);
   display_rep.frame_locked = false;
-  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
-  display_rep.pose
-      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
+                       GetOriginTransform());
   display_rep.scale.x = GetResolution();
   display_rep.scale.y = GetResolution();
   display_rep.scale.z = GetResolution();
@@ -526,7 +523,7 @@ CollisionMapGrid::ExportConnectedComponentsForDisplay(
       {
         // Convert grid indices into a real-world location
         const Eigen::Vector4d location
-            = GridIndexToLocation(x_index, y_index, z_index);
+            = GridIndexToLocationGridFrame(x_index, y_index, z_index);
         geometry_msgs::Point new_point;
         new_point.x = location(0);
         new_point.y = location(1);
