@@ -709,10 +709,14 @@ protected:
       const Eigen::Vector4d& query_location,
       const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
   {
+    // Get the query location in grid frame
+    const Eigen::Vector4d grid_frame_query_location
+        = GetInverseOriginTransform() * query_location;
     // Switch between all the possible options of where we are
     const Eigen::Vector4d cell_center_location
-        = GridIndexToLocation(x_idx, y_idx, z_idx);
-    const Eigen::Vector4d query_offset = query_location - cell_center_location;
+        = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+    const Eigen::Vector4d query_offset
+        = grid_frame_query_location - cell_center_location;
     // Catch the easiest case
     if ((query_offset(0) == 0.0)
         && (query_offset(1) == 0.0)
@@ -728,9 +732,9 @@ protected:
     const std::pair<int64_t, int64_t> z_axis_indices
         = GetAxisInterpolationIndices(z_idx, GetNumZCells(), query_offset(2));
     const Eigen::Vector4d lower_corner_location
-        = GridIndexToLocation(x_axis_indices.first,
-                              y_axis_indices.first,
-                              z_axis_indices.first);
+        = GridIndexToLocationGridFrame(x_axis_indices.first,
+                                       y_axis_indices.first,
+                                       z_axis_indices.first);
     const double mxmymz_distance
         = GetCorrectedCenterDistance(x_axis_indices.first,
                                      y_axis_indices.first,
@@ -763,7 +767,8 @@ protected:
         = GetCorrectedCenterDistance(x_axis_indices.second,
                                      y_axis_indices.second,
                                      z_axis_indices.second);
-    return TrilinearInterpolateDistance(lower_corner_location, query_location,
+    return TrilinearInterpolateDistance(lower_corner_location,
+                                        grid_frame_query_location,
                                         mxmymz_distance, mxmypz_distance,
                                         mxpymz_distance, mxpypz_distance,
                                         pxmymz_distance, pxmypz_distance,

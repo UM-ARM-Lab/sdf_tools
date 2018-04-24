@@ -12,18 +12,21 @@ void test_estimate_distance(
 {
   const double res = 1.0;
   const double size = 10.0;
-  auto map = sdf_tools::CollisionMapGrid(Eigen::Isometry3d::Identity(), "world", res, size, size, 1.0, sdf_tools::COLLISION_CELL(0.0));
-  map.SetValue(5.0, 5.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
-  map.SetValue(5.0, 6.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
-  map.SetValue(6.0, 5.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
-  map.SetValue(6.0, 6.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
-  map.SetValue(7.0, 7.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
-  map.SetValue(2.0, 2.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
-  map.SetValue(3.0, 2.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
-  map.SetValue(4.0, 2.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
-  map.SetValue(2.0, 3.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
-  map.SetValue(2.0, 4.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
-  map.SetValue(2.0, 7.0, 0.0, sdf_tools::COLLISION_CELL(1.0));
+  const Eigen::Isometry3d origin_transform
+      = Eigen::Translation3d(0.0, 0.0, 0.0) * Eigen::Quaterniond(
+          Eigen::AngleAxisd(M_PI_4, Eigen::Vector3d::UnitZ()));
+  auto map = sdf_tools::CollisionMapGrid(origin_transform, "world", res, size, size, 1.0, sdf_tools::COLLISION_CELL(0.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(5.0, 5.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(5.0, 6.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(6.0, 5.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(6.0, 6.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(7.0, 7.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(2.0, 2.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(3.0, 2.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(4.0, 2.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(2.0, 3.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(2.0, 4.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
+  map.SetValue4d(origin_transform * Eigen::Vector4d(2.0, 7.0, 0.0, 1.0), sdf_tools::COLLISION_CELL(1.0));
   const std_msgs::ColorRGBA collision_color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(1.0, 0.0, 0.0, 0.5);
   const std_msgs::ColorRGBA free_color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(0.0, 0.0, 0.0, 0.0);
   const std_msgs::ColorRGBA unknown_color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(0.0, 0.0, 0.0, 0.0);
@@ -41,9 +44,8 @@ void test_estimate_distance(
   estimated_distance_rep.action = visualization_msgs::Marker::ADD;
   estimated_distance_rep.lifetime = ros::Duration(0.0);
   estimated_distance_rep.frame_locked = false;
-  const Eigen::Isometry3d base_transform = Eigen::Isometry3d::Identity();
   estimated_distance_rep.pose
-      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(base_transform);
+      = EigenHelpersConversions::EigenIsometry3dToGeometryPose(sdf.GetOriginTransform());
   const double step = sdf.GetResolution() * 0.125 * 0.25;
   estimated_distance_rep.scale.x = sdf.GetResolution() * step;// * 0.125;
   estimated_distance_rep.scale.y = sdf.GetResolution() * step;// * 0.125;
@@ -59,8 +61,11 @@ void test_estimate_distance(
       double z = 0.5;
       //for (double z = 0; z <= sdf.GetZSize(); z += step)
       {
+        const Eigen::Vector4d point(x, y, z, 1.0);
+        const Eigen::Vector4d point_in_grid_frame = origin_transform * point;
         // Update minimum/maximum distance variables
-        const float distance = sdf.EstimateDistance(x, y, z).first;
+        const double distance
+            = sdf.EstimateDistance4d(point_in_grid_frame).first;
         if (distance > max_distance)
         {
           max_distance = distance;
@@ -80,8 +85,10 @@ void test_estimate_distance(
       double z = 0.5;
       //for (double z = 0; z <= sdf.GetZSize(); z += step)
       {
-        // Update minimum/maximum distance variables
-        const double distance = sdf.EstimateDistance(x, y, z).first;
+        const Eigen::Vector4d point(x, y, z, 1.0);
+        const Eigen::Vector4d point_in_grid_frame = origin_transform * point;
+        const double distance
+            = sdf.EstimateDistance4d(point_in_grid_frame).first;
         if (distance >= 0.0)
         {
           const std_msgs::ColorRGBA new_color
