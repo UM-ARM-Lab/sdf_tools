@@ -6,6 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <Eigen/Geometry>
+#include <unsupported/Eigen/AutoDiff>
 #include <visualization_msgs/Marker.h>
 #include <arc_utilities/eigen_helpers.hpp>
 #include <arc_utilities/voxel_grid.hpp>
@@ -528,6 +529,47 @@ public:
     }
   }
 
+  inline std::vector<double> GetAutoDiffGradient3d(
+      const Eigen::Vector3d& location) const
+  {
+    return GetAutoDiffGradient(location.x(), location.y(), location.z());
+  }
+
+  inline std::vector<double> GetAutoDiffGradient4d(
+      const Eigen::Vector4d& location) const
+  {
+    return GetAutoDiffGradient(location(0), location(1), location(2));
+  }
+
+  inline std::vector<double> GetAutoDiffGradient(
+      const double x, const double y, const double z) const
+  {
+    const GRID_INDEX index = LocationToGridIndex(x, y, z);
+    if (IndexInBounds(index))
+    {
+      // Use with AutoDiffScalar
+      typedef Eigen::AutoDiffScalar<Eigen::Vector4d> AScalar;
+      typedef Eigen::Matrix<AScalar, 4, 1> APosition;
+      APosition Alocation;
+      Alocation(0) = x;
+      Alocation(1) = y;
+      Alocation(2) = z;
+      Alocation(3) = 1.0;
+      Alocation(0).derivatives() = Eigen::Vector4d::Unit(0);
+      Alocation(1).derivatives() = Eigen::Vector4d::Unit(1);
+      Alocation(2).derivatives() = Eigen::Vector4d::Unit(2);
+      Alocation(3).derivatives() = Eigen::Vector4d::Unit(3);
+      AScalar Adist = EstimateDistanceInterpolateFromNeighbors<AScalar>(
+                        Alocation, index.x, index.y, index.z);
+      return std::vector<double>{
+        Adist.derivatives()(0), Adist.derivatives()(1), Adist.derivatives()(2)};
+    }
+    else
+    {
+      return std::vector<double>();
+    }
+  }
+
 protected:
 
   inline double ComputeAxisSmoothGradient(
@@ -573,37 +615,39 @@ protected:
     }
   }
 
-  inline double BilinearInterpolate(const double low_d1,
-                                    const double high_d1,
-                                    const double low_d2,
-                                    const double high_d2,
-                                    const double query_d1,
-                                    const double query_d2,
-                                    const double l1l2_val,
-                                    const double l1h2_val,
-                                    const double h1l2_val,
-                                    const double h1h2_val) const
+  template<typename T>
+  inline T BilinearInterpolate(const double low_d1,
+                               const double high_d1,
+                               const double low_d2,
+                               const double high_d2,
+                               const T query_d1,
+                               const T query_d2,
+                               const double l1l2_val,
+                               const double l1h2_val,
+                               const double h1l2_val,
+                               const double h1h2_val) const
   {
-    Eigen::Matrix<double, 1, 2> d1_offsets;
+    Eigen::Matrix<T, 1, 2> d1_offsets;
     d1_offsets(0, 0) = high_d1 - query_d1;
     d1_offsets(0, 1) = query_d1 - low_d1;
-    Eigen::Matrix<double, 2, 2> values;
+    Eigen::Matrix<T, 2, 2> values;
     values(0, 0) = l1l2_val;
     values(0, 1) = l1h2_val;
     values(1, 0) = h1l2_val;
     values(1, 1) = h1h2_val;
-    Eigen::Matrix<double, 2, 1> d2_offsets;
+    Eigen::Matrix<T, 2, 1> d2_offsets;
     d2_offsets(0, 0) = high_d2 - query_d2;
     d2_offsets(1, 0) = query_d2 - low_d2;
-    const double multiplier = 1.0 / ((high_d1 - low_d1) * (high_d2 - low_d2));
-    const double bilinear_interpolated
+    const T multiplier = 1.0 / ((high_d1 - low_d1) * (high_d2 - low_d2));
+    const T bilinear_interpolated
         = multiplier * d1_offsets * values * d2_offsets;
     return bilinear_interpolated;
   }
 
-  inline double BilinearInterpolateDistanceXY(
+  template<typename T>
+  inline T BilinearInterpolateDistanceXY(
       const Eigen::Vector4d& corner_location,
-      const Eigen::Vector4d& query_location,
+      const Eigen::Matrix<T, 4, 1>& query_location,
       const double mxmy_dist, const double mxpy_dist,
       const double pxmy_dist, const double pxpy_dist) const
   {
@@ -617,30 +661,31 @@ protected:
                                pxmy_dist, pxpy_dist);
   }
 
-  inline double TrilinearInterpolateDistance(
+  template<typename T>
+  inline T TrilinearInterpolateDistance(
       const Eigen::Vector4d& corner_location,
-      const Eigen::Vector4d& query_location,
+      const Eigen::Matrix<T, 4, 1>& query_location,
       const double mxmymz_dist, const double mxmypz_dist,
       const double mxpymz_dist, const double mxpypz_dist,
       const double pxmymz_dist, const double pxmypz_dist,
       const double pxpymz_dist, const double pxpypz_dist) const
   {
     // Do bilinear interpolation in the lower XY plane
-    const double mz_bilinear_interpolated
+    const T mz_bilinear_interpolated
         = BilinearInterpolateDistanceXY(corner_location, query_location,
                                         mxmymz_dist, mxpymz_dist,
                                         pxmymz_dist, pxpymz_dist);
     // Do bilinear interpolation in the upper XY plane
-    const double pz_bilinear_interpolated
+    const T pz_bilinear_interpolated
         = BilinearInterpolateDistanceXY(corner_location, query_location,
                                         mxmypz_dist, mxpypz_dist,
                                         pxmypz_dist, pxpypz_dist);
     // Perform linear interpolation/extrapolation between lower and upper planes
     const double inv_resolution = 1.0 / GetResolution();
-    const double distance_delta
+    const T distance_delta
         = pz_bilinear_interpolated - mz_bilinear_interpolated;
-    const double distance_slope = distance_delta * inv_resolution;
-    const double query_z_delta = query_location(2) - corner_location(2);
+    const T distance_slope = distance_delta * inv_resolution;
+    const T query_z_delta = query_location(2) - T(corner_location(2));
     return mz_bilinear_interpolated + (query_z_delta * distance_slope);
   }
 
@@ -669,10 +714,11 @@ protected:
     }
   }
 
+  template<typename T>
   std::pair<int64_t, int64_t> GetAxisInterpolationIndices(
       const int64_t initial_index,
       const int64_t axis_size,
-      const double axis_offset) const
+      const T axis_offset) const
   {
     int64_t lower = initial_index;
     int64_t upper = initial_index;
@@ -705,25 +751,26 @@ protected:
     return std::make_pair(lower, upper);
   }
 
-  inline double EstimateDistanceInterpolateFromNeighbors(
-      const Eigen::Vector4d& query_location,
+  template<typename T>
+  inline T EstimateDistanceInterpolateFromNeighbors(
+      const Eigen::Matrix<T, 4, 1>& query_location,
       const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
   {
     // Get the query location in grid frame
-    const Eigen::Vector4d grid_frame_query_location
+    const Eigen::Matrix<T, 4, 1> grid_frame_query_location
         = GetInverseOriginTransform() * query_location;
     // Switch between all the possible options of where we are
     const Eigen::Vector4d cell_center_location
         = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
-    const Eigen::Vector4d query_offset
-        = grid_frame_query_location - cell_center_location;
+    const Eigen::Matrix<T, 4, 1> query_offset
+        = grid_frame_query_location - cell_center_location.cast<T>();
     // Catch the easiest case
-    if ((query_offset(0) == 0.0)
-        && (query_offset(1) == 0.0)
-        && (query_offset(2) == 0.0))
-    {
-      return GetCorrectedCenterDistance(x_idx, y_idx, z_idx);
-    }
+//    if ((query_offset(0) == 0.0)
+//        && (query_offset(1) == 0.0)
+//        && (query_offset(2) == 0.0))
+//    {
+//      return GetCorrectedCenterDistance(x_idx, y_idx, z_idx);
+//    }
     // Find the best-matching 8 surrounding cell centers
     const std::pair<int64_t, int64_t> x_axis_indices
         = GetAxisInterpolationIndices(x_idx, GetNumXCells(), query_offset(0));
@@ -791,7 +838,7 @@ public:
     if (IndexInBounds(index))
     {
       return std::make_pair(
-            EstimateDistanceInterpolateFromNeighbors(
+            EstimateDistanceInterpolateFromNeighbors<double>(
               Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0),
               index.x, index.y, index.z),
             true);
@@ -808,7 +855,7 @@ public:
     const GRID_INDEX index = LocationToGridIndex4d(location);
     if (IndexInBounds(index))
     {
-      return std::make_pair(EstimateDistanceInterpolateFromNeighbors(
+      return std::make_pair(EstimateDistanceInterpolateFromNeighbors<double>(
                               location, index.x, index.y, index.z),
                             true);
     }

@@ -34,22 +34,22 @@ void test_estimate_distance(
   const auto sdf = map.ExtractSignedDistanceField(1e6).first;
   const auto sdf_marker = sdf.ExportForDisplay(0.05f);
   // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
-  visualization_msgs::Marker estimated_distance_rep;
+  visualization_msgs::Marker gradient_rep;
   // Populate the header
-  estimated_distance_rep.header.frame_id = "world";
+  gradient_rep.header.frame_id = "world";
   // Populate the options
-  estimated_distance_rep.ns = "estimated_distance_display";
-  estimated_distance_rep.id = 1;
-  estimated_distance_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  estimated_distance_rep.action = visualization_msgs::Marker::ADD;
-  estimated_distance_rep.lifetime = ros::Duration(0.0);
-  estimated_distance_rep.frame_locked = false;
-  estimated_distance_rep.pose
+  gradient_rep.ns = "estimated_distance_display";
+  gradient_rep.id = 1;
+  gradient_rep.type = visualization_msgs::Marker::CUBE_LIST;
+  gradient_rep.action = visualization_msgs::Marker::ADD;
+  gradient_rep.lifetime = ros::Duration(0.0);
+  gradient_rep.frame_locked = false;
+  gradient_rep.pose
       = EigenHelpersConversions::EigenIsometry3dToGeometryPose(sdf.GetOriginTransform());
   const double step = sdf.GetResolution() * 0.125 * 0.25;
-  estimated_distance_rep.scale.x = sdf.GetResolution() * step;// * 0.125;
-  estimated_distance_rep.scale.y = sdf.GetResolution() * step;// * 0.125;
-  estimated_distance_rep.scale.z = sdf.GetResolution() * 0.95;// * 0.125;// * 0.125;
+  gradient_rep.scale.x = sdf.GetResolution() * step;// * 0.125;
+  gradient_rep.scale.y = sdf.GetResolution() * step;// * 0.125;
+  gradient_rep.scale.z = sdf.GetResolution() * 0.95;// * 0.125;// * 0.125;
   // Add all the cells of the SDF to the message
   double min_distance = 0.0;
   double max_distance = 0.0;
@@ -94,38 +94,124 @@ void test_estimate_distance(
           const std_msgs::ColorRGBA new_color
               = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>
                 ::InterpolateHotToCold(distance, 0.0, max_distance);
-          estimated_distance_rep.colors.push_back(new_color);
+          gradient_rep.colors.push_back(new_color);
         }
         else
         {
           const std_msgs::ColorRGBA new_color
               = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(1.0, 0.0, 1.0, 1.0);
-          estimated_distance_rep.colors.push_back(new_color);
+          gradient_rep.colors.push_back(new_color);
         }
         geometry_msgs::Point new_point;
         new_point.x = x;
         new_point.y = y;
         new_point.z = z;
-        estimated_distance_rep.points.push_back(new_point);
+        gradient_rep.points.push_back(new_point);
       }
     }
   }
   visualization_msgs::MarkerArray markers;
-  markers.markers = {map_marker, sdf_marker, estimated_distance_rep};
+  markers.markers = {map_marker, sdf_marker, gradient_rep};
+  // Make gradient markers
+  for (int64_t x_idx = 0; x_idx < sdf.GetNumXCells(); x_idx++)
+  {
+    for (int64_t y_idx = 0; y_idx < sdf.GetNumYCells(); y_idx++)
+    {
+      for (int64_t z_idx = 0; z_idx < sdf.GetNumZCells(); z_idx++)
+      {
+        const Eigen::Vector4d location
+            = sdf.GridIndexToLocation(x_idx, y_idx, z_idx);
+        const std::vector<double> discrete_gradient
+            = sdf.GetGradient4d(location, true);
+        std::cout << "Discrete gradient " << PrettyPrint::PrettyPrint(discrete_gradient) << std::endl;
+        const std::vector<double> smooth_gradient
+            = sdf.GetSmoothGradient4d(location, sdf.GetResolution() * 0.125);
+        std::cout << "Smooth gradient " << PrettyPrint::PrettyPrint(smooth_gradient) << std::endl;
+        const std::vector<double> autodiff_gradient
+            = sdf.GetAutoDiffGradient4d(location);
+        std::cout << "Autodiff gradient " << PrettyPrint::PrettyPrint(autodiff_gradient) << std::endl;
+        if (discrete_gradient.size() == 3)
+        {
+          const Eigen::Vector4d gradient_vector(discrete_gradient[0],
+                                                discrete_gradient[1],
+                                                discrete_gradient[2],
+                                                0.0);
+          visualization_msgs::Marker gradient_rep;
+          // Populate the header
+          gradient_rep.header.frame_id = "world";
+          // Populate the options
+          gradient_rep.ns = "discrete_gradient";
+          gradient_rep.id = (int32_t)sdf.HashDataIndex(x_idx, y_idx, z_idx);
+          gradient_rep.type = visualization_msgs::Marker::ARROW;
+          gradient_rep.action = visualization_msgs::Marker::ADD;
+          gradient_rep.lifetime = ros::Duration(0.0);
+          gradient_rep.frame_locked = false;
+          gradient_rep.pose
+              = EigenHelpersConversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
+          gradient_rep.points.push_back(EigenHelpersConversions::EigenVector4dToGeometryPoint(location));
+          gradient_rep.points.push_back(EigenHelpersConversions::EigenVector4dToGeometryPoint(location + gradient_vector));
+          gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
+          gradient_rep.scale.y = sdf.GetResolution() * 0.125;
+          gradient_rep.scale.z = 0.0;
+          gradient_rep.color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(1.0, 0.5, 0.0, 1.0);
+          markers.markers.push_back(gradient_rep);
+        }
+        if (smooth_gradient.size() == 3)
+        {
+          const Eigen::Vector4d gradient_vector(smooth_gradient[0],
+                                                smooth_gradient[1],
+                                                smooth_gradient[2],
+                                                0.0);
+          visualization_msgs::Marker gradient_rep;
+          // Populate the header
+          gradient_rep.header.frame_id = "world";
+          // Populate the options
+          gradient_rep.ns = "smooth_gradient";
+          gradient_rep.id = (int32_t)sdf.HashDataIndex(x_idx, y_idx, z_idx);
+          gradient_rep.type = visualization_msgs::Marker::ARROW;
+          gradient_rep.action = visualization_msgs::Marker::ADD;
+          gradient_rep.lifetime = ros::Duration(0.0);
+          gradient_rep.frame_locked = false;
+          gradient_rep.pose
+              = EigenHelpersConversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
+          gradient_rep.points.push_back(EigenHelpersConversions::EigenVector4dToGeometryPoint(location));
+          gradient_rep.points.push_back(EigenHelpersConversions::EigenVector4dToGeometryPoint(location + gradient_vector));
+          gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
+          gradient_rep.scale.y = sdf.GetResolution() * 0.125;
+          gradient_rep.scale.z = 0.0;
+          gradient_rep.color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(0.0, 0.5, 1.0, 1.0);
+          markers.markers.push_back(gradient_rep);
+        }
+        if (autodiff_gradient.size() == 3)
+        {
+          const Eigen::Vector4d gradient_vector(autodiff_gradient[0],
+                                                autodiff_gradient[1],
+                                                autodiff_gradient[2],
+                                                0.0);
+          visualization_msgs::Marker gradient_rep;
+          // Populate the header
+          gradient_rep.header.frame_id = "world";
+          // Populate the options
+          gradient_rep.ns = "autodiff_gradient";
+          gradient_rep.id = (int32_t)sdf.HashDataIndex(x_idx, y_idx, z_idx);
+          gradient_rep.type = visualization_msgs::Marker::ARROW;
+          gradient_rep.action = visualization_msgs::Marker::ADD;
+          gradient_rep.lifetime = ros::Duration(0.0);
+          gradient_rep.frame_locked = false;
+          gradient_rep.pose
+              = EigenHelpersConversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
+          gradient_rep.points.push_back(EigenHelpersConversions::EigenVector4dToGeometryPoint(location));
+          gradient_rep.points.push_back(EigenHelpersConversions::EigenVector4dToGeometryPoint(location + gradient_vector));
+          gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
+          gradient_rep.scale.y = sdf.GetResolution() * 0.125;
+          gradient_rep.scale.z = 0.0;
+          gradient_rep.color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(0.5, 0.0, 1.0, 1.0);
+          markers.markers.push_back(gradient_rep);
+        }
+      }
+    }
+  }
   display_fn(markers);
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(6.4, 6.4, 6.4).first << std::endl;
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(6.5, 6.5, 6.5).first << std::endl;
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(6.5, 6.5, 6.6).first << std::endl;
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(6.5, 6.6, 6.5).first << std::endl;
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.5, 6.5).first << std::endl;
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.6, 6.6).first << std::endl;
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.6, 6.7).first << std::endl;
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(6.6, 6.7, 6.6).first << std::endl;
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(6.7, 6.6, 6.6).first << std::endl;
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(6.7, 6.7, 6.7).first << std::endl;
-//  std::cout << "-----" << std::endl;
-//  std::cout << std::setprecision(12) << sdf.EstimateDistance(5.8, 5.9, 5.7).first << std::endl;
-//  std::cout << PrettyPrint::PrettyPrint(sdf.ProjectOutOfCollisionToMinimumDistance4d(Eigen::Vector4d(5.8, 5.9, 5.7, 1.0), 0.001, 0.06125)) << std::endl;
 }
 
 int main(int argc, char** argv)
