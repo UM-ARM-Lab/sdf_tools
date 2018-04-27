@@ -1191,6 +1191,9 @@ namespace sdf_tools
             std::cerr << std::endl << std::endl;
             std::cerr << "starting location out of bounds: " << location.transpose() << std::endl;
             std::cerr << std::endl << std::endl;
+
+            ProjectOutOfCollisionToMinimumDistance4d(ProjectIntoValidVolume4d(location), minimum_distance, stepsize_multiplier);
+
             return location;
         }
     }
