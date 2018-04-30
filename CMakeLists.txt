@@ -62,7 +62,7 @@ else()
     include_directories(include SYSTEM ${catkin_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 endif()
 
-set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Werror")
+set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Werror -Wshadow")
 
 if(moveit_core_FOUND)
     message(STATUS "MoveIt! found. Building SDF Tools library with MoveIt! integration.")

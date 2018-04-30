@@ -34,22 +34,22 @@ void test_estimate_distance(
   const auto sdf = map.ExtractSignedDistanceField(1e6).first;
   const auto sdf_marker = sdf.ExportForDisplay(0.05f);
   // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
-  visualization_msgs::Marker gradient_rep;
+  visualization_msgs::Marker distance_rep;
   // Populate the header
-  gradient_rep.header.frame_id = "world";
+  distance_rep.header.frame_id = "world";
   // Populate the options
-  gradient_rep.ns = "estimated_distance_display";
-  gradient_rep.id = 1;
-  gradient_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  gradient_rep.action = visualization_msgs::Marker::ADD;
-  gradient_rep.lifetime = ros::Duration(0.0);
-  gradient_rep.frame_locked = false;
-  gradient_rep.pose
+  distance_rep.ns = "estimated_distance_display";
+  distance_rep.id = 1;
+  distance_rep.type = visualization_msgs::Marker::CUBE_LIST;
+  distance_rep.action = visualization_msgs::Marker::ADD;
+  distance_rep.lifetime = ros::Duration(0.0);
+  distance_rep.frame_locked = false;
+  distance_rep.pose
       = EigenHelpersConversions::EigenIsometry3dToGeometryPose(sdf.GetOriginTransform());
   const double step = sdf.GetResolution() * 0.125 * 0.25;
-  gradient_rep.scale.x = sdf.GetResolution() * step;// * 0.125;
-  gradient_rep.scale.y = sdf.GetResolution() * step;// * 0.125;
-  gradient_rep.scale.z = sdf.GetResolution() * 0.95;// * 0.125;// * 0.125;
+  distance_rep.scale.x = sdf.GetResolution() * step;// * 0.125;
+  distance_rep.scale.y = sdf.GetResolution() * step;// * 0.125;
+  distance_rep.scale.z = sdf.GetResolution() * 0.95;// * 0.125;// * 0.125;
   // Add all the cells of the SDF to the message
   double min_distance = 0.0;
   double max_distance = 0.0;
@@ -94,24 +94,24 @@ void test_estimate_distance(
           const std_msgs::ColorRGBA new_color
               = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>
                 ::InterpolateHotToCold(distance, 0.0, max_distance);
-          gradient_rep.colors.push_back(new_color);
+          distance_rep.colors.push_back(new_color);
         }
         else
         {
           const std_msgs::ColorRGBA new_color
               = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(1.0, 0.0, 1.0, 1.0);
-          gradient_rep.colors.push_back(new_color);
+          distance_rep.colors.push_back(new_color);
         }
         geometry_msgs::Point new_point;
         new_point.x = x;
         new_point.y = y;
         new_point.z = z;
-        gradient_rep.points.push_back(new_point);
+        distance_rep.points.push_back(new_point);
       }
     }
   }
   visualization_msgs::MarkerArray markers;
-  markers.markers = {map_marker, sdf_marker, gradient_rep};
+  markers.markers = {map_marker, sdf_marker, distance_rep};
   // Make gradient markers
   for (int64_t x_idx = 0; x_idx < sdf.GetNumXCells(); x_idx++)
   {
