@@ -11,7 +11,6 @@
 #include <random>
 #include <Eigen/Geometry>
 #include <Eigen/Sparse>
-#include <eigen3/unsupported/Eigen/ArpackSupport>
 #include <visualization_msgs/Marker.h>
 #include <arc_utilities/voxel_grid.hpp>
 #include <arc_utilities/arc_helpers.hpp>
