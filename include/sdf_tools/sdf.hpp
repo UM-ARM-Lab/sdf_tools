@@ -89,6 +89,7 @@ namespace sdf_tools
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
         typedef std::shared_ptr<SignedDistanceField> Ptr;
+        typedef std::shared_ptr<const SignedDistanceField> ConstPtr;
 
         SignedDistanceField(std::string frame, double resolution, double x_size, double y_size, double z_size, float OOB_value);
 
