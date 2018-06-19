@@ -62,6 +62,7 @@ uint64_t TaggedObjectCollisionMapGrid::SerializeSelf(
         oob_value_, buffer);
   // Serialize TaggedObjectCollisionMapGrid stuff
   arc_helpers::SerializeFixedSizePOD<uint32_t>(number_of_components_, buffer);
+  arc_helpers::SerializeFixedSizePOD<uint32_t>(number_of_convex_segments_, buffer);
   arc_helpers::SerializeString(frame_, buffer);
   arc_helpers::SerializeFixedSizePOD<uint8_t>((uint8_t)components_valid_,
                                               buffer);
@@ -199,6 +200,11 @@ uint64_t TaggedObjectCollisionMapGrid::DeserializeSelf(
                                                        current_position);
   number_of_components_ = number_of_components_deserialized.first;
   current_position += number_of_components_deserialized.second;
+  const std::pair<uint32_t, uint64_t> number_of_convex_segments_deserialized
+      = arc_helpers::DeserializeFixedSizePOD<uint32_t>(buffer,
+                                                       current_position);
+  number_of_convex_segments_ = number_of_convex_segments_deserialized.first;
+  current_position += number_of_convex_segments_deserialized.second;
   const std::pair<std::string, uint64_t> frame_deserialized
       = arc_helpers::DeserializeString<char>(buffer, current_position);
   frame_ = frame_deserialized.first;
@@ -540,6 +546,91 @@ TaggedObjectCollisionMapGrid::ExtractComponentSurfaces(
   return topology_computation::ExtractComponentSurfaces(*this,
                                                         get_component_fn,
                                                         is_surface_index_fn);
+}
+
+uint32_t TaggedObjectCollisionMapGrid::UpdateConvexSegments(
+    const double connected_threshold)
+{
+  const auto sdf_result
+      = ExtractSignedDistanceField(std::numeric_limits<float>::infinity(),
+                                   std::vector<uint32_t>());
+  const SignedDistanceField& sdf = sdf_result.first;
+  const VoxelGrid<Eigen::Vector3d> extrema_map = sdf.ComputeLocalExtremaMap();
+  // Make the helper functions
+  const std::function<bool(const GRID_INDEX&, const GRID_INDEX&)>
+    are_connected_fn
+      = [&] (const GRID_INDEX& index1, const GRID_INDEX& index2)
+  {
+    auto query1 = GetImmutable(index1);
+    auto query2 = GetImmutable(index2);
+    assert(query1.second);
+    assert(query2.second);
+    if (query1.first.object_id == query2.first.object_id)
+    {
+      auto exmap_query1 = extrema_map.GetImmutable(index1);
+      auto examp_query2 = extrema_map.GetImmutable(index2);
+      assert(exmap_query1.second);
+      assert(examp_query2.second);
+      const double maxima_distance
+          = (exmap_query1.first - examp_query2.first).norm();
+      if (maxima_distance < connected_threshold)
+      {
+        return true;
+      }
+      else
+      {
+        return false;
+      }
+    }
+    else
+    {
+      return false;
+    }
+  };
+  const std::function<int64_t(const GRID_INDEX&)> get_component_fn
+      = [&] (const GRID_INDEX& index)
+  {
+    auto query = GetImmutable(index);
+    auto extrema_query = extrema_map.GetImmutable(index);
+    if (query.second)
+    {
+      const Eigen::Vector3d& extrema = extrema_query.first;
+      if (!std::isinf(extrema.x())
+          && !std::isinf(extrema.y())
+          && !std::isinf(extrema.z()))
+      {
+        return (int64_t)query.first.convex_segment;
+      }
+      else
+      {
+        return (int64_t)-1;
+      }
+    }
+    else
+    {
+      return (int64_t)-1;
+    }
+  };
+  const std::function<void(const GRID_INDEX&, const uint32_t)>
+    mark_component_fn
+      = [&] (const GRID_INDEX& index, const uint32_t component)
+  {
+    auto query = GetMutable(index);
+    if (query.second)
+    {
+      SetValue(index, TAGGED_OBJECT_COLLISION_CELL(query.first.occupancy,
+                                                   query.first.object_id,
+                                                   query.first.component,
+                                                   component));
+    }
+  };
+  number_of_convex_segments_
+      = topology_computation::ComputeConnectedComponents(*this,
+                                                         are_connected_fn,
+                                                         get_component_fn,
+                                                         mark_component_fn);
+  convex_segments_valid_ = true;
+  return number_of_convex_segments_;
 }
 
 visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
@@ -972,7 +1063,7 @@ TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(
         const TAGGED_OBJECT_COLLISION_CELL& current_cell
             = GetImmutable(x_index, y_index, z_index).first;
         if ((current_cell.object_id == object_id)
-            && (current_cell.IsPartOfConvexSegment(convex_segment)))
+            && (current_cell.convex_segment == convex_segment))
         {
           // Convert grid indices into a real-world location
           const Eigen::Vector4d location

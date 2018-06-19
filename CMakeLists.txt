@@ -111,6 +111,10 @@ add_executable(estimate_distance_test src/estimate_distance_test.cpp)
 add_dependencies(estimate_distance_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
 target_link_libraries(estimate_distance_test ${catkin_LIBRARIES} ${PROJECT_NAME})
 
+add_executable(compute_convex_segments_test src/compute_convex_segments_test.cpp)
+add_dependencies(compute_convex_segments_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(compute_convex_segments_test ${catkin_LIBRARIES} ${PROJECT_NAME})
+
 # Image to SDF node
 add_executable(image_2d_sdf_node src/image_2d_sdf_node.cpp)
 add_dependencies(image_2d_sdf_node ${catkin_EXPORTED_TARGETS})

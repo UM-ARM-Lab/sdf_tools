@@ -127,23 +127,22 @@ uint32_t ComputeConnectedComponents(
       {
         const GRID_INDEX index(x_index, y_index, z_index);
         // Check if the cell has already been marked, if so, ignore
-        if (get_component_fn(index) > 0)
+        if (get_component_fn(index) == 0)
         {
-          continue;
-        }
-        // Start marking a new connected component
-        connected_components++;
-        const int64_t cells_marked
-            = MarkConnectedComponent(source_grid,
-                                     are_connected_fn,
-                                     get_component_fn,
-                                     mark_component_fn,
-                                     index, connected_components);
-        marked_cells += cells_marked;
-        // Short-circuit if we've marked everything
-        if (marked_cells == total_cells)
-        {
-          return connected_components;
+          // Start marking a new connected component
+          connected_components++;
+          const int64_t cells_marked
+              = MarkConnectedComponent(source_grid,
+                                       are_connected_fn,
+                                       get_component_fn,
+                                       mark_component_fn,
+                                       index, connected_components);
+          marked_cells += cells_marked;
+          // Short-circuit if we've marked everything
+          if (marked_cells == total_cells)
+          {
+            return connected_components;
+          }
         }
       }
     }

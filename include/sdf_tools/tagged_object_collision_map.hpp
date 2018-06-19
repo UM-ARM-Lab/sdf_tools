@@ -50,62 +50,6 @@ struct TAGGED_OBJECT_COLLISION_CELL
                                const uint32_t in_convex_segment)
     : occupancy(in_occupancy), component(in_component),
       object_id(in_object_id), convex_segment(in_convex_segment) {}
-
-  bool SharesConvexSegment(const TAGGED_OBJECT_COLLISION_CELL& other) const
-  {
-    if ((convex_segment & other.convex_segment) > 0)
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
-  }
-
-  std::vector<uint32_t> GetListOfConvexSegments() const
-  {
-    uint32_t temp_convex_segment = convex_segment;
-    std::vector<uint32_t> convex_segments;
-    for (uint32_t segment = 1; segment <= 32; segment++)
-    {
-      if ((temp_convex_segment & 0x00000001) == 1)
-      {
-        convex_segments.push_back(segment);
-      }
-      temp_convex_segment = temp_convex_segment >> 1;
-    }
-    return convex_segments;
-  }
-
-  bool IsPartOfConvexSegment(const uint32_t segment) const
-  {
-    assert(segment >= 1);
-    assert(segment <= 32);
-    const uint32_t mask = arc_helpers::SetBit(0u, segment - 1, true);
-    if ((mask & convex_segment) > 0)
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
-  }
-
-  void AddToConvexSegment(const uint32_t segment)
-  {
-    assert(segment >= 1);
-    assert(segment <= 32);
-    convex_segment = arc_helpers::SetBit(convex_segment, segment - 1, true);
-  }
-
-  void RemoveFromConvexSegment(const uint32_t segment)
-  {
-    assert(segment >= 1);
-    assert(segment <= 32);
-    convex_segment = arc_helpers::SetBit(convex_segment, segment - 1, false);
-  }
 };
 
 class TaggedObjectCollisionMapGrid
@@ -235,6 +179,7 @@ protected:
   }
 
   uint32_t number_of_components_;
+  uint32_t number_of_convex_segments_;
   std::string frame_;
   bool components_valid_;
   bool convex_segments_valid_;
@@ -257,6 +202,7 @@ public:
         x_size, y_size, z_size,
         default_value, OOB_value),
       number_of_components_(0u),
+      number_of_convex_segments_(0u),
       frame_(frame),
       components_valid_(false) {}
 
@@ -271,6 +217,7 @@ public:
     : VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL>(
         resolution, x_size, y_size, z_size, default_value, OOB_value),
       number_of_components_(0u),
+      number_of_convex_segments_(0u),
       frame_(frame),
       components_valid_(false) {}
 
@@ -287,6 +234,7 @@ public:
         x_size, y_size, z_size,
         oob_default_value),
       number_of_components_(0u),
+      number_of_convex_segments_(0u),
       frame_(frame),
       components_valid_(false) {}
 
@@ -300,12 +248,14 @@ public:
     : VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL>(
         resolution, x_size, y_size, z_size, oob_default_value),
       number_of_components_(0u),
+      number_of_convex_segments_(0u),
       frame_(frame),
       components_valid_(false) {}
 
   inline TaggedObjectCollisionMapGrid()
     : VoxelGrid::VoxelGrid<TAGGED_OBJECT_COLLISION_CELL>(),
-      number_of_components_(0),
+      number_of_components_(0u),
+      number_of_convex_segments_(0u),
       frame_(""),
       components_valid_(false),
       convex_segments_valid_(false) {}
@@ -535,6 +485,11 @@ public:
     return std::pair<uint32_t, bool>(number_of_components_, components_valid_);
   }
 
+  inline std::pair<uint32_t, bool> GetNumConvexSegments() const
+  {
+    return std::pair<uint32_t, bool>(number_of_convex_segments_, convex_segments_valid_);
+  }
+
   inline std::pair<bool, bool> CheckIfCandidateCorner3d(
       const Eigen::Vector3d& location) const
   {
@@ -739,45 +694,7 @@ public:
                                                       GetFrame());
   }
 
-  std::map<uint32_t, uint32_t> UpdateConvexSegments(
-      const bool enable_experimental_features=false)
-  {
-    // First, we need connected components to be accurate
-    UpdateConnectedComponents();
-    // Some day, we will do real work here. Until then, this  does nothing
-    if (enable_experimental_features)
-    {
-      ;
-    }
-    convex_segments_valid_ = true;
-    // Return a map of object_id to # of convex segments in the object
-    std::map<uint32_t, uint32_t> convex_segment_counts;
-    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
-    {
-      for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
-      {
-        for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
-        {
-          const TAGGED_OBJECT_COLLISION_CELL& cell
-              = GetImmutable(x_index, y_index, z_index).first;
-          const uint32_t cell_object_id = cell.object_id;
-          const std::vector<uint32_t> cell_convex_segments
-              = cell.GetListOfConvexSegments();
-          if (cell_convex_segments.size() > 0)
-          {
-            const uint32_t max_segment_number
-                = *std::max_element(cell_convex_segments.begin(),
-                                    cell_convex_segments.end());
-            if (max_segment_number > convex_segment_counts[cell_object_id])
-            {
-              convex_segment_counts[cell_object_id] = max_segment_number;
-            }
-          }
-        }
-      }
-    }
-    return convex_segment_counts;
-  }
+  uint32_t UpdateConvexSegments(const double connected_threshold);
 
   std::map<uint32_t, sdf_tools::SignedDistanceField> MakeObjectSDFs(
       const std::vector<uint32_t>& object_ids) const

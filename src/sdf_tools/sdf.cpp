@@ -442,11 +442,70 @@ visualization_msgs::Marker SignedDistanceField::ExportForDisplayCollisionOnly(
   return display_rep;
 }
 
-void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(
+bool SignedDistanceField::GradientIsEffectiveFlat(
+    const Eigen::Vector3d& gradient) const
+{
+  // A gradient is at a local maxima if the absolute value of all components
+  // (x,y,z) are less than 1/2 SDF resolution
+  const double step_resolution = GetResolution() * 0.06125;
+  if (std::abs(gradient.x()) <= step_resolution
+      && std::abs(gradient.y()) <= step_resolution
+      && std::abs(gradient.z()) <= step_resolution)
+  {
+      return true;
+  }
+  else
+  {
+      return false;
+  }
+}
+
+GRID_INDEX SignedDistanceField::GetNextFromGradient(
+    const GRID_INDEX& index,
+    const Eigen::Vector3d& gradient) const
+{
+  // Check if it's inside an obstacle
+  const float stored_distance = GetImmutable(index).first;
+  Eigen::Vector3d working_gradient = gradient;
+  if (stored_distance < 0.0)
+  {
+    working_gradient = gradient * -1.0;
+  }
+  // Given the gradient, pick the "best fit" of the 26 neighboring points
+  GRID_INDEX next_index = index;
+  const double step_resolution = GetResolution() * 0.06125;
+  if (working_gradient.x() > step_resolution)
+  {
+      next_index.x++;
+  }
+  else if (working_gradient.x() < -step_resolution)
+  {
+      next_index.x--;
+  }
+  if (working_gradient.y() > step_resolution)
+  {
+      next_index.y++;
+  }
+  else if (working_gradient.y() < -step_resolution)
+  {
+      next_index.y--;
+  }
+  if (working_gradient.z() > step_resolution)
+  {
+      next_index.z++;
+  }
+  else if (working_gradient.z() < -step_resolution)
+  {
+      next_index.z--;
+  }
+  return next_index;
+}
+
+void SignedDistanceField::FollowGradientsToLocalExtremaUnsafe(
     VoxelGrid<Eigen::Vector3d>& watershed_map,
     const int64_t x_index, const int64_t y_index, const int64_t z_index) const
 {
-  // First, check if we've already found the local maxima for the current cell
+  // First, check if we've already found the local extrema for the current cell
   const Eigen::Vector3d& stored
       = watershed_map.GetImmutable(x_index, y_index, z_index).first;
   if (stored.x() != -std::numeric_limits<double>::infinity()
@@ -456,107 +515,97 @@ void SignedDistanceField::FollowGradientsToLocalMaximaUnsafe(
     // We've already found it for this cell, so we can skip it
     return;
   }
-  // Second, check if it's inside an obstacle
-  const float stored_distance = GetImmutable(x_index, y_index, z_index).first;
-  if (stored_distance <= 0.0)
+  // Find the local extrema
+  std::vector<double> raw_gradient
+      = GetGradient(x_index, y_index, z_index, true);
+  Eigen::Vector3d gradient_vector(raw_gradient[0],
+                                  raw_gradient[1],
+                                  raw_gradient[2]);
+  if (GradientIsEffectiveFlat(gradient_vector))
   {
-    // It's inside an object, so we can skip it
-    return;
+    const Eigen::Vector4d location
+        = GridIndexToLocationGridFrame(x_index, y_index, z_index);
+    const Eigen::Vector3d local_extrema(location(0), location(1), location(2));
+    watershed_map.SetValue(x_index, y_index, z_index, local_extrema);
   }
   else
   {
-    // Find the local maxima
-    std::vector<double> raw_gradient
-        = GetGradient(x_index, y_index, z_index, true);
-    Eigen::Vector3d gradient_vector(raw_gradient[0],
-                                    raw_gradient[1],
-                                    raw_gradient[2]);
-    if (GradientIsEffectiveFlat(gradient_vector))
+    // Follow the gradient, one cell at a time, until we reach a local maxima
+    std::unordered_map<GRID_INDEX, int8_t> path;
+    GRID_INDEX current_index(x_index, y_index, z_index);
+    path[current_index] = 1;
+    Eigen::Vector3d local_extrema(-std::numeric_limits<double>::infinity(),
+                                  -std::numeric_limits<double>::infinity(),
+                                  -std::numeric_limits<double>::infinity());
+    while (true)
     {
-      const Eigen::Vector4d location
-          = GridIndexToLocationGridFrame(x_index, y_index, z_index);
-      Eigen::Vector3d local_maxima(location(0), location(1), location(2));
-      watershed_map.SetValue(x_index, y_index, z_index, local_maxima);
-    }
-    else
-    {
-      // Follow the gradient, one cell at a time, until we reach a local maxima
-      std::unordered_map<GRID_INDEX, int8_t> path;
-      GRID_INDEX current_index(x_index, y_index, z_index);
-      path[current_index] = 1;
-      Eigen::Vector3d local_maxima(-std::numeric_limits<double>::infinity(),
-                                   -std::numeric_limits<double>::infinity(),
-                                   -std::numeric_limits<double>::infinity());
-      while (true)
+      if (path.size() == 10000)
       {
-        if (path.size() == 10000)
-        {
-          std::cerr << "Warning, gradient path is long (i.e >= 10000 steps)"
-                    << std::endl;
-        }
-        current_index = GetNextFromGradient(current_index, gradient_vector);
-        if (path[current_index] != 0)
-        {
-          // If we've already been here, then we are done
-          const Eigen::Vector4d location
-              = GridIndexToLocationGridFrame(current_index);
-          local_maxima = Eigen::Vector3d(location(0), location(1), location(2));
-          break;
-        }
-        // Check if we've been pushed past the edge
-        if (current_index.x < 0 || current_index.y < 0 || current_index.z < 0
-            || current_index.x >= watershed_map.GetNumXCells()
-            || current_index.y >= watershed_map.GetNumYCells()
-            || current_index.z >= watershed_map.GetNumZCells())
-        {
-          // We have the "off the grid" local maxima
-          local_maxima
-              = Eigen::Vector3d(std::numeric_limits<double>::infinity(),
-                                std::numeric_limits<double>::infinity(),
-                                std::numeric_limits<double>::infinity());
-          break;
-        }
-        path[current_index] = 1;
-        // Check if the new index has already been checked
-        const Eigen::Vector3d& new_stored
-            = watershed_map.GetImmutable(current_index).first;
-        if (new_stored.x() != -std::numeric_limits<double>::infinity()
-            && new_stored.y() != -std::numeric_limits<double>::infinity()
-            && new_stored.z() != -std::numeric_limits<double>::infinity())
+        std::cerr << "Warning, gradient path is long (i.e >= 10000 steps)"
+                  << std::endl;
+      }
+      current_index = GetNextFromGradient(current_index, gradient_vector);
+      if (path[current_index] != 0)
+      {
+        // If we've already been here, then we are done
+        const Eigen::Vector4d location
+            = GridIndexToLocationGridFrame(current_index);
+        local_extrema = Eigen::Vector3d(location(0), location(1), location(2));
+        break;
+      }
+      // Check if we've been pushed past the edge
+      if (current_index.x < 0 || current_index.y < 0 || current_index.z < 0
+          || current_index.x >= watershed_map.GetNumXCells()
+          || current_index.y >= watershed_map.GetNumYCells()
+          || current_index.z >= watershed_map.GetNumZCells())
+      {
+        // We have the "off the grid" local maxima
+        local_extrema
+            = Eigen::Vector3d(std::numeric_limits<double>::infinity(),
+                              std::numeric_limits<double>::infinity(),
+                              std::numeric_limits<double>::infinity());
+        break;
+      }
+      path[current_index] = 1;
+      // Check if the new index has already been checked
+      const Eigen::Vector3d& new_stored
+          = watershed_map.GetImmutable(current_index).first;
+      if (new_stored.x() != -std::numeric_limits<double>::infinity()
+          && new_stored.y() != -std::numeric_limits<double>::infinity()
+          && new_stored.z() != -std::numeric_limits<double>::infinity())
+      {
+        // We have the local maxima
+        local_extrema = new_stored;
+        break;
+      }
+      else
+      {
+        raw_gradient = GetGradient(current_index, true);
+        gradient_vector = Eigen::Vector3d(raw_gradient[0],
+                                          raw_gradient[1],
+                                          raw_gradient[2]);
+        if (GradientIsEffectiveFlat(gradient_vector))
         {
           // We have the local maxima
-          local_maxima = new_stored;
+          const Eigen::Vector4d location
+              = GridIndexToLocationGridFrame(current_index);
+          local_extrema
+              = Eigen::Vector3d(location(0), location(1), location(2));
           break;
         }
-        else
-        {
-          raw_gradient = GetGradient(current_index, true);
-          gradient_vector = Eigen::Vector3d(raw_gradient[0],
-                                            raw_gradient[1],
-                                            raw_gradient[2]);
-          if (GradientIsEffectiveFlat(gradient_vector))
-          {
-            // We have the local maxima
-            const Eigen::Vector4d location
-                = GridIndexToLocationGridFrame(current_index);
-            local_maxima
-                = Eigen::Vector3d(location(0), location(1), location(2));
-            break;
-          }
-        }
       }
-      // Now, go back and mark the entire explored path with the local maxima
-      for (auto path_itr = path.begin(); path_itr != path.end(); ++path_itr)
-      {
-        const GRID_INDEX& index = path_itr->first;
-        watershed_map.SetValue(index, local_maxima);
-      }
+    }
+    // Now, go back and mark the entire explored path with the local maxima
+    for (auto path_itr = path.begin(); path_itr != path.end(); ++path_itr)
+    {
+      const GRID_INDEX& index = path_itr->first;
+      watershed_map.SetValue(index, local_extrema);
     }
   }
 }
 
 VoxelGrid::VoxelGrid<Eigen::Vector3d>
-SignedDistanceField::ComputeLocalMaximaMap() const
+SignedDistanceField::ComputeLocalExtremaMap() const
 {
   VoxelGrid<Eigen::Vector3d> watershed_map(
         GetOriginTransform(), GetResolution(),
@@ -572,7 +621,7 @@ SignedDistanceField::ComputeLocalMaximaMap() const
       {
         // We use an "unsafe" function here because we know all the indices
         // we provide it will be safe
-        FollowGradientsToLocalMaximaUnsafe(watershed_map, x_idx, y_idx, z_idx);
+        FollowGradientsToLocalExtremaUnsafe(watershed_map, x_idx, y_idx, z_idx);
       }
     }
   }

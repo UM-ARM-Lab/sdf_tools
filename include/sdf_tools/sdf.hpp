@@ -31,11 +31,16 @@ protected:
    * You *MUST* provide valid indices to this function, hence why it is
    * protected (there are safe wrappers available - use them!)
    */
-  void FollowGradientsToLocalMaximaUnsafe(
+  void FollowGradientsToLocalExtremaUnsafe(
       VoxelGrid<Eigen::Vector3d>& watershed_map,
       const int64_t x_index,
       const int64_t y_index,
       const int64_t z_index) const;
+
+  bool GradientIsEffectiveFlat(const Eigen::Vector3d& gradient) const;
+
+  GRID_INDEX GetNextFromGradient(const GRID_INDEX& index,
+                                 const Eigen::Vector3d& gradient) const;
 
 public:
 
@@ -979,60 +984,9 @@ public:
 
   /*
    * The following function can be *VERY EXPENSIVE* to compute, since it
-   * performs gradient ascent across the SDF
+   * performs gradient ascent/descent across the SDF
    */
-  VoxelGrid<Eigen::Vector3d> ComputeLocalMaximaMap() const;
-
-  inline bool GradientIsEffectiveFlat(const Eigen::Vector3d& gradient) const
-  {
-    // A gradient is at a local maxima if the absolute value of all components
-    // (x,y,z) are less than 1/2 SDF resolution
-    const double half_resolution = GetResolution() * 0.5;
-    if (std::abs(gradient.x()) <= half_resolution
-        && std::abs(gradient.y()) <= half_resolution
-        && std::abs(gradient.z()) <= half_resolution)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-  }
-
-  inline GRID_INDEX GetNextFromGradient(
-      const GRID_INDEX& index,
-      const Eigen::Vector3d& gradient) const
-  {
-    // Given the gradient, pick the "best fit" of the 26 neighboring points
-    GRID_INDEX next_index = index;
-    const double half_resolution = GetResolution() * 0.5;
-    if (gradient.x() > half_resolution)
-    {
-        next_index.x++;
-    }
-    else if (gradient.x() < -half_resolution)
-    {
-        next_index.x--;
-    }
-    if (gradient.y() > half_resolution)
-    {
-        next_index.y++;
-    }
-    else if (gradient.y() < -half_resolution)
-    {
-        next_index.y--;
-    }
-    if (gradient.z() > half_resolution)
-    {
-        next_index.z++;
-    }
-    else if (gradient.z() < -half_resolution)
-    {
-        next_index.z--;
-    }
-    return next_index;
-  }
+  VoxelGrid<Eigen::Vector3d> ComputeLocalExtremaMap() const;
 };
 }
 
