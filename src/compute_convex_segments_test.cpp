@@ -28,9 +28,13 @@ void test_compute_convex_segments(
       {
         tocmap.SetValue(x_idx, y_idx, 0, sdf_tools::TAGGED_OBJECT_COLLISION_CELL(1.0, 2u));
       }
-      if ((x_idx == 0) || (y_idx == 0) || (x_idx == tocmap.GetNumXCells() - 1) || (y_idx == tocmap.GetNumYCells() - 1))
+      if (((x_idx >= 45) && (x_idx < 55)) || ((y_idx >= 45) && (y_idx < 55)))
       {
         tocmap.SetValue(x_idx, y_idx, 0, sdf_tools::TAGGED_OBJECT_COLLISION_CELL(0.0, 0u));
+      }
+      if ((x_idx == 0) || (y_idx == 0) || (x_idx == tocmap.GetNumXCells() - 1) || (y_idx == tocmap.GetNumYCells() - 1))
+      {
+        tocmap.SetValue(x_idx, y_idx, 0, sdf_tools::TAGGED_OBJECT_COLLISION_CELL(1.0, 0u));
       }
     }
   }
@@ -43,10 +47,6 @@ void test_compute_convex_segments(
   components_marker.id = 1;
   components_marker.ns = "environment_components";
   display_markers.markers.push_back(components_marker);
-  visualization_msgs::Marker sdf_marker = tocmap.ExtractSignedDistanceField(0.0, std::vector<uint32_t>()).first.ExportForDisplay(1.0f);
-  sdf_marker.id = 1;
-  sdf_marker.ns = "environment_sdf";
-  display_markers.markers.push_back(sdf_marker);
   const double connected_threshold = 2.0;
   const uint32_t number_of_convex_segments = tocmap.UpdateConvexSegments(connected_threshold);
   std::cout << "Identified " << number_of_convex_segments
@@ -110,9 +110,13 @@ void test_compute_convex_segments(
     }
   }
   const auto sdf_result
-      = tocmap.ExtractSignedDistanceField(std::numeric_limits<float>::infinity(),
-                                          std::vector<uint32_t>());
+      = tocmap.ExtractFreeAndNamedObjectsSignedDistanceField(std::numeric_limits<float>::infinity());
+  std::cout << "SDF extrema: " << PrettyPrint::PrettyPrint(sdf_result.second) << std::endl;
   const sdf_tools::SignedDistanceField& sdf = sdf_result.first;
+  visualization_msgs::Marker sdf_marker = sdf.ExportForDisplay(1.0f);
+  sdf_marker.id = 1;
+  sdf_marker.ns = "environment_sdf";
+  display_markers.markers.push_back(sdf_marker);
   const VoxelGrid::VoxelGrid<Eigen::Vector3d> maxima_map = sdf.ComputeLocalExtremaMap();
   // Make gradient markers
   for (int64_t x_idx = 0; x_idx < sdf.GetNumXCells(); x_idx++)

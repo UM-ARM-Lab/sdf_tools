@@ -104,7 +104,7 @@ namespace sdf_generation
         // Make the DistanceField container
         bucket_cell default_cell;
         default_cell.distance_square = std::numeric_limits<double>::infinity();
-        DistanceField distance_field(grid.GetOriginTransform(), cell_sizes.x(), grid.GetXSize(), grid.GetYSize(), grid.GetZSize(), default_cell);
+        DistanceField distance_field(grid.GetOriginTransform(), cell_sizes.x(), grid.GetNumXCells(), grid.GetNumYCells(), grid.GetNumZCells(), default_cell);
         // Compute maximum distance square
         long max_distance_square = (distance_field.GetNumXCells() * distance_field.GetNumXCells()) + (distance_field.GetNumYCells() * distance_field.GetNumYCells()) + (distance_field.GetNumZCells() * distance_field.GetNumZCells());
         // Make bucket queue
@@ -132,7 +132,7 @@ namespace sdf_generation
             // If the point is outside the bounds of the SDF, skip
             else
             {
-                continue;
+                throw std::runtime_error("Point for BuildDistanceField out of bounds");
             }
         }
         // Process the bucket queue
@@ -245,11 +245,11 @@ namespace sdf_generation
         sdf_tools::SignedDistanceField new_sdf(grid.GetOriginTransform(), frame, cell_sizes.x(), grid.GetXSize(), grid.GetYSize(), grid.GetZSize(), oob_value);
         double max_distance = -std::numeric_limits<double>::infinity();
         double min_distance = std::numeric_limits<double>::infinity();
-        for (int64_t x_index = 0; x_index < filled_distance_field.GetNumXCells(); x_index++)
+        for (int64_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
         {
-            for (int64_t y_index = 0; y_index < filled_distance_field.GetNumYCells(); y_index++)
+            for (int64_t y_index = 0; y_index < new_sdf.GetNumYCells(); y_index++)
             {
-                for (int64_t z_index = 0; z_index < filled_distance_field.GetNumZCells(); z_index++)
+                for (int64_t z_index = 0; z_index < new_sdf.GetNumZCells(); z_index++)
                 {
                     const double distance1 = std::sqrt(filled_distance_field.GetImmutable(x_index, y_index, z_index).first.distance_square) * new_sdf.GetResolution();
                     const double distance2 = std::sqrt(free_distance_field.GetImmutable(x_index, y_index, z_index).first.distance_square) * new_sdf.GetResolution();

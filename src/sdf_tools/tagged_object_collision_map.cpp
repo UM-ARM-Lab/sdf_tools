@@ -552,8 +552,8 @@ uint32_t TaggedObjectCollisionMapGrid::UpdateConvexSegments(
     const double connected_threshold)
 {
   const auto sdf_result
-      = ExtractSignedDistanceField(std::numeric_limits<float>::infinity(),
-                                   std::vector<uint32_t>());
+      = ExtractFreeAndNamedObjectsSignedDistanceField(
+          std::numeric_limits<float>::infinity());
   const SignedDistanceField& sdf = sdf_result.first;
   const VoxelGrid<Eigen::Vector3d> extrema_map = sdf.ComputeLocalExtremaMap();
   // Make the helper functions
@@ -594,15 +594,24 @@ uint32_t TaggedObjectCollisionMapGrid::UpdateConvexSegments(
     auto extrema_query = extrema_map.GetImmutable(index);
     if (query.second)
     {
-      const Eigen::Vector3d& extrema = extrema_query.first;
-      if (!std::isinf(extrema.x())
-          && !std::isinf(extrema.y())
-          && !std::isinf(extrema.z()))
+      if ((query.first.occupancy < 0.5f) || (query.first.object_id > 0u))
       {
-        return (int64_t)query.first.convex_segment;
+        const Eigen::Vector3d& extrema = extrema_query.first;
+        if (!std::isinf(extrema.x())
+            && !std::isinf(extrema.y())
+            && !std::isinf(extrema.z()))
+        {
+          return (int64_t)query.first.convex_segment;
+        }
+        else
+        {
+          // Ignore cells with infinite extrema
+          return (int64_t)-1;
+        }
       }
       else
       {
+        // Ignore filled cells that don't belong to an object
         return (int64_t)-1;
       }
     }
@@ -1074,9 +1083,20 @@ TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(
           new_point.z = location(2);
           display_rep.points.push_back(new_point);
           // Generate a color
-          const std_msgs::ColorRGBA color
-              = GenerateComponentColor(convex_segment);
-          display_rep.colors.push_back(color);
+          if (number_of_convex_segments_ < 22)
+          {
+            const std_msgs::ColorRGBA color
+                = GenerateComponentColor(convex_segment);
+            display_rep.colors.push_back(color);
+          }
+          else
+          {
+            const std_msgs::ColorRGBA color
+                = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>
+                  ::InterpolateHotToCold(convex_segment, 1.0,
+                                         (double)number_of_convex_segments_);
+            display_rep.colors.push_back(color);
+          }
         }
       }
     }

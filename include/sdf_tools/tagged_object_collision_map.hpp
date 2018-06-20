@@ -663,6 +663,78 @@ public:
       const bool verbose);
 
   std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>>
+  ExtractFreeAndNamedObjectsSignedDistanceField(const float oob_value) const
+  {
+    // Make the helper function
+    const std::function<bool(const TAGGED_OBJECT_COLLISION_CELL& cell)>
+        free_sdf_filled_fn = [&] (const TAGGED_OBJECT_COLLISION_CELL& stored)
+    {
+      if (stored.occupancy > 0.5)
+      {
+        // Mark as filled
+        return true;
+      }
+      return false;
+    };
+    auto free_sdf_result =
+        sdf_generation::ExtractSignedDistanceField(*this,
+                                                   free_sdf_filled_fn,
+                                                   oob_value,
+                                                   GetFrame());
+    // Make the helper function
+    const std::function<bool(const TAGGED_OBJECT_COLLISION_CELL& cell)>
+        object_filled_fn = [&] (const TAGGED_OBJECT_COLLISION_CELL& stored)
+    {
+      // If it matches a named object (i.e. object_id >= 1)
+      if (stored.object_id > 0u)
+      {
+        if (stored.occupancy > 0.5)
+        {
+          // Mark as filled
+          return true;
+        }
+      }
+      return false;
+    };
+    auto named_objects_sdf_result =
+        sdf_generation::ExtractSignedDistanceField(*this,
+                                                   object_filled_fn,
+                                                   oob_value,
+                                                   GetFrame());
+    SignedDistanceField combined_sdf = free_sdf_result.first;
+    for (int64_t x_idx = 0; x_idx < combined_sdf.GetNumXCells(); x_idx++)
+    {
+      for (int64_t y_idx = 0; y_idx < combined_sdf.GetNumYCells(); y_idx++)
+      {
+        for (int64_t z_idx = 0; z_idx < combined_sdf.GetNumZCells(); z_idx++)
+        {
+          const float free_sdf_value
+              = free_sdf_result.first.GetImmutable(x_idx, y_idx, z_idx).first;
+          const float named_objects_sdf_value
+              = named_objects_sdf_result.first.GetImmutable(
+                  x_idx, y_idx, z_idx).first;
+          if (free_sdf_value >= 0.0)
+          {
+            combined_sdf.SetValue(x_idx, y_idx, z_idx, free_sdf_value);
+          }
+          else if (named_objects_sdf_value <= -0.0)
+          {
+            combined_sdf.SetValue(x_idx, y_idx, z_idx, named_objects_sdf_value);
+          }
+          else
+          {
+            combined_sdf.SetValue(x_idx, y_idx, z_idx, 0.0f);
+          }
+        }
+      }
+    }
+    // Get the combined max/min values
+    const std::pair<double, double> combined_extrema(
+          free_sdf_result.second.first, named_objects_sdf_result.second.second);
+    return std::make_pair(combined_sdf, combined_extrema);
+  }
+
+  std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>>
   ExtractSignedDistanceField(const float oob_value,
                              const std::vector<uint32_t>& objects_to_use) const
   {
