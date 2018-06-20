@@ -766,6 +766,11 @@ public:
                                                       GetFrame());
   }
 
+  /*
+   * Right now, you need the outside layer of cells on the grid to have the
+   * special value occupancy=1.0, object_id=0u for boundaries to be handled
+   * properly and all objects + free space to be segmented.
+   */
   uint32_t UpdateConvexSegments(const double connected_threshold);
 
   std::map<uint32_t, sdf_tools::SignedDistanceField> MakeObjectSDFs(
