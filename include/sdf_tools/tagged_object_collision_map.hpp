@@ -260,6 +260,12 @@ public:
       components_valid_(false),
       convex_segments_valid_(false) {}
 
+  virtual VoxelGrid<TAGGED_OBJECT_COLLISION_CELL>* Clone() const
+  {
+    return new TaggedObjectCollisionMapGrid(
+          static_cast<const TaggedObjectCollisionMapGrid&>(*this));
+  }
+
   inline bool AreComponentsValid() const
   {
     return components_valid_;
@@ -736,7 +742,8 @@ public:
 
   std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>>
   ExtractSignedDistanceField(const float oob_value,
-                             const std::vector<uint32_t>& objects_to_use) const
+                             const std::vector<uint32_t>& objects_to_use,
+                             const bool add_virtual_border=false) const
   {
     // To make this faster, we put the objects to use into a map
     std::map<uint32_t, uint8_t> object_use_map;
@@ -745,33 +752,49 @@ public:
       object_use_map[objects_to_use[idx]] = 1;
     }
     // Make the helper function
-    const std::function<bool(const TAGGED_OBJECT_COLLISION_CELL& cell)>
-        is_filled_fn = [&] (const TAGGED_OBJECT_COLLISION_CELL& stored)
+    const std::function<bool(const GRID_INDEX&)>
+        is_filled_fn = [&] (const GRID_INDEX& index)
     {
-      // If it matches an object to use OR there are no objects supplied
-      if ((object_use_map[stored.object_id] == 1)
-          || (objects_to_use.size() == 0))
+      const auto query = GetImmutable(index);
+      if (query.second)
       {
-        if (stored.occupancy > 0.5)
+        // If it matches an object to use OR there are no objects supplied
+        if ((object_use_map[query.first.object_id] == 1)
+            || (objects_to_use.size() == 0))
         {
-          // Mark as filled
-          return true;
+          if (query.first.occupancy > 0.5)
+          {
+            // Mark as filled
+            return true;
+          }
         }
+        return false;
       }
-      return false;
+      else
+      {
+        throw std::runtime_error("index out of grid bounds");
+      }
     };
-    return sdf_generation::ExtractSignedDistanceField(*this,
-                                                      is_filled_fn,
-                                                      oob_value,
-                                                      GetFrame());
+    return sdf_generation::ExtractSignedDistanceField(
+          *this, is_filled_fn, oob_value, GetFrame(), add_virtual_border);
   }
 
   /*
-   * Right now, you need the outside layer of cells on the grid to have the
-   * special value occupancy=1.0, object_id=0u for boundaries to be handled
-   * properly and all objects + free space to be segmented.
+   * Options for handling the edges of the grid in convex segmentation:
+   *
+   * add_virtual_border=false: Uses the current grid as-is. If the outside cells
+   * (for any axis more than one layer thick) use the special value
+   * occupancy>=0.5 and object_id=0u, all interior (non-edge-layer) free and
+   * filled areas will be completely segmented. If not, artifacts or
+   * incompletely-segmented areas will result.
+   *
+   * add_virtual_border=true: Adds the equivalent of an additional layer of
+   * cells with special value occupancy>=0.5 and object_id=0u around the grid.
+   * All free and filled areas will be completely segmented. This option is the
+   * most expensive in terms of memory and computation.
    */
-  uint32_t UpdateConvexSegments(const double connected_threshold);
+  uint32_t UpdateConvexSegments(const double connected_threshold,
+                                const bool add_virtual_border);
 
   std::map<uint32_t, sdf_tools::SignedDistanceField> MakeObjectSDFs(
       const std::vector<uint32_t>& object_ids) const

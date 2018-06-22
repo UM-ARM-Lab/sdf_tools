@@ -32,10 +32,10 @@ void test_compute_convex_segments(
       {
         tocmap.SetValue(x_idx, y_idx, 0, sdf_tools::TAGGED_OBJECT_COLLISION_CELL(0.0, 0u));
       }
-      if ((x_idx == 0) || (y_idx == 0) || (x_idx == tocmap.GetNumXCells() - 1) || (y_idx == tocmap.GetNumYCells() - 1))
-      {
-        tocmap.SetValue(x_idx, y_idx, 0, sdf_tools::TAGGED_OBJECT_COLLISION_CELL(1.0, 0u));
-      }
+//      if ((x_idx == 0) || (y_idx == 0) || (x_idx == tocmap.GetNumXCells() - 1) || (y_idx == tocmap.GetNumYCells() - 1))
+//      {
+//        tocmap.SetValue(x_idx, y_idx, 0, sdf_tools::TAGGED_OBJECT_COLLISION_CELL(1.0, 0u));
+//      }
     }
   }
   visualization_msgs::MarkerArray display_markers;
@@ -48,9 +48,13 @@ void test_compute_convex_segments(
   components_marker.ns = "environment_components";
   display_markers.markers.push_back(components_marker);
   const double connected_threshold = 2.0;
-  const uint32_t number_of_convex_segments = tocmap.UpdateConvexSegments(connected_threshold);
-  std::cout << "Identified " << number_of_convex_segments
-            << " convex segments via SDF->maxima map->connected components"
+  const uint32_t number_of_convex_segments_manual_border = tocmap.UpdateConvexSegments(connected_threshold, false);
+  std::cout << "Identified " << number_of_convex_segments_manual_border
+            << " convex segments via SDF->maxima map->connected components (no border added)"
+            << std::endl;
+  const uint32_t number_of_convex_segments_virtual_border = tocmap.UpdateConvexSegments(connected_threshold, true);
+  std::cout << "Identified " << number_of_convex_segments_virtual_border
+            << " convex segments via SDF->maxima map->connected components (virtual border added)"
             << std::endl;
   // Draw all the convex segments for each object
   visualization_msgs::Marker convex_segments_rep;
@@ -100,7 +104,15 @@ void test_compute_convex_segments(
   display_markers.markers.push_back(convex_segments_rep);
   for (uint32_t object_id = 0u; object_id <= 4u; object_id++)
   {
-    for (uint32_t convex_segment = 1u; convex_segment <= number_of_convex_segments; convex_segment++)
+    for (uint32_t convex_segment = 1u; convex_segment <= number_of_convex_segments_manual_border; convex_segment++)
+    {
+      const visualization_msgs::Marker segment_marker = tocmap.ExportConvexSegmentForDisplay(object_id, convex_segment);
+      if (segment_marker.points.size() > 0)
+      {
+        display_markers.markers.push_back(segment_marker);
+      }
+    }
+    for (uint32_t convex_segment = 1u; convex_segment <= number_of_convex_segments_virtual_border; convex_segment++)
     {
       const visualization_msgs::Marker segment_marker = tocmap.ExportConvexSegmentForDisplay(object_id, convex_segment);
       if (segment_marker.points.size() > 0)
@@ -110,63 +122,21 @@ void test_compute_convex_segments(
     }
   }
   const auto sdf_result
-      = tocmap.ExtractFreeAndNamedObjectsSignedDistanceField(std::numeric_limits<float>::infinity());
-  std::cout << "SDF extrema: " << PrettyPrint::PrettyPrint(sdf_result.second) << std::endl;
+      = tocmap.ExtractSignedDistanceField(std::numeric_limits<float>::infinity(), std::vector<uint32_t>());
+  std::cout << "(no border) SDF extrema: " << PrettyPrint::PrettyPrint(sdf_result.second) << std::endl;
   const sdf_tools::SignedDistanceField& sdf = sdf_result.first;
   visualization_msgs::Marker sdf_marker = sdf.ExportForDisplay(1.0f);
   sdf_marker.id = 1;
-  sdf_marker.ns = "environment_sdf";
+  sdf_marker.ns = "environment_sdf_no_border";
   display_markers.markers.push_back(sdf_marker);
-  const VoxelGrid::VoxelGrid<Eigen::Vector3d> maxima_map = sdf.ComputeLocalExtremaMap();
-  // Make gradient markers
-  for (int64_t x_idx = 0; x_idx < sdf.GetNumXCells(); x_idx++)
-  {
-    for (int64_t y_idx = 0; y_idx < sdf.GetNumYCells(); y_idx++)
-    {
-      for (int64_t z_idx = 0; z_idx < sdf.GetNumZCells(); z_idx++)
-      {
-        const Eigen::Vector4d location
-            = sdf.GridIndexToLocation(x_idx, y_idx, z_idx);
-        const Eigen::Vector3d extrema = maxima_map.GetImmutable(x_idx, y_idx, z_idx).first;
-        if (!std::isinf(extrema.x())
-            && !std::isinf(extrema.y())
-            && !std::isinf(extrema.z()))
-        {
-          visualization_msgs::Marker maxima_rep;
-          // Populate the header
-          maxima_rep.header.frame_id = "world";
-          // Populate the options
-          maxima_rep.ns = "maxima";
-          maxima_rep.id = (int32_t)sdf.HashDataIndex(x_idx, y_idx, z_idx);
-          maxima_rep.action = visualization_msgs::Marker::ADD;
-          maxima_rep.lifetime = ros::Duration(0.0);
-          maxima_rep.frame_locked = false;
-          maxima_rep.pose
-              = EigenHelpersConversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
-          const double distance = (extrema - location.block<3, 1>(0, 0)).norm();
-          if (distance > sdf.GetResolution())
-          {
-            maxima_rep.type = visualization_msgs::Marker::ARROW;
-            maxima_rep.points.push_back(EigenHelpersConversions::EigenVector4dToGeometryPoint(location));
-            maxima_rep.points.push_back(EigenHelpersConversions::EigenVector3dToGeometryPoint(extrema));
-            maxima_rep.scale.x = sdf.GetResolution() * 0.06125;
-            maxima_rep.scale.y = sdf.GetResolution() * 0.125;
-            maxima_rep.scale.z = 0.0;
-          }
-          else
-          {
-            maxima_rep.type = visualization_msgs::Marker::SPHERE;
-            maxima_rep.points.push_back(EigenHelpersConversions::EigenVector4dToGeometryPoint(location));
-            maxima_rep.scale.x = sdf.GetResolution() * 0.125;
-            maxima_rep.scale.y = sdf.GetResolution() * 0.125;
-            maxima_rep.scale.z = sdf.GetResolution() * 0.125;
-          }
-          maxima_rep.color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(1.0, 0.5, 0.0, 1.0);
-          display_markers.markers.push_back(maxima_rep);
-        }
-      }
-    }
-  }
+  const auto virtual_border_sdf_result
+      = tocmap.ExtractSignedDistanceField(std::numeric_limits<float>::infinity(), std::vector<uint32_t>(), true);
+  std::cout << "(virtual border) SDF extrema: " << PrettyPrint::PrettyPrint(virtual_border_sdf_result.second) << std::endl;
+  const sdf_tools::SignedDistanceField& virtual_border_sdf = virtual_border_sdf_result.first;
+  visualization_msgs::Marker virtual_border_sdf_marker = virtual_border_sdf.ExportForDisplay(1.0f);
+  virtual_border_sdf_marker.id = 1;
+  virtual_border_sdf_marker.ns = "environment_sdf_virtual_border";
+  display_markers.markers.push_back(virtual_border_sdf_marker);
   display_fn(display_markers);
 }
 

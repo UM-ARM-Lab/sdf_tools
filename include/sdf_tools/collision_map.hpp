@@ -224,6 +224,12 @@ public:
     : VoxelGrid::VoxelGrid<COLLISION_CELL>(),
       number_of_components_(0), frame_(""), components_valid_(false) {}
 
+  virtual VoxelGrid<COLLISION_CELL>* Clone() const
+  {
+    return new CollisionMapGrid(
+          static_cast<const CollisionMapGrid&>(*this));
+  }
+
   inline bool AreComponentsValid() const
   {
     return components_valid_;
@@ -618,25 +624,34 @@ public:
                            const bool verbose);
 
   std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>>
-  ExtractSignedDistanceField(const float oob_value) const
+  ExtractSignedDistanceField(const float oob_value,
+                             const bool add_virtual_border=false) const
   {
-      // Make the helper function
-      const std::function<bool(const COLLISION_CELL& cell)> is_filled_fn
-          = [&] (const COLLISION_CELL& stored)
+    // Make the helper function
+    const std::function<bool(const GRID_INDEX&)>
+        is_filled_fn = [&] (const GRID_INDEX& index)
+    {
+      const auto query = GetImmutable(index);
+      if (query.second)
       {
-          if (stored.occupancy > 0.5)
-          {
-              // Mark as filled
-              return true;
-          }
-          else
-          {
-              // Mark as free
-              return false;
-          }
-      };
-      return sdf_generation::ExtractSignedDistanceField(
-            *this, is_filled_fn, oob_value, GetFrame());
+        if (query.first.occupancy > 0.5)
+        {
+            // Mark as filled
+            return true;
+        }
+        else
+        {
+            // Mark as free
+            return false;
+        }
+      }
+      else
+      {
+        throw std::runtime_error("index out of grid bounds");
+      }
+    };
+    return sdf_generation::ExtractSignedDistanceField(
+          *this, is_filled_fn, oob_value, GetFrame(), add_virtual_border);
   }
 
   visualization_msgs::Marker ExportForDisplay(

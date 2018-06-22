@@ -93,18 +93,17 @@ namespace sdf_generation
         return double((dx * dx) + (dy * dy) + (dz * dz));
     }
 
-    template<typename T, typename Allocator=std::allocator<T>, typename BackingStore=std::vector<T, Allocator>>
-    inline DistanceField BuildDistanceField(const VoxelGrid::VoxelGrid<T, Allocator, BackingStore>& grid, const std::vector<VoxelGrid::GRID_INDEX>& points)
+    inline DistanceField BuildDistanceField(const Eigen::Isometry3d& grid_origin_tranform,
+                                            const double grid_resolution,
+                                            const int64_t grid_num_x_cells,
+                                            const int64_t grid_num_y_cells,
+                                            const int64_t grid_num_z_cells,
+                                            const std::vector<VoxelGrid::GRID_INDEX>& points)
     {
-        const Eigen::Vector3d cell_sizes = grid.GetCellSizes();
-        if ((cell_sizes.x() != cell_sizes.y()) || (cell_sizes.x() != cell_sizes.z()))
-        {
-            throw std::invalid_argument("Grid must have uniform resolution");
-        }
         // Make the DistanceField container
         bucket_cell default_cell;
         default_cell.distance_square = std::numeric_limits<double>::infinity();
-        DistanceField distance_field(grid.GetOriginTransform(), cell_sizes.x(), grid.GetNumXCells(), grid.GetNumYCells(), grid.GetNumZCells(), default_cell);
+        DistanceField distance_field(grid_origin_tranform, grid_resolution, grid_num_x_cells, grid_num_y_cells, grid_num_z_cells, default_cell);
         // Compute maximum distance square
         long max_distance_square = (distance_field.GetNumXCells() * distance_field.GetNumXCells()) + (distance_field.GetNumYCells() * distance_field.GetNumYCells()) + (distance_field.GetNumZCells() * distance_field.GetNumZCells());
         // Make bucket queue
@@ -208,21 +207,23 @@ namespace sdf_generation
         return distance_field;
     }
 
-    template<typename T, typename Allocator=std::allocator<T>, typename BackingStore=std::vector<T, Allocator>>
-    inline std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>> ExtractSignedDistanceField(const VoxelGrid::VoxelGrid<T, Allocator, BackingStore>& grid, const std::function<bool(const VoxelGrid::GRID_INDEX&)>& is_filled_fn, const float oob_value, const std::string& frame)
+    template<typename T>
+    inline std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>> ExtractSignedDistanceField(const Eigen::Isometry3d& grid_origin_tranform,
+                                                                                                           const double grid_resolution,
+                                                                                                           const int64_t grid_num_x_cells,
+                                                                                                           const int64_t grid_num_y_cells,
+                                                                                                           const int64_t grid_num_z_cells,
+                                                                                                           const std::function<bool(const VoxelGrid::GRID_INDEX&)>& is_filled_fn,
+                                                                                                           const float oob_value,
+                                                                                                           const std::string& frame)
     {
-        const Eigen::Vector3d cell_sizes = grid.GetCellSizes();
-        if ((cell_sizes.x() != cell_sizes.y()) || (cell_sizes.x() != cell_sizes.z()))
-        {
-            throw std::invalid_argument("Grid must have uniform resolution");
-        }
         std::vector<VoxelGrid::GRID_INDEX> filled;
         std::vector<VoxelGrid::GRID_INDEX> free;
-        for (int64_t x_index = 0; x_index < grid.GetNumXCells(); x_index++)
+        for (int64_t x_index = 0; x_index < grid_num_x_cells; x_index++)
         {
-            for (int64_t y_index = 0; y_index < grid.GetNumYCells(); y_index++)
+            for (int64_t y_index = 0; y_index < grid_num_y_cells; y_index++)
             {
-                for (int64_t z_index = 0; z_index < grid.GetNumZCells(); z_index++)
+                for (int64_t z_index = 0; z_index < grid_num_z_cells; z_index++)
                 {
                     const VoxelGrid::GRID_INDEX current_index(x_index, y_index, z_index);
                     if (is_filled_fn(current_index))
@@ -239,10 +240,10 @@ namespace sdf_generation
             }
         }
         // Make two distance fields (one for distance to filled voxels, one for distance to free voxels
-        const DistanceField filled_distance_field = BuildDistanceField(grid, filled);
-        const DistanceField free_distance_field = BuildDistanceField(grid, free);
+        const DistanceField filled_distance_field = BuildDistanceField(grid_origin_tranform, grid_resolution, grid_num_x_cells, grid_num_y_cells, grid_num_z_cells, filled);
+        const DistanceField free_distance_field = BuildDistanceField(grid_origin_tranform, grid_resolution, grid_num_x_cells, grid_num_y_cells, grid_num_z_cells, free);
         // Generate the SDF
-        sdf_tools::SignedDistanceField new_sdf(grid.GetOriginTransform(), frame, cell_sizes.x(), grid.GetXSize(), grid.GetYSize(), grid.GetZSize(), oob_value);
+        sdf_tools::SignedDistanceField new_sdf(grid_origin_tranform, frame, grid_resolution, grid_num_x_cells, grid_num_y_cells, grid_num_z_cells, oob_value);
         double max_distance = -std::numeric_limits<double>::infinity();
         double min_distance = std::numeric_limits<double>::infinity();
         for (int64_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
@@ -271,6 +272,155 @@ namespace sdf_generation
     }
 
     template<typename T, typename Allocator=std::allocator<T>, typename BackingStore=std::vector<T, Allocator>>
+    inline std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>> ExtractSignedDistanceField(const VoxelGrid::VoxelGrid<T, Allocator, BackingStore>& grid, const std::function<bool(const VoxelGrid::GRID_INDEX&)>& is_filled_fn, const float oob_value, const std::string& frame, const bool add_virtual_border)
+    {
+      (void)(add_virtual_border);
+      const Eigen::Vector3d cell_sizes = grid.GetCellSizes();
+      if ((cell_sizes.x() != cell_sizes.y()) || (cell_sizes.x() != cell_sizes.z()))
+      {
+        throw std::invalid_argument("Grid must have uniform resolution");
+      }
+      if (add_virtual_border == false)
+      {
+        // This is the conventional single-pass result
+        return ExtractSignedDistanceField<T>(grid.GetOriginTransform(), cell_sizes.x(), grid.GetNumXCells(), grid.GetNumYCells(), grid.GetNumZCells(), is_filled_fn, oob_value, frame);
+      }
+      else
+      {
+        const int64_t x_axis_size_offset = (grid.GetNumXCells() > 1) ? (int64_t)2 : (int64_t)0;
+        const int64_t x_axis_query_offset = (grid.GetNumXCells() > 1) ? (int64_t)1 : (int64_t)0;
+        const int64_t y_axis_size_offset = (grid.GetNumYCells() > 1) ? (int64_t)2 : (int64_t)0;
+        const int64_t y_axis_query_offset = (grid.GetNumYCells() > 1) ? (int64_t)1 : (int64_t)0;
+        const int64_t z_axis_size_offset = (grid.GetNumZCells() > 1) ? (int64_t)2 : (int64_t)0;
+        const int64_t z_axis_query_offset = (grid.GetNumZCells() > 1) ? (int64_t)1 : (int64_t)0;
+        // We need to lie about the size of the grid to add a virtual border
+        const int64_t num_x_cells = grid.GetNumXCells() + x_axis_size_offset;
+        const int64_t num_y_cells = grid.GetNumYCells() + y_axis_size_offset;
+        const int64_t num_z_cells = grid.GetNumZCells() + z_axis_size_offset;
+        // Make some deceitful helper functions that hide our lies about size
+        // For the free space SDF, we lie and say the virtual border is filled
+        const std::function<bool(const VoxelGrid::GRID_INDEX&)> free_is_filled_fn
+            = [&] (const VoxelGrid::GRID_INDEX& virtual_border_grid_index)
+        {
+          // Is there a virtual border on our axis?
+          if (x_axis_size_offset > 0)
+          {
+            // Are we a virtual border cell?
+            if ((virtual_border_grid_index.x == 0)
+                || (virtual_border_grid_index.x == (num_x_cells - 1)))
+            {
+              return true;
+            }
+          }
+          // Is there a virtual border on our axis?
+          if (y_axis_size_offset > 0)
+          {
+            // Are we a virtual border cell?
+            if ((virtual_border_grid_index.y == 0)
+                || (virtual_border_grid_index.y == (num_y_cells - 1)))
+            {
+              return true;
+            }
+          }
+          // Is there a virtual border on our axis?
+          if (z_axis_size_offset > 0)
+          {
+            // Are we a virtual border cell?
+            if ((virtual_border_grid_index.z == 0)
+                || (virtual_border_grid_index.z == (num_z_cells - 1)))
+            {
+              return true;
+            }
+          }
+          const VoxelGrid::GRID_INDEX real_grid_index(
+                virtual_border_grid_index.x - x_axis_query_offset,
+                virtual_border_grid_index.y - y_axis_query_offset,
+                virtual_border_grid_index.z - z_axis_query_offset);
+          return is_filled_fn(real_grid_index);
+        };
+        // For the filled space SDF, we lie and say the virtual border is empty
+        const std::function<bool(const VoxelGrid::GRID_INDEX&)> filled_is_filled_fn
+            = [&] (const VoxelGrid::GRID_INDEX& virtual_border_grid_index)
+        {
+          // Is there a virtual border on our axis?
+          if (x_axis_size_offset > 0)
+          {
+            // Are we a virtual border cell?
+            if ((virtual_border_grid_index.x == 0)
+                || (virtual_border_grid_index.x == (num_x_cells - 1)))
+            {
+              return false;
+            }
+          }
+          // Is there a virtual border on our axis?
+          if (y_axis_size_offset > 0)
+          {
+            // Are we a virtual border cell?
+            if ((virtual_border_grid_index.y == 0)
+                || (virtual_border_grid_index.y == (num_y_cells - 1)))
+            {
+              return false;
+            }
+          }
+          // Is there a virtual border on our axis?
+          if (z_axis_size_offset > 0)
+          {
+            // Are we a virtual border cell?
+            if ((virtual_border_grid_index.z == 0)
+                || (virtual_border_grid_index.z == (num_z_cells - 1)))
+            {
+              return false;
+            }
+          }
+          const VoxelGrid::GRID_INDEX real_grid_index(
+                virtual_border_grid_index.x - x_axis_query_offset,
+                virtual_border_grid_index.y - y_axis_query_offset,
+                virtual_border_grid_index.z - z_axis_query_offset);
+          return is_filled_fn(real_grid_index);
+        };
+        // Make both SDFs
+        auto free_sdf_result = ExtractSignedDistanceField<T>(grid.GetOriginTransform(), cell_sizes.x(), num_x_cells, num_y_cells, num_z_cells, free_is_filled_fn, oob_value, frame);
+        auto filled_sdf_result = ExtractSignedDistanceField<T>(grid.GetOriginTransform(), cell_sizes.x(), num_x_cells, num_y_cells, num_z_cells, filled_is_filled_fn, oob_value, frame);
+        // Combine to make a single SDF
+        sdf_tools::SignedDistanceField combined_sdf(grid.GetOriginTransform(), frame, cell_sizes.x(), grid.GetNumXCells(), grid.GetNumYCells(), grid.GetNumZCells(), oob_value);
+        for (int64_t x_idx = 0; x_idx < combined_sdf.GetNumXCells(); x_idx++)
+        {
+          for (int64_t y_idx = 0; y_idx < combined_sdf.GetNumYCells(); y_idx++)
+          {
+            for (int64_t z_idx = 0; z_idx < combined_sdf.GetNumZCells(); z_idx++)
+            {
+              const int64_t query_x_idx = x_idx + x_axis_query_offset;
+              const int64_t query_y_idx = y_idx + y_axis_query_offset;
+              const int64_t query_z_idx = z_idx + z_axis_query_offset;
+              const float free_sdf_value
+                  = free_sdf_result.first.GetImmutable(
+                      query_x_idx, query_y_idx, query_z_idx).first;
+              const float filled_sdf_value
+                  = filled_sdf_result.first.GetImmutable(
+                      query_x_idx, query_y_idx, query_z_idx).first;
+              if (free_sdf_value >= 0.0)
+              {
+                combined_sdf.SetValue(x_idx, y_idx, z_idx, free_sdf_value);
+              }
+              else if (filled_sdf_value <= -0.0)
+              {
+                combined_sdf.SetValue(x_idx, y_idx, z_idx, filled_sdf_value);
+              }
+              else
+              {
+                combined_sdf.SetValue(x_idx, y_idx, z_idx, 0.0f);
+              }
+            }
+          }
+        }
+        // Get the combined max/min values
+        const std::pair<double, double> combined_extrema(
+              free_sdf_result.second.first, filled_sdf_result.second.second);
+        return std::make_pair(combined_sdf, combined_extrema);
+      }
+    }
+
+    template<typename T, typename Allocator=std::allocator<T>, typename BackingStore=std::vector<T, Allocator>>
     inline std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>> ExtractSignedDistanceField(const VoxelGrid::VoxelGrid<T, Allocator, BackingStore>& grid, const std::function<bool(const T&)>& is_filled_fn, const float oob_value, const std::string& frame)
     {
         const std::function<bool(const VoxelGrid::GRID_INDEX&)> real_is_filled_fn = [&] (const VoxelGrid::GRID_INDEX& index)
@@ -288,7 +438,7 @@ namespace sdf_generation
                 return false;
             }
         };
-        return ExtractSignedDistanceField(grid, real_is_filled_fn, oob_value, frame);
+        return ExtractSignedDistanceField(grid, real_is_filled_fn, oob_value, frame, false);
     }
 }
 

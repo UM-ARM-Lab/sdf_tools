@@ -72,6 +72,12 @@ public:
   inline SignedDistanceField()
     : VoxelGrid::VoxelGrid<float>(), frame_(""), locked_(false) {}
 
+  virtual VoxelGrid<float>* Clone() const
+  {
+    return new SignedDistanceField(
+          static_cast<const SignedDistanceField&>(*this));
+  }
+
   inline bool IsLocked() const
   {
       return locked_;

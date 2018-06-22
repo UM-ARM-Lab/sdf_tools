@@ -357,7 +357,7 @@ SignedDistanceField SDF_Builder::UpdateSDFFromPlanningScene()
             return false;
         }
     };
-    cached_sdf_ = sdf_generation::ExtractSignedDistanceField(temp_grid, is_filled_fn, OOB_value_, frame_).first;
+    cached_sdf_ = sdf_generation::ExtractSignedDistanceField(temp_grid, is_filled_fn, OOB_value_, frame_, false).first;
     has_cached_sdf_ = true;
     // Export the SDF
     return cached_sdf_;
