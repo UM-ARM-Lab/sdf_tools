@@ -415,6 +415,9 @@ public:
         return std::vector<double>{gx, gy, gz};
       }
       // If we're on the edge, handle it specially
+      // TODO: we actually need to handle corners even more carefully,
+      // since if the SDF is build with a virtual border, these cells will
+      // get zero gradient from this approach!
       else if (enable_edge_gradients)
       {
         // Get the "best" indices we can use
@@ -540,6 +543,20 @@ public:
     }
   }
 
+  inline std::vector<double> GetSmoothGradient(
+      const GRID_INDEX& index, const double nominal_window_size) const
+  {
+    return GetSmoothGradient4d(GridIndexToLocation(index), nominal_window_size);
+  }
+
+  inline std::vector<double> GetSmoothGradient(
+      const int64_t x_index, const int64_t y_index, const int64_t z_index,
+      const double nominal_window_size) const
+  {
+    return GetSmoothGradient4d(
+          GridIndexToLocation(x_index, y_index, z_index), nominal_window_size);
+  }
+
   inline std::vector<double> GetAutoDiffGradient3d(
       const Eigen::Vector3d& location) const
   {
@@ -552,6 +569,7 @@ public:
     return GetAutoDiffGradient(location(0), location(1), location(2));
   }
 
+  // TODO: this does not work if you query at cell centers!
   inline std::vector<double> GetAutoDiffGradient(
       const double x, const double y, const double z) const
   {
@@ -579,6 +597,18 @@ public:
     {
       return std::vector<double>();
     }
+  }
+
+  inline std::vector<double> GetAutoDiffGradient(const GRID_INDEX& index) const
+  {
+    return GetAutoDiffGradient4d(GridIndexToLocation(index));
+  }
+
+  inline std::vector<double> GetAutoDiffGradient(
+      const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+  {
+    return GetAutoDiffGradient4d(
+          GridIndexToLocation(x_index, y_index, z_index));
   }
 
 protected:
