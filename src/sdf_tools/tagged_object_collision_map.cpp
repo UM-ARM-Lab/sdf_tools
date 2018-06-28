@@ -873,9 +873,26 @@ namespace sdf_tools
         return collision_field_.GetInverseOriginTransform();
     }
 
+    void TaggedObjectCollisionMapGrid::SetOriginTransform(const Eigen::Isometry3d& new_origin)
+    {
+        collision_field_.SetOriginTransform(new_origin);
+        collision_field_.SetInverseOriginTransform(new_origin.inverse());
+    }
+
+    void TaggedObjectCollisionMapGrid::SetInverseOriginTransform(const Eigen::Isometry3d& new_inverse_origin)
+    {
+        collision_field_.SetInverseOriginTransform(new_inverse_origin);
+        collision_field_.SetOriginTransform(new_inverse_origin.inverse());
+    }
+
     std::string TaggedObjectCollisionMapGrid::GetFrame() const
     {
         return frame_;
+    }
+
+    void TaggedObjectCollisionMapGrid::SetFrame(const std::string& new_frame)
+    {
+        frame_ = new_frame;
     }
 
     std::pair<uint32_t, bool> TaggedObjectCollisionMapGrid::GetNumConnectedComponents() const
