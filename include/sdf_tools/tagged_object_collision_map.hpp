@@ -178,7 +178,13 @@ namespace sdf_tools
 
         const Eigen::Isometry3d& GetInverseOriginTransform() const;
 
+        void SetOriginTransform(const Eigen::Isometry3d& new_origin);
+
+        void SetInverseOriginTransform(const Eigen::Isometry3d& new_inverse_origin);
+
         std::string GetFrame() const;
+
+        void SetFrame(const std::string& new_frame);
 
         std::pair<uint32_t, bool> GetNumConnectedComponents() const;
 
