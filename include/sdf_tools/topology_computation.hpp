@@ -21,10 +21,9 @@ namespace topology_computation
 {
 using VoxelGrid::GRID_INDEX;
 
-template<typename T, typename Allocator=std::allocator<T>,
-         typename BackingStore=std::vector<T, Allocator>>
+template<typename T, typename BackingStore=std::vector<T>>
 int64_t MarkConnectedComponent(
-    const VoxelGrid::VoxelGrid<T, Allocator, BackingStore>& source_grid,
+    const VoxelGrid::VoxelGrid<T, BackingStore>& source_grid,
     const std::function<bool(const GRID_INDEX&,
                              const GRID_INDEX&)>& are_connected_fn,
     const std::function<uint32_t(const GRID_INDEX&)>& get_component_fn,
@@ -90,10 +89,9 @@ int64_t MarkConnectedComponent(
   return marked_cells;
 }
 
-template<typename T, typename Allocator=std::allocator<T>,
-         typename BackingStore=std::vector<T, Allocator>>
+template<typename T, typename BackingStore=std::vector<T>>
 uint32_t ComputeConnectedComponents(
-    const VoxelGrid::VoxelGrid<T, Allocator, BackingStore>& source_grid,
+    const VoxelGrid::VoxelGrid<T, BackingStore>& source_grid,
     const std::function<bool(const GRID_INDEX&,
                              const GRID_INDEX&)>& are_connected_fn,
     const std::function<int64_t(const GRID_INDEX&)>& get_component_fn,
@@ -297,11 +295,10 @@ inline int32_t ComputeConnectivityOfSurfaceVertices(
   return connected_components;
 }
 
-template<typename T, typename Allocator=std::allocator<T>,
-         typename BackingStore=std::vector<T, Allocator>>
+template<typename T, typename BackingStore=std::vector<T>>
 std::map<uint32_t, std::unordered_map<GRID_INDEX, uint8_t>>
 ExtractComponentSurfaces(
-    const VoxelGrid::VoxelGrid<T, Allocator, BackingStore>& source_grid,
+    const VoxelGrid::VoxelGrid<T, BackingStore>& source_grid,
     const std::function<int64_t(const GRID_INDEX&)>& get_component_fn,
     const std::function<bool(const GRID_INDEX&)>& is_surface_index_fn)
 {
@@ -641,11 +638,10 @@ inline std::pair<int32_t, int32_t> ComputeHolesInSurface(
   return std::pair<int32_t, int32_t>(number_of_holes, number_of_voids);
 }
 
-template<typename T, typename Allocator=std::allocator<T>,
-         typename BackingStore=std::vector<T, Allocator>>
+template<typename T, typename BackingStore=std::vector<T>>
 std::map<uint32_t, std::pair<int32_t, int32_t>>
 ComputeComponentTopology(
-    const VoxelGrid::VoxelGrid<T, Allocator, BackingStore>& source_grid,
+    const VoxelGrid::VoxelGrid<T, BackingStore>& source_grid,
     const std::function<int64_t(const GRID_INDEX&)>& get_component_fn,
     const std::function<bool(const GRID_INDEX&)>& is_surface_index_fn,
     const bool verbose)
