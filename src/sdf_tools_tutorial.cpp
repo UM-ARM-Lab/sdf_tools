@@ -127,7 +127,7 @@ int main(int argc, char** argv)
     // We pick a reasonable out-of-bounds value
     float oob_value = INFINITY;
     // We start by extracting the SDF from the CollisionMap
-    std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>> sdf_with_extrema = collision_map.ExtractSignedDistanceField(oob_value);
+    std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>> sdf_with_extrema = collision_map.ExtractSignedDistanceField(oob_value, true, false);
     sdf_tools::SignedDistanceField& sdf = sdf_with_extrema.first;
     std::pair<double, double> sdf_extrema = sdf_with_extrema.second;
     std::cout << "Maximum distance in the SDF: " << sdf_extrema.first << ", minimum distance in the SDF: " << sdf_extrema.second << std::endl;

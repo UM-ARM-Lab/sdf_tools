@@ -557,9 +557,9 @@ uint32_t TaggedObjectCollisionMapGrid::UpdateConvexSegments(
           ExtractSignedDistanceField(
             std::numeric_limits<float>::infinity(),
             std::vector<uint32_t>(),
-            true) :
+            true, true) :
           ExtractFreeAndNamedObjectsSignedDistanceField(
-            std::numeric_limits<float>::infinity());
+            std::numeric_limits<float>::infinity(), true);
   const SignedDistanceField& sdf = sdf_result.first;
   const VoxelGrid<Eigen::Vector3d> extrema_map = sdf.ComputeLocalExtremaMap();
   // Make the helper functions
@@ -777,7 +777,9 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
   }
   // Make SDF
   const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs
-      = MakeObjectSDFs();
+      = (objects_to_draw.size() > 0) ?
+          MakeObjectSDFs(objects_to_draw, true, true)
+        : MakeAllObjectSDFs(true, false);
   visualization_msgs::Marker display_rep;
   // Populate the header
   display_rep.header.frame_id = frame_;
@@ -849,7 +851,7 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
 {
   // Make SDF
   const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs
-      = MakeObjectSDFs();
+      = MakeAllObjectSDFs(true, false);
   visualization_msgs::Marker display_rep;
   // Populate the header
   display_rep.header.frame_id = frame_;

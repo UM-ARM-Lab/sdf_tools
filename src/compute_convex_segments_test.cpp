@@ -82,7 +82,7 @@ void test_compute_convex_segments(
     }
   }
   const auto sdf_result
-      = tocmap.ExtractSignedDistanceField(std::numeric_limits<float>::infinity(), std::vector<uint32_t>());
+      = tocmap.ExtractSignedDistanceField(std::numeric_limits<float>::infinity(), std::vector<uint32_t>(), true, false);
   std::cout << "(no border) SDF extrema: " << PrettyPrint::PrettyPrint(sdf_result.second) << std::endl;
   const sdf_tools::SignedDistanceField& sdf = sdf_result.first;
   visualization_msgs::Marker sdf_marker = sdf.ExportForDisplay(1.0f);
@@ -90,7 +90,7 @@ void test_compute_convex_segments(
   sdf_marker.ns = "environment_sdf_no_border";
   display_markers.markers.push_back(sdf_marker);
   const auto virtual_border_sdf_result
-      = tocmap.ExtractSignedDistanceField(std::numeric_limits<float>::infinity(), std::vector<uint32_t>(), true);
+      = tocmap.ExtractSignedDistanceField(std::numeric_limits<float>::infinity(), std::vector<uint32_t>(), true, true);
   std::cout << "(virtual border) SDF extrema: " << PrettyPrint::PrettyPrint(virtual_border_sdf_result.second) << std::endl;
   const sdf_tools::SignedDistanceField& virtual_border_sdf = virtual_border_sdf_result.first;
   visualization_msgs::Marker virtual_border_sdf_marker = virtual_border_sdf.ExportForDisplay(1.0f);

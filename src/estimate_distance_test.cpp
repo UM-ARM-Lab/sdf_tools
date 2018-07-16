@@ -31,7 +31,7 @@ void test_estimate_distance(
   const std_msgs::ColorRGBA free_color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(0.0, 0.0, 0.0, 0.0);
   const std_msgs::ColorRGBA unknown_color = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>::MakeFromFloatColors(0.0, 0.0, 0.0, 0.0);
   const auto map_marker = map.ExportForDisplay(collision_color, free_color, unknown_color);
-  const auto sdf = map.ExtractSignedDistanceField(1e6).first;
+  const auto sdf = map.ExtractSignedDistanceField(1e6, true, false).first;
   const auto sdf_marker = sdf.ExportForDisplay(0.05f);
   // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
   visualization_msgs::Marker distance_rep;

@@ -669,13 +669,19 @@ public:
       const bool verbose);
 
   std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>>
-  ExtractFreeAndNamedObjectsSignedDistanceField(const float oob_value) const
+  ExtractFreeAndNamedObjectsSignedDistanceField(
+      const float oob_value, const bool unknown_is_filled) const
   {
     // Make the helper function
     const std::function<bool(const TAGGED_OBJECT_COLLISION_CELL& cell)>
         free_sdf_filled_fn = [&] (const TAGGED_OBJECT_COLLISION_CELL& stored)
     {
       if (stored.occupancy > 0.5)
+      {
+        // Mark as filled
+        return true;
+      }
+      else if (unknown_is_filled && (stored.occupancy == 0.5))
       {
         // Mark as filled
         return true;
@@ -695,6 +701,11 @@ public:
       if (stored.object_id > 0u)
       {
         if (stored.occupancy > 0.5)
+        {
+          // Mark as filled
+          return true;
+        }
+        else if (unknown_is_filled && (stored.occupancy == 0.5))
         {
           // Mark as filled
           return true;
@@ -743,7 +754,8 @@ public:
   std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>>
   ExtractSignedDistanceField(const float oob_value,
                              const std::vector<uint32_t>& objects_to_use,
-                             const bool add_virtual_border=false) const
+                             const bool unknown_is_filled,
+                             const bool add_virtual_border) const
   {
     // To make this faster, we put the objects to use into a map
     std::map<uint32_t, uint8_t> object_use_map;
@@ -763,6 +775,11 @@ public:
             || (objects_to_use.size() == 0))
         {
           if (query.first.occupancy > 0.5)
+          {
+            // Mark as filled
+            return true;
+          }
+          else if (unknown_is_filled && (query.first.occupancy == 0.5))
           {
             // Mark as filled
             return true;
@@ -797,20 +814,25 @@ public:
                                 const bool add_virtual_border);
 
   std::map<uint32_t, sdf_tools::SignedDistanceField> MakeObjectSDFs(
-      const std::vector<uint32_t>& object_ids) const
+      const std::vector<uint32_t>& object_ids,
+      const bool unknown_is_filled,
+      const bool add_virtual_border) const
   {
     std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs;
     for (size_t idx = 0; idx < object_ids.size(); idx++)
     {
       const uint32_t object_id = object_ids[idx];
       per_object_sdfs[object_id]
-          = ExtractSignedDistanceField(std::numeric_limits<double>::infinity(),
-                                       std::vector<uint32_t>{object_id}).first;
+          = ExtractSignedDistanceField(
+              std::numeric_limits<double>::infinity(),
+              std::vector<uint32_t>{object_id},
+              unknown_is_filled, add_virtual_border).first;
     }
     return per_object_sdfs;
   }
 
-  std::map<uint32_t, sdf_tools::SignedDistanceField> MakeObjectSDFs() const
+  std::map<uint32_t, sdf_tools::SignedDistanceField> MakeAllObjectSDFs(
+      const bool unknown_is_filled, const bool add_virtual_border) const
   {
     std::map<uint32_t, uint32_t> object_id_map;
     for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
@@ -829,7 +851,8 @@ public:
         }
       }
     }
-    return MakeObjectSDFs(arc_helpers::GetKeys(object_id_map));
+    return MakeObjectSDFs(arc_helpers::GetKeys(object_id_map),
+                          unknown_is_filled, add_virtual_border);
   }
 
   visualization_msgs::Marker ExportForDisplay(

@@ -625,7 +625,8 @@ public:
 
   std::pair<sdf_tools::SignedDistanceField, std::pair<double, double>>
   ExtractSignedDistanceField(const float oob_value,
-                             const bool add_virtual_border=false) const
+                             const bool unknown_is_filled,
+                             const bool add_virtual_border) const
   {
     // Make the helper function
     const std::function<bool(const GRID_INDEX&)>
@@ -636,14 +637,16 @@ public:
       {
         if (query.first.occupancy > 0.5)
         {
-            // Mark as filled
-            return true;
+          // Mark as filled
+          return true;
         }
-        else
+        else if (unknown_is_filled && (query.first.occupancy == 0.5))
         {
-            // Mark as free
-            return false;
+          // Mark as filled
+          return true;
         }
+        // Mark as free
+        return false;
       }
       else
       {
