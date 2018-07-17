@@ -69,6 +69,29 @@ public:
                                   OOB_value),
       frame_(frame), locked_(false) {}
 
+  inline SignedDistanceField(const std::string& frame,
+                             double resolution,
+                             int64_t x_cells,
+                             int64_t y_cells,
+                             int64_t z_cells,
+                             float OOB_value)
+    : VoxelGrid::VoxelGrid<float>(resolution,
+                                  x_cells, y_cells, z_cells,
+                                  OOB_value),
+      frame_(frame), locked_(false) {}
+
+  inline SignedDistanceField(const Eigen::Isometry3d& origin_transform,
+                             const std::string& frame,
+                             double resolution,
+                             int64_t x_cells,
+                             int64_t y_cells,
+                             int64_t z_cells,
+                             float OOB_value)
+    : VoxelGrid::VoxelGrid<float>(origin_transform, resolution,
+                                  x_cells, y_cells, z_cells,
+                                  OOB_value),
+      frame_(frame), locked_(false) {}
+
   inline SignedDistanceField()
     : VoxelGrid::VoxelGrid<float>(), frame_(""), locked_(false) {}
 

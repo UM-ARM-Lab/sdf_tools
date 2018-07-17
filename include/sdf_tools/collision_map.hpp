@@ -220,6 +220,60 @@ public:
       frame_(frame),
       components_valid_(false) {}
 
+  inline CollisionMapGrid(const Eigen::Isometry3d& origin_transform,
+                          const std::string& frame,
+                          const double resolution,
+                          const int64_t x_cells,
+                          const int64_t y_cells,
+                          const int64_t z_cells,
+                          const COLLISION_CELL& default_value,
+                          const COLLISION_CELL& OOB_value)
+    : VoxelGrid::VoxelGrid<COLLISION_CELL>(origin_transform, resolution,
+                                           x_cells, y_cells, z_cells,
+                                           default_value, OOB_value),
+      number_of_components_(0u),
+      frame_(frame),
+      components_valid_(false) {}
+
+  inline CollisionMapGrid(const std::string& frame,
+                          const double resolution,
+                          const int64_t x_cells,
+                          const int64_t y_cells,
+                          const int64_t z_cells,
+                          const COLLISION_CELL& default_value,
+                          const COLLISION_CELL& OOB_value)
+    : VoxelGrid::VoxelGrid<COLLISION_CELL>(resolution, x_cells, y_cells,
+                                           z_cells, default_value, OOB_value),
+      number_of_components_(0u),
+      frame_(frame),
+      components_valid_(false) {}
+
+  inline CollisionMapGrid(const Eigen::Isometry3d& origin_transform,
+                          const std::string& frame,
+                          const double resolution,
+                          const int64_t x_cells,
+                          const int64_t y_cells,
+                          const int64_t z_cells,
+                          const COLLISION_CELL& oob_default_value)
+    : VoxelGrid::VoxelGrid<COLLISION_CELL>(origin_transform, resolution,
+                                           x_cells, y_cells, z_cells,
+                                           oob_default_value),
+      number_of_components_(0u),
+      frame_(frame),
+      components_valid_(false) {}
+
+  inline CollisionMapGrid(const std::string& frame,
+                          const double resolution,
+                          const int64_t x_cells,
+                          const int64_t y_cells,
+                          const int64_t z_cells,
+                          const COLLISION_CELL& oob_default_value)
+    : VoxelGrid::VoxelGrid<COLLISION_CELL>(resolution, x_cells, y_cells,
+                                           z_cells, oob_default_value),
+      number_of_components_(0u),
+      frame_(frame),
+      components_valid_(false) {}
+
   inline CollisionMapGrid()
     : VoxelGrid::VoxelGrid<COLLISION_CELL>(),
       number_of_components_(0), frame_(""), components_valid_(false) {}
