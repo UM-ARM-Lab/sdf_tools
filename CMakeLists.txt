@@ -62,7 +62,7 @@ else()
     include_directories(include SYSTEM ${catkin_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 endif()
 
-set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -flto -O3 -Wall -Wextra -Werror")
+set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -flto -O3 -Wall -Wextra -Werror -Wshadow")
 
 if(moveit_core_FOUND)
     message(STATUS "MoveIt! found. Building SDF Tools library with MoveIt! integration.")
@@ -72,6 +72,8 @@ if(moveit_core_FOUND)
         include/${PROJECT_NAME}/tagged_object_collision_map.hpp
         include/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.hpp
         include/${PROJECT_NAME}/sdf.hpp
+        include/${PROJECT_NAME}/sdf_generation.hpp
+        include/${PROJECT_NAME}/topology_computation.hpp
         include/${PROJECT_NAME}/sdf_builder.hpp
         src/${PROJECT_NAME}/collision_map.cpp
         src/${PROJECT_NAME}/tagged_object_collision_map.cpp
@@ -100,10 +102,18 @@ else()
     target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 endif()
 
-# Simple test node for voxel_grid
+# Simple test nodes for voxel_grid
 add_executable(voxel_grid_test src/test_voxel_grid.cpp)
 add_dependencies(voxel_grid_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
 target_link_libraries(voxel_grid_test ${catkin_LIBRARIES} ${PROJECT_NAME})
+
+add_executable(estimate_distance_test src/estimate_distance_test.cpp)
+add_dependencies(estimate_distance_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(estimate_distance_test ${catkin_LIBRARIES} ${PROJECT_NAME})
+
+add_executable(compute_convex_segments_test src/compute_convex_segments_test.cpp)
+add_dependencies(compute_convex_segments_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(compute_convex_segments_test ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 # Image to SDF node
 add_executable(image_2d_sdf_node src/image_2d_sdf_node.cpp)
