@@ -326,6 +326,11 @@ public:
     return frame_;
   }
 
+  inline void SetFrame(const std::string& new_frame)
+  {
+    frame_ = new_frame;
+  }
+
   inline std::vector<double> GetGradient(
       const double x, const double y, const double z,
       const bool enable_edge_gradients=false) const

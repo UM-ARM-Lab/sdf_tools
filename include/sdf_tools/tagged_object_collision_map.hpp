@@ -541,6 +541,11 @@ public:
     return frame_;
   }
 
+  inline void SetFrame(const std::string& new_frame)
+  {
+    frame_ = new_frame;
+  }
+
   inline std::pair<uint32_t, bool> GetNumConnectedComponents() const
   {
     return std::pair<uint32_t, bool>(number_of_components_, components_valid_);
