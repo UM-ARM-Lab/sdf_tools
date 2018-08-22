@@ -25,24 +25,12 @@ protected:
   std::string frame_;
   bool locked_;
 
-  /*
-   * You *MUST* provide valid indices to this function, hence why it is
-   * protected (there are safe wrappers available - use them!)
-   */
-  void FollowGradientsToLocalExtremaUnsafe(
-      VoxelGrid<Eigen::Vector3d>& watershed_map,
-      const int64_t x_index,
-      const int64_t y_index,
-      const int64_t z_index) const;
-
-  bool GradientIsEffectiveFlat(const Eigen::Vector3d& gradient) const;
-
-  GRID_INDEX GetNextFromGradient(const GRID_INDEX& index,
-                                 const Eigen::Vector3d& gradient) const;
-
 public:
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  typedef std::shared_ptr<SignedDistanceField> Ptr;
+  typedef std::shared_ptr<const SignedDistanceField> ConstPtr;
 
   inline SignedDistanceField(const std::string& frame,
                              double resolution,
@@ -99,6 +87,29 @@ public:
           static_cast<const SignedDistanceField&>(*this));
   }
 
+  /////////////////////////////////////////////////////////////////////////
+  // Misc data access
+  ////////////////////////////////////////////////////////////////////////////
+
+  inline double GetResolution() const
+  {
+    return GetCellSizes().x();
+  }
+
+  inline std::string GetFrame() const
+  {
+    return frame_;
+  }
+
+  inline void SetFrame(const std::string& new_frame)
+  {
+    frame_ = new_frame;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // Access/mutability protection functions
+  ////////////////////////////////////////////////////////////////////////////
+
   inline bool IsLocked() const
   {
       return locked_;
@@ -121,6 +132,7 @@ public:
   // Use of these functions can be prevented by calling
   // SignedDistanceField::Lock() on the SDF
   ////////////////////////////////////////////////////////////////////////
+
   virtual std::pair<float&, bool> GetMutable3d(
       const Eigen::Vector3d& location)
   {
@@ -319,28 +331,20 @@ public:
     }
   }
 
-  inline double GetResolution() const { return GetCellSizes().x(); }
-
-  inline std::string GetFrame() const
-  {
-    return frame_;
-  }
-
-  inline void SetFrame(const std::string& new_frame)
-  {
-    frame_ = new_frame;
-  }
+  /////////////////////////////////////////////////////////////////////////
+  // Gradient functions
+  /////////////////////////////////////////////////////////////////////////
 
   inline std::vector<double> GetGradient(
       const double x, const double y, const double z,
-      const bool enable_edge_gradients=false) const
+      const bool enable_edge_gradients = false) const
   {
     return GetGradient4d(Eigen::Vector4d(x, y, z, 1.0), enable_edge_gradients);
   }
 
   inline std::vector<double> GetGradient3d(
       const Eigen::Vector3d& location,
-      const bool enable_edge_gradients=false) const
+      const bool enable_edge_gradients = false) const
   {
     const GRID_INDEX index = LocationToGridIndex3d(location);
     if (IndexInBounds(index))
@@ -355,7 +359,7 @@ public:
 
   inline std::vector<double> GetGradient4d(
       const Eigen::Vector4d& location,
-      const bool enable_edge_gradients=false) const
+      const bool enable_edge_gradients = false) const
   {
     const GRID_INDEX index = LocationToGridIndex4d(location);
     if (IndexInBounds(index))
@@ -370,14 +374,14 @@ public:
 
   inline std::vector<double> GetGradient(
       const GRID_INDEX& index,
-      const bool enable_edge_gradients=false) const
+      const bool enable_edge_gradients = false) const
   {
     return GetGradient(index.x, index.y, index.z, enable_edge_gradients);
   }
 
   inline std::vector<double> GetGradient(
       const int64_t x_index, const int64_t y_index, const int64_t z_index,
-      const bool enable_edge_gradients=false) const
+      const bool enable_edge_gradients = false) const
   {
     const std::vector<double> grid_aligned_gradient
         = GetGridAlignedGradient(x_index, y_index, z_index,
@@ -404,7 +408,7 @@ public:
 
   inline std::vector<double> GetGridAlignedGradient(
       const int64_t x_index, const int64_t y_index, const int64_t z_index,
-      const bool enable_edge_gradients=false) const
+      const bool enable_edge_gradients = false) const
   {
     // Make sure the index is inside bounds
     if (IndexInBounds(x_index, y_index, z_index))
@@ -806,77 +810,91 @@ protected:
   }
 
   template<typename T>
+  inline T EstimateDistanceInterpolateFromNeighborsGridFrame(
+          const Eigen::Matrix<T, 4, 1>& grid_frame_query_location,
+          const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
+  {
+      // Switch between all the possible options of where we are
+      const Eigen::Vector4d cell_center_location
+          = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+      const Eigen::Matrix<T, 4, 1> query_offset
+          = grid_frame_query_location - cell_center_location.cast<T>();
+      // Catch the easiest case
+  //    if ((query_offset(0) == 0.0)
+  //        && (query_offset(1) == 0.0)
+  //        && (query_offset(2) == 0.0))
+  //    {
+  //      return GetCorrectedCenterDistance(x_idx, y_idx, z_idx);
+  //    }
+      // Find the best-matching 8 surrounding cell centers
+      const std::pair<int64_t, int64_t> x_axis_indices
+          = GetAxisInterpolationIndices(x_idx, GetNumXCells(), query_offset(0));
+      const std::pair<int64_t, int64_t> y_axis_indices
+          = GetAxisInterpolationIndices(y_idx, GetNumYCells(), query_offset(1));
+      const std::pair<int64_t, int64_t> z_axis_indices
+          = GetAxisInterpolationIndices(z_idx, GetNumZCells(), query_offset(2));
+      const Eigen::Vector4d lower_corner_location
+          = GridIndexToLocationGridFrame(x_axis_indices.first,
+                                         y_axis_indices.first,
+                                         z_axis_indices.first);
+      const double mxmymz_distance
+          = GetCorrectedCenterDistance(x_axis_indices.first,
+                                       y_axis_indices.first,
+                                       z_axis_indices.first);
+      const double mxmypz_distance
+          = GetCorrectedCenterDistance(x_axis_indices.first,
+                                       y_axis_indices.first,
+                                       z_axis_indices.second);
+      const double mxpymz_distance
+          = GetCorrectedCenterDistance(x_axis_indices.first,
+                                       y_axis_indices.second,
+                                       z_axis_indices.first);
+      const double mxpypz_distance
+          = GetCorrectedCenterDistance(x_axis_indices.first,
+                                       y_axis_indices.second,
+                                       z_axis_indices.second);
+      const double pxmymz_distance
+          = GetCorrectedCenterDistance(x_axis_indices.second,
+                                       y_axis_indices.first,
+                                       z_axis_indices.first);
+      const double pxmypz_distance
+          = GetCorrectedCenterDistance(x_axis_indices.second,
+                                       y_axis_indices.first,
+                                       z_axis_indices.second);
+      const double pxpymz_distance
+          = GetCorrectedCenterDistance(x_axis_indices.second,
+                                       y_axis_indices.second,
+                                       z_axis_indices.first);
+      const double pxpypz_distance
+          = GetCorrectedCenterDistance(x_axis_indices.second,
+                                       y_axis_indices.second,
+                                       z_axis_indices.second);
+      return TrilinearInterpolateDistance(lower_corner_location,
+                                          grid_frame_query_location,
+                                          mxmymz_distance, mxmypz_distance,
+                                          mxpymz_distance, mxpypz_distance,
+                                          pxmymz_distance, pxmypz_distance,
+                                          pxpymz_distance, pxpypz_distance);
+  }
+
+  template<typename T>
   inline T EstimateDistanceInterpolateFromNeighbors(
       const Eigen::Matrix<T, 4, 1>& query_location,
       const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
   {
     // Get the query location in grid frame
     const Eigen::Matrix<T, 4, 1> grid_frame_query_location
-        = GetInverseOriginTransform() * query_location;
-    // Switch between all the possible options of where we are
-    const Eigen::Vector4d cell_center_location
-        = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
-    const Eigen::Matrix<T, 4, 1> query_offset
-        = grid_frame_query_location - cell_center_location.cast<T>();
-    // Catch the easiest case
-//    if ((query_offset(0) == 0.0)
-//        && (query_offset(1) == 0.0)
-//        && (query_offset(2) == 0.0))
-//    {
-//      return GetCorrectedCenterDistance(x_idx, y_idx, z_idx);
-//    }
-    // Find the best-matching 8 surrounding cell centers
-    const std::pair<int64_t, int64_t> x_axis_indices
-        = GetAxisInterpolationIndices(x_idx, GetNumXCells(), query_offset(0));
-    const std::pair<int64_t, int64_t> y_axis_indices
-        = GetAxisInterpolationIndices(y_idx, GetNumYCells(), query_offset(1));
-    const std::pair<int64_t, int64_t> z_axis_indices
-        = GetAxisInterpolationIndices(z_idx, GetNumZCells(), query_offset(2));
-    const Eigen::Vector4d lower_corner_location
-        = GridIndexToLocationGridFrame(x_axis_indices.first,
-                                       y_axis_indices.first,
-                                       z_axis_indices.first);
-    const double mxmymz_distance
-        = GetCorrectedCenterDistance(x_axis_indices.first,
-                                     y_axis_indices.first,
-                                     z_axis_indices.first);
-    const double mxmypz_distance
-        = GetCorrectedCenterDistance(x_axis_indices.first,
-                                     y_axis_indices.first,
-                                     z_axis_indices.second);
-    const double mxpymz_distance
-        = GetCorrectedCenterDistance(x_axis_indices.first,
-                                     y_axis_indices.second,
-                                     z_axis_indices.first);
-    const double mxpypz_distance
-        = GetCorrectedCenterDistance(x_axis_indices.first,
-                                     y_axis_indices.second,
-                                     z_axis_indices.second);
-    const double pxmymz_distance
-        = GetCorrectedCenterDistance(x_axis_indices.second,
-                                     y_axis_indices.first,
-                                     z_axis_indices.first);
-    const double pxmypz_distance
-        = GetCorrectedCenterDistance(x_axis_indices.second,
-                                     y_axis_indices.first,
-                                     z_axis_indices.second);
-    const double pxpymz_distance
-        = GetCorrectedCenterDistance(x_axis_indices.second,
-                                     y_axis_indices.second,
-                                     z_axis_indices.first);
-    const double pxpypz_distance
-        = GetCorrectedCenterDistance(x_axis_indices.second,
-                                     y_axis_indices.second,
-                                     z_axis_indices.second);
-    return TrilinearInterpolateDistance(lower_corner_location,
-                                        grid_frame_query_location,
-                                        mxmymz_distance, mxmypz_distance,
-                                        mxpymz_distance, mxpypz_distance,
-                                        pxmymz_distance, pxmypz_distance,
-                                        pxpymz_distance, pxpypz_distance);
+        = inverse_origin_transform_ * query_location;
+    return EstimateDistanceInterpolateFromNeighborsGridFrame(
+          grid_frame_query_location,
+          x_idx, y_idx, z_idx);
   }
 
 public:
+
+  /////////////////////////////////////////////////////////////////////
+  // Estimate distance functions
+  /////////////////////////////////////////////////////////////////////
 
   inline std::pair<double, bool> EstimateDistance(const double x,
                                                   const double y,
@@ -919,9 +937,42 @@ public:
     }
   }
 
+  inline std::pair<double, bool> DistanceToBoundary(const double x,
+                                                    const double y,
+                                                    const double z) const
+  {
+    return DistanceToBoundary4d(Eigen::Vector4d(x, y, z, 1.0));
+  }
+
+  inline std::pair<double, bool> DistanceToBoundary3d(
+          const Eigen::Vector3d& location) const
+  {
+    return DistanceToBoundary(location.x(), location.y(), location.z());
+  }
+
+  inline std::pair<double, bool> DistanceToBoundary4d(
+          const Eigen::Vector4d& location) const
+  {
+      const auto aligned_location = inverse_origin_transform_ * location;
+      const auto displacements = Eigen::Array3d(
+                  std::min(aligned_location(0), x_size_ - aligned_location(0)),
+                  std::min(aligned_location(1), y_size_ - aligned_location(1)),
+                  std::min(aligned_location(2), z_size_ - aligned_location(2)));
+      const bool point_inside = (displacements >= 0.0).all();
+      const Eigen::Array3d distances = displacements.abs();
+      Eigen::Array3d::Index min_index;
+      distances.minCoeff(&min_index);
+      return {displacements(min_index), point_inside};
+  }
+
+
+  /////////////////////////////////////////////////////////////////////
+  // Projection functions
+  /////////////////////////////////////////////////////////////////////
+
   inline Eigen::Vector3d ProjectOutOfCollision(
       const double x, const double y, const double z,
-      const double stepsize_multiplier = 1.0 / 10.0) const
+      const double stepsize_multiplier = 1.0 / 8.0) const
   {
     const Eigen::Vector4d result
         = ProjectOutOfCollision4d(Eigen::Vector4d(x, y, z, 1.0),
@@ -931,7 +982,7 @@ public:
 
   inline Eigen::Vector3d ProjectOutOfCollision3d(
       const Eigen::Vector3d& location,
-      const double stepsize_multiplier = 1.0 / 10.0) const
+      const double stepsize_multiplier = 1.0 / 8.0) const
   {
     return ProjectOutOfCollision(location.x(), location.y(), location.z(),
                                  stepsize_multiplier);
@@ -939,7 +990,7 @@ public:
 
   inline Eigen::Vector4d ProjectOutOfCollision4d(
       const Eigen::Vector4d& location,
-      const double stepsize_multiplier = 1.0 / 10.0) const
+      const double stepsize_multiplier = 1.0 / 8.0) const
   {
     return ProjectOutOfCollisionToMinimumDistance4d(location, 0.0,
                                                     stepsize_multiplier);
@@ -948,7 +999,7 @@ public:
   inline Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance(
       const double x, const double y, const double z,
       const double minimum_distance,
-      const double stepsize_multiplier = 1.0 / 10.0) const
+      const double stepsize_multiplier = 1.0 / 8.0) const
   {
     return ProjectOutOfCollisionToMinimumDistance4d(
           Eigen::Vector4d(x, y, z, 1.0),
@@ -957,7 +1008,7 @@ public:
 
   inline Eigen::Vector3d ProjectOutOfCollisionToMinimumDistance3d(
       const Eigen::Vector3d& location, const double minimum_distance,
-      const double stepsize_multiplier = 1.0 / 10.0) const
+      const double stepsize_multiplier = 1.0 / 8.0) const
   {
     return ProjectOutOfCollisionToMinimumDistance(
           location.x(), location.y(), location.z(),
@@ -967,52 +1018,175 @@ public:
   inline Eigen::Vector4d ProjectOutOfCollisionToMinimumDistance4d(
       const Eigen::Vector4d& location,
       const double minimum_distance,
-      const double stepsize_multiplier = 1.0 / 10.0) const
+      const double stepsize_multiplier = 1.0 / 8.0) const
   {
     // To avoid potential problems with alignment, we need to pass location
     // by reference, so we make a local copy here that we can change.
-    // See https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
+    // https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
     Eigen::Vector4d mutable_location = location;
-    // If we are in bounds, start the projection process,
-    // otherwise return the location unchanged
-    if (LocationInBounds4d(mutable_location))
+    // If we are passed a value outside of the SDF,
+    // first move it into the valid region of the SDF
+    if (!LocationInBounds4d(location))
     {
-      // Add a small collision margin to account for rounding and similar
-      const double minimum_distance_with_margin
-          = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
-      const double max_stepsize = GetResolution() * stepsize_multiplier;
-      const bool enable_edge_gradients = true;
-      double sdf_dist = EstimateDistance4d(mutable_location).first;
-      while (sdf_dist <= minimum_distance)
+      mutable_location = ProjectIntoValidVolume4d(location);
+    }
+
+    // Convert everything to local frame here so that we don't
+    // need to do so repeatedly in the projection loop
+    const Eigen::Vector4d location_in_local_frame =
+          inverse_origin_transform_ * mutable_location;
+    const Eigen::Vector4d result_in_local_frame =
+        ProjectOutOfCollisionToMinimumDistanceGridFrame(
+          location_in_local_frame,
+          minimum_distance,
+          stepsize_multiplier);
+    const Eigen::Vector4d result_in_world_frame =
+          GetOriginTransform() * result_in_local_frame;
+    return result_in_world_frame;
+  }
+
+  Eigen::Vector4d ProjectOutOfCollisionToMinimumDistanceGridFrame(
+          const Eigen::Vector4d& grid_frame_location,
+          const double minimum_distance,
+          const double stepsize_multiplier) const
+  {
+    // To avoid potential problems with alignment, we need to pass location
+    // by reference, so we make a local copy here that we can change.
+    // https://eigen.tuxfamily.org/dox/group__TopicPassingByValue.html
+    Eigen::Vector4d mutable_location = grid_frame_location;
+    // TODO: make this additional margin configurable
+    // Add a small collision margin to account for rounding and similar
+    const double minimum_distance_with_margin
+      = minimum_distance + GetResolution() * stepsize_multiplier * 1e-4;
+    const double max_stepsize = GetResolution() * stepsize_multiplier;
+    const bool enable_edge_gradients = true;
+    // index and sdf_dist are used to track the exact grid frame location
+    // and the particular cell we are in at each loop iteration
+    GRID_INDEX index = PointInFrameToGridIndex4d(mutable_location);
+    double sdf_dist = EstimateDistanceInterpolateFromNeighborsGridFrame(
+          mutable_location, index.x, index.y, index.z);
+    while (sdf_dist <= minimum_distance)
+    {
+      const std::vector<double> gradient = GetGridAlignedGradient(
+            index.x, index.y, index.z, enable_edge_gradients);
+      if (gradient.size() == 3)
       {
-        const std::vector<double> gradient
-            = GetGradient4d(mutable_location, enable_edge_gradients);
-        if (gradient.size() == 3)
+        const Eigen::Vector4d grad_vector(
+              gradient[0], gradient[1], gradient[2], 0.0);
+        if (grad_vector.norm() > GetResolution() * 0.25) // Sanity check
         {
-          const Eigen::Vector4d grad_vector(
-                gradient[0], gradient[1], gradient[2], 0.0);
-          if (grad_vector.norm() > GetResolution() * 0.25) // Sanity check
-          {
-            // Don't step any farther than is needed
-            const double step_distance
-                = std::min(max_stepsize,
-                           minimum_distance_with_margin - sdf_dist);
-            mutable_location += grad_vector.normalized() * step_distance;
-            sdf_dist = EstimateDistance4d(mutable_location).first;
-          }
-          else
-          {
-            throw std::runtime_error("Encountered flat gradient - stuck");
-          }
+          // Don't step any farther than is needed
+          const double step_distance = std::min(
+                max_stepsize, minimum_distance_with_margin - sdf_dist);
+          mutable_location += grad_vector.normalized() * step_distance;
+          // Update indices and distances with the correct values
+          // for the new location
+          index = PointInFrameToGridIndex4d(mutable_location);
+          sdf_dist = EstimateDistanceInterpolateFromNeighborsGridFrame(
+                mutable_location, index.x, index.y, index.z);
         }
         else
         {
-          throw std::runtime_error("Failed to compute gradient - out of SDF?");
+          throw std::runtime_error("Encountered flat gradient - stuck");
         }
+      }
+      else
+      {
+        throw std::runtime_error("Failed to compute gradient - out of SDF?");
       }
     }
     return mutable_location;
   }
+
+  inline Eigen::Vector3d ProjectIntoValidVolume(
+          const double x, const double y, const double z) const
+  {
+      const Eigen::Vector4d result =
+              ProjectIntoValidVolume4d(Eigen::Vector4d(x, y, z, 1.0));
+      return result.head<3>();
+  }
+
+  inline Eigen::Vector3d ProjectIntoValidVolumeToMinimumDistance(
+          const double x, const double y, const double z,
+          const double minimum_distance) const
+  {
+      const Eigen::Vector4d result =
+          ProjectIntoValidVolumeToMinimumDistance4d(
+            Eigen::Vector4d(x, y, z, 1.0), minimum_distance);
+      return result.head<3>();
+  }
+
+  inline Eigen::Vector3d ProjectIntoValidVolume3d(
+          const Eigen::Vector3d& location) const
+  {
+      return ProjectIntoValidVolume(location.x(), location.y(), location.z());
+  }
+
+  inline Eigen::Vector3d ProjectIntoValidVolumeToMinimumDistance3d(
+          const Eigen::Vector3d& location,
+          const double minimum_distance) const
+  {
+      return ProjectIntoValidVolumeToMinimumDistance(
+            location.x(), location.y(), location.z(), minimum_distance);
+  }
+
+  inline Eigen::Vector4d ProjectIntoValidVolume4d(
+          const Eigen::Vector4d& location) const
+  {
+      return ProjectIntoValidVolumeToMinimumDistance4d(location, 0.0);
+  }
+
+  inline Eigen::Vector4d ProjectIntoValidVolumeToMinimumDistance4d(
+          const Eigen::Vector4d& location,
+          const double minimum_distance) const
+  {
+      const auto grid_frame_location = inverse_origin_transform_ * location;
+      // TODO: make this additional margin configurable - it's used to
+      // ensure that the resulting value is inside the valid region even
+      // after rotating back to the world frame
+      const double dist_margin = minimum_distance + GetResolution() * 1e-4;
+      const double x = arc_helpers::ClampValue(
+                  grid_frame_location(0), dist_margin, x_size_ - dist_margin);
+      const double y = arc_helpers::ClampValue(
+                  grid_frame_location(1), dist_margin, y_size_ - dist_margin);
+      const double z = arc_helpers::ClampValue(
+                  grid_frame_location(2), dist_margin, z_size_ - dist_margin);
+      // To avoid numerical problems, only return a modified
+      // location if we actually had to change something
+      bool change_made = false;
+      change_made |= (x != grid_frame_location(0));
+      change_made |= (y != grid_frame_location(1));
+      change_made |= (z != grid_frame_location(2));
+      if (change_made)
+      {
+          return GetOriginTransform() * Eigen::Vector4d(x, y, z, 1.0);
+      }
+      else
+      {
+          return location;
+      }
+  }
+
+  /////////////////////////////////////////////////////////////////////
+  // Local extrema map computation
+  /////////////////////////////////////////////////////////////////////
+
+protected:
+  /*
+   * You *MUST* provide valid indices to this function, hence why it is
+   * protected (there are safe wrappers available - use them!)
+   */
+  void FollowGradientsToLocalExtremaUnsafe(
+      VoxelGrid<Eigen::Vector3d>& watershed_map,
+      const int64_t x_index,
+      const int64_t y_index,
+      const int64_t z_index) const;
+
+  bool GradientIsEffectiveFlat(const Eigen::Vector3d& gradient) const;
+
+  GRID_INDEX GetNextFromGradient(const GRID_INDEX& index,
+                                 const Eigen::Vector3d& gradient) const;
+public:
 
   /*
    * The following function can be *VERY EXPENSIVE* to compute, since it

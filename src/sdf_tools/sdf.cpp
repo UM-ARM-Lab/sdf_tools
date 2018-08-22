@@ -16,6 +16,10 @@
 
 using namespace sdf_tools;
 
+/////////////////////////////////////////////////////////////////////
+// Local extrema map computation
+/////////////////////////////////////////////////////////////////////
+
 void SignedDistanceField::FollowGradientsToLocalExtremaUnsafe(
     VoxelGrid<Eigen::Vector3d>& watershed_map,
     const int64_t x_index, const int64_t y_index, const int64_t z_index) const
