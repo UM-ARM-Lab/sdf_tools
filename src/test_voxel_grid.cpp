@@ -1,13 +1,15 @@
-#include "arc_utilities/voxel_grid.hpp"
-#include "arc_utilities/pretty_print.hpp"
-#include "sdf_tools/collision_map.hpp"
-#include "arc_utilities/dynamic_spatial_hashed_voxel_grid.hpp"
-#include "sdf_tools/dynamic_spatial_hashed_collision_map.hpp"
-#include "sdf_tools/sdf.hpp"
-#include "ros/ros.h"
-#include "visualization_msgs/MarkerArray.h"
 #include <chrono>
 #include <random>
+#include <ros/ros.h>
+#include <arc_utilities/serialization.hpp>
+#include <arc_utilities/voxel_grid.hpp>
+#include <arc_utilities/pretty_print.hpp>
+#include <arc_utilities/dynamic_spatial_hashed_voxel_grid.hpp>
+#include <visualization_msgs/MarkerArray.h>
+#include "sdf_tools/collision_map.hpp"
+#include "sdf_tools/dynamic_spatial_hashed_collision_map.hpp"
+#include "sdf_tools/sdf.hpp"
+
 
 void test_voxel_grid_indices()
 {
@@ -100,15 +102,14 @@ void test_voxel_grid_locations()
                     pass = false;
                 }
                 check_index++;
-                std::vector<double> query_point = {x_pos, y_pos, z_pos};
                 //std::cout << "Query point - " << PrettyPrint::PrettyPrint(query_point) << std::endl;
-                std::vector<int64_t> query_index = test_grid.LocationToGridIndex(x_pos, y_pos, z_pos);
+                const VoxelGrid::GRID_INDEX query_index = test_grid.LocationToGridIndex(x_pos, y_pos, z_pos);
                 //std::cout << "Query index - " << PrettyPrint::PrettyPrint(query_index) << std::endl;
-                std::vector<double> query_location = test_grid.GridIndexToLocation(query_index[0], query_index[1], query_index[2]);
+                const Eigen::Vector4d query_location = test_grid.GridIndexToLocation(query_index);
                 //std::cout << "Query location - " << PrettyPrint::PrettyPrint(query_location) << std::endl;
-                std::vector<int64_t> found_query_index = test_grid.LocationToGridIndex(query_location[0], query_location[1], query_location[2]);
+                const VoxelGrid::GRID_INDEX found_query_index = test_grid.LocationToGridIndex4d(query_location);
                 //std::cout << "Found query index - " << PrettyPrint::PrettyPrint(found_query_index) << std::endl;
-                if (query_point[0] == query_location[0] && query_point[1] == query_location[1] && query_point[2] == query_location[2])
+                if (x_pos == query_location(0) && y_pos == query_location(1) && z_pos == query_location(2))
                 {
                     //std::cout << "Position check pass" << std::endl;
                 }
@@ -117,7 +118,7 @@ void test_voxel_grid_locations()
                     std::cout << "Position check fail" << std::endl;
                     pass = false;
                 }
-                if (query_index[0] == found_query_index[0] && query_index[1] == found_query_index[1] && query_index[2] == found_query_index[2])
+                if (query_index.x == found_query_index.x && query_index.y == found_query_index.y && query_index.z == found_query_index.z)
                 {
                     //std::cout << "Position index check pass" << std::endl;
                 }
@@ -246,15 +247,6 @@ void test_dsh_voxel_grid_locations()
     }
 }
 
-
-void test_float_binary_conversion(float test_val)
-{
-    std::cout << "Initial value " << test_val << std::endl;
-    std::vector<uint8_t> binary_value = sdf_tools::FloatToBinary(test_val);
-    float final_val = sdf_tools::FloatFromBinary(binary_value);
-    std::cout << "Final value " << final_val << std::endl;
-}
-
 Eigen::Vector3d get_random_location(std::default_random_engine& generator, const double min_x, const double min_y, const double min_z, const double max_x, const double max_y, const double max_z)
 {
     std::uniform_real_distribution<double> x_distribution(min_x, max_x);
@@ -324,7 +316,6 @@ visualization_msgs::MarkerArray test_dsh_collision_map(std::default_random_engin
     return display_rep;
 }
 
-
 int main(int argc, char** argv)
 {
     // construct a trivial random generator engine from a time-based seed:
@@ -337,7 +328,6 @@ int main(int argc, char** argv)
     test_voxel_grid_locations();
     test_voxel_grid_serialization();
     test_dsh_voxel_grid_locations();
-    test_float_binary_conversion(5280.0);
     visualization_msgs::MarkerArray display_rep = test_dsh_collision_map(generator);
     display_pub.publish(display_rep);
     ros::spin();
