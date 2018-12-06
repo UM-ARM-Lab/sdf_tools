@@ -894,9 +894,10 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
         auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
         if (sdf_found_itr != per_object_sdfs.end())
         {
-          const sdf_tools::SignedDistanceField& object_sdf = sdf_found_itr->second;
+          const sdf_tools::SignedDistanceField& object_sdf
+              = sdf_found_itr->second;
           const float distance
-                  = object_sdf.GetImmutable(x_index, y_index, z_index).first;
+              = object_sdf.GetImmutable(x_index, y_index, z_index).first;
           // Check if we're on the surface of the object
           if (distance < 0.0 && distance > bdy_cell_min_dist)
           {
