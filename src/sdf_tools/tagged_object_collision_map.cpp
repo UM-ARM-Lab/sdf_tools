@@ -846,11 +846,14 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
   return display_rep;
 }
 
+// Note that this function will use a default color for objects that a color
+// is not provided for (other than object ID 0, which is ignored by
+// MakeAllObjectSDFs)
 visualization_msgs::Marker
 TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
     const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map) const
 {
-  // Make SDF
+  // Make SDFs for the objects that we will be displaying
   const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs
       = MakeAllObjectSDFs(true, false);
   visualization_msgs::Marker display_rep;
@@ -869,6 +872,9 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
   display_rep.scale.y = GetResolution();
   display_rep.scale.z = GetResolution();
   // Add all the cells of the SDF to the message
+  // 1.9 is to ensure that we get all corners, without also getting extra
+  // interior cells
+  const float bdy_cell_min_dist = -1.9 * GetResolution();
   for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
   {
     for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
@@ -891,11 +897,9 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
           const sdf_tools::SignedDistanceField& object_sdf
               = sdf_found_itr->second;
           const float distance
-              = object_sdf.GetImmutable(new_point.x,
-                                        new_point.y,
-                                        new_point.z).first;
+              = object_sdf.GetImmutable(x_index, y_index, z_index).first;
           // Check if we're on the surface of the object
-          if (distance < 0.0 && distance > -GetResolution())
+          if (distance < 0.0 && distance > bdy_cell_min_dist)
           {
             // Check if we've been given a color to work with
             auto found_itr = object_color_map.find(current_cell.object_id);
