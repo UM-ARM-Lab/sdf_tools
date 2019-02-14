@@ -915,9 +915,15 @@ public:
                           unknown_is_filled, add_virtual_border);
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+  // Visualization
+  //////////////////////////////////////////////////////////////////////////////
+
+  // Note that this does not fill out the namespace field
+  visualization_msgs::Marker DefaultMarker() const;
+
   visualization_msgs::Marker ExportForDisplay(
-      const float alpha,
-      const std::vector<uint32_t>& objects_to_draw
+      const float alpha, const std::vector<uint32_t>& objects_to_draw
         =std::vector<uint32_t>()) const;
 
   visualization_msgs::Marker ExportForDisplay(
@@ -925,8 +931,7 @@ public:
         =std::map<uint32_t, std_msgs::ColorRGBA>()) const;
 
   visualization_msgs::Marker ExportContourOnlyForDisplay(
-      const float alpha,
-      const std::vector<uint32_t>& objects_to_draw
+      const float alpha, const std::vector<uint32_t>& objects_to_draw
         =std::vector<uint32_t>()) const;
 
   visualization_msgs::Marker ExportContourOnlyForDisplay(
