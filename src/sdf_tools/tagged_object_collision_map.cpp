@@ -653,6 +653,30 @@ uint32_t TaggedObjectCollisionMapGrid::UpdateConvexSegments(
   return number_of_convex_segments_;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Visualization
+////////////////////////////////////////////////////////////////////////////////
+
+// Note that this does not fill out the namespace field
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::DefaultMarker() const
+{
+    visualization_msgs::Marker m;
+    // Populate the header
+    m.header.frame_id = frame_;
+    // Populate the options
+    m.id = 1;
+    m.type = visualization_msgs::Marker::CUBE_LIST;
+    m.action = visualization_msgs::Marker::ADD;
+    m.lifetime = ros::Duration(0.0);
+    m.frame_locked = false;
+    m.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
+                         GetOriginTransform());
+    m.scale.x = GetResolution();
+    m.scale.y = GetResolution();
+    m.scale.z = GetResolution();
+    return m;
+}
+
 visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
     const float alpha, const std::vector<uint32_t>& objects_to_draw) const
 {
@@ -661,21 +685,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
   {
     objects_to_draw_map[objects_to_draw[idx]] = 1u;
   }
-  visualization_msgs::Marker display_rep;
-  // Populate the header
-  display_rep.header.frame_id = frame_;
-  // Populate the options
+  visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_collision_map_display";
-  display_rep.id = 1;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
-  display_rep.lifetime = ros::Duration(0.0);
-  display_rep.frame_locked = false;
-  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
-                       GetOriginTransform());
-  display_rep.scale.x = GetResolution();
-  display_rep.scale.y = GetResolution();
-  display_rep.scale.z = GetResolution();
   // Add all the cells of the SDF to the message
   for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
   {
@@ -714,21 +725,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
 visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
     const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map) const
 {
-  visualization_msgs::Marker display_rep;
-  // Populate the header
-  display_rep.header.frame_id = frame_;
-  // Populate the options
+  visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_collision_map_display";
-  display_rep.id = 1;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
-  display_rep.lifetime = ros::Duration(0.0);
-  display_rep.frame_locked = false;
-  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
-                       GetOriginTransform());
-  display_rep.scale.x = GetResolution();
-  display_rep.scale.y = GetResolution();
-  display_rep.scale.z = GetResolution();
   // Add all the cells of the SDF to the message
   for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
   {
@@ -781,21 +779,8 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
       = (objects_to_draw.size() > 0) ?
           MakeObjectSDFs(objects_to_draw, true, true)
         : MakeAllObjectSDFs(true, false);
-  visualization_msgs::Marker display_rep;
-  // Populate the header
-  display_rep.header.frame_id = frame_;
-  // Populate the options
+  visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_collision_map_display";
-  display_rep.id = 1;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
-  display_rep.lifetime = ros::Duration(0.0);
-  display_rep.frame_locked = false;
-  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
-                       GetOriginTransform());
-  display_rep.scale.x = GetResolution();
-  display_rep.scale.y = GetResolution();
-  display_rep.scale.z = GetResolution();
   // Add all the cells of the SDF to the message
   for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
   {
@@ -856,21 +841,8 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
   // Make SDFs for the objects that we will be displaying
   const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs
       = MakeAllObjectSDFs(true, false);
-  visualization_msgs::Marker display_rep;
-  // Populate the header
-  display_rep.header.frame_id = frame_;
-  // Populate the options
+  visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_collision_map_display";
-  display_rep.id = 1;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
-  display_rep.lifetime = ros::Duration(0.0);
-  display_rep.frame_locked = false;
-  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
-                       GetOriginTransform());
-  display_rep.scale.x = GetResolution();
-  display_rep.scale.y = GetResolution();
-  display_rep.scale.z = GetResolution();
   // Add all the cells of the SDF to the message
   // 1.9 is to ensure that we get all corners, without also getting extra
   // interior cells
@@ -931,21 +903,8 @@ TaggedObjectCollisionMapGrid::ExportForDisplayOccupancyOnly(
     const std_msgs::ColorRGBA& free_color,
     const std_msgs::ColorRGBA& unknown_color) const
 {
-  visualization_msgs::Marker display_rep;
-  // Populate the header
-  display_rep.header.frame_id = frame_;
-  // Populate the options
+  visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_collision_map_occupancy_display";
-  display_rep.id = 1;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
-  display_rep.lifetime = ros::Duration(0.0);
-  display_rep.frame_locked = false;
-  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
-                       GetOriginTransform());
-  display_rep.scale.x = GetResolution();
-  display_rep.scale.y = GetResolution();
-  display_rep.scale.z = GetResolution();
   // Add all the cells of the SDF to the message
   for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
   {
@@ -994,21 +953,8 @@ visualization_msgs::Marker
 TaggedObjectCollisionMapGrid::ExportConnectedComponentsForDisplay(
     const bool color_unknown_components) const
 {
-  visualization_msgs::Marker display_rep;
-  // Populate the header
-  display_rep.header.frame_id = frame_;
-  // Populate the options
+  visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_connected_components_display";
-  display_rep.id = 1;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
-  display_rep.lifetime = ros::Duration(0.0);
-  display_rep.frame_locked = false;
-  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
-                       GetOriginTransform());
-  display_rep.scale.x = GetResolution();
-  display_rep.scale.y = GetResolution();
-  display_rep.scale.z = GetResolution();
   // Add all the cells of the SDF to the message
   for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
   {
@@ -1060,25 +1006,12 @@ visualization_msgs::Marker
 TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(
     const uint32_t object_id, const uint32_t convex_segment) const
 {
-  visualization_msgs::Marker display_rep;
-  // Populate the header
-  display_rep.header.frame_id = frame_;
-  // Populate the options
+  visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_"
                    + std::to_string(object_id)
                    + "_convex_segment_"
                    + std::to_string(convex_segment)
                    + "_display";
-  display_rep.id = 1;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
-  display_rep.lifetime = ros::Duration(0.0);
-  display_rep.frame_locked = false;
-  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
-                       GetOriginTransform());
-  display_rep.scale.x = GetResolution();
-  display_rep.scale.y = GetResolution();
-  display_rep.scale.z = GetResolution();
   // Add all the cells of the SDF to the message
   for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
   {
@@ -1126,21 +1059,8 @@ TaggedObjectCollisionMapGrid::ExportSurfaceForDisplay(
     const std::unordered_map<GRID_INDEX, uint8_t>& surface,
     const std_msgs::ColorRGBA& surface_color) const
 {
-  visualization_msgs::Marker display_rep;
-  // Populate the header
-  display_rep.header.frame_id = frame_;
-  // Populate the options
+  visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_collision_map_surface";
-  display_rep.id = 1;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
-  display_rep.lifetime = ros::Duration(0.0);
-  display_rep.frame_locked = false;
-  display_rep.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
-                       GetOriginTransform());
-  display_rep.scale.x = GetResolution();
-  display_rep.scale.y = GetResolution();
-  display_rep.scale.z = GetResolution();
   // Add all the cells of the surface
   std::unordered_map<GRID_INDEX, uint8_t>::const_iterator surface_itr;
   for (surface_itr = surface.begin();
