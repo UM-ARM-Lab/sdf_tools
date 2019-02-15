@@ -404,16 +404,16 @@ TaggedObjectCollisionMapGrid::Resample(const double new_resolution) const
                                          new_resolution,
                                          GetXSize(), GetYSize(), GetZSize(),
                                          GetOOBValue());
-  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
   {
-    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
     {
-      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
         const TAGGED_OBJECT_COLLISION_CELL& current_cell
-            = GetImmutable(x_index, y_index, z_index).first;
+            = GetImmutable(x_idx, y_idx, z_idx).first;
         const Eigen::Vector4d current_cell_location
-            = GridIndexToLocation(x_index, y_index, z_index);
+            = GridIndexToLocation(x_idx, y_idx, z_idx);
         resampled.SetValue4d(current_cell_location, current_cell);
       }
     }
@@ -1195,20 +1195,20 @@ TaggedObjectCollisionMapGrid::ExportForDisplayOccupancyOnly(
   visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_collision_map_occupancy_display";
   // Add all the cells of the SDF to the message
-  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
   {
-    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
     {
-      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
         // Convert grid indices into a real-world location
         const Eigen::Vector4d location
-            = GridIndexToLocationGridFrame(x_index, y_index, z_index);
+            = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
         geometry_msgs::Point new_point;
         new_point.x = location(0);
         new_point.y = location(1);
         new_point.z = location(2);
-        if (GetImmutable(x_index, y_index, z_index).first.occupancy > 0.5)
+        if (GetImmutable(x_idx, y_idx, z_idx).first.occupancy > 0.5)
         {
           if (collision_color.a > 0.0)
           {
@@ -1216,7 +1216,7 @@ TaggedObjectCollisionMapGrid::ExportForDisplayOccupancyOnly(
             display_rep.colors.push_back(collision_color);
           }
         }
-        else if (GetImmutable(x_index, y_index, z_index).first.occupancy < 0.5)
+        else if (GetImmutable(x_idx, y_idx, z_idx).first.occupancy < 0.5)
         {
           if (free_color.a > 0.0)
           {
@@ -1245,22 +1245,22 @@ TaggedObjectCollisionMapGrid::ExportConnectedComponentsForDisplay(
   visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_connected_components_display";
   // Add all the cells of the SDF to the message
-  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
   {
-    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
     {
-      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
         // Convert grid indices into a real-world location
         const Eigen::Vector4d location
-            = GridIndexToLocationGridFrame(x_index, y_index, z_index);
+            = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
         geometry_msgs::Point new_point;
         new_point.x = location(0);
         new_point.y = location(1);
         new_point.z = location(2);
         display_rep.points.push_back(new_point);
         const TAGGED_OBJECT_COLLISION_CELL& current_cell
-            = GetImmutable(x_index, y_index, z_index).first;
+            = GetImmutable(x_idx, y_idx, z_idx).first;
         if (current_cell.occupancy != 0.5)
         {
           std_msgs::ColorRGBA color
@@ -1303,20 +1303,20 @@ TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(
                    + std::to_string(convex_segment)
                    + "_display";
   // Add all the cells of the SDF to the message
-  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
   {
-    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
     {
-      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
         const TAGGED_OBJECT_COLLISION_CELL& current_cell
-            = GetImmutable(x_index, y_index, z_index).first;
+            = GetImmutable(x_idx, y_idx, z_idx).first;
         if ((current_cell.object_id == object_id)
             && (current_cell.convex_segment == convex_segment))
         {
           // Convert grid indices into a real-world location
           const Eigen::Vector4d location
-              = GridIndexToLocationGridFrame(x_index, y_index, z_index);
+              = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
           geometry_msgs::Point new_point;
           new_point.x = location(0);
           new_point.y = location(1);
