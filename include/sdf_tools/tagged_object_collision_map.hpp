@@ -3,7 +3,7 @@
 #include <string>
 #include <Eigen/Geometry>
 #include <Eigen/Sparse>
-#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <arc_utilities/voxel_grid.hpp>
 #include <arc_utilities/arc_helpers.hpp>
 #include <arc_utilities/eigen_helpers.hpp>
@@ -922,21 +922,41 @@ public:
   // Note that this does not fill out the namespace field
   visualization_msgs::Marker DefaultMarker() const;
 
+  // Pass an emtpy vector to draw all objects, ignores id 0
   visualization_msgs::Marker ExportForDisplay(
-      const float alpha, const std::vector<uint32_t>& objects_to_draw
-        =std::vector<uint32_t>()) const;
+      const float alpha,
+      const std::vector<uint32_t>& objects_to_draw = {}) const;
 
+  // Pass an emtpy vector to draw all objects, ignores id 0
+  visualization_msgs::MarkerArray ExportForDisplayUniqueNs(
+      const float alpha,
+      const std::vector<uint32_t>& objects_to_draw = {}) const;
+
+  // Displays all objects, defaulting the color if none is given, ignores id 0
   visualization_msgs::Marker ExportForDisplay(
-      const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map
-        =std::map<uint32_t, std_msgs::ColorRGBA>()) const;
+      std::map<uint32_t, std_msgs::ColorRGBA> color_map = {}) const;
 
-  visualization_msgs::Marker ExportContourOnlyForDisplay(
-      const float alpha, const std::vector<uint32_t>& objects_to_draw
-        =std::vector<uint32_t>()) const;
+  // Displays all objects, defaulting the color if none is given, ignores id 0
+  visualization_msgs::MarkerArray ExportForDisplayUniqueNs(
+      std::map<uint32_t, std_msgs::ColorRGBA> color_map = {}) const;
 
+  // Pass an emtpy vector to draw all objects, ignores id 0
   visualization_msgs::Marker ExportContourOnlyForDisplay(
-      const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map
-        =std::map<uint32_t, std_msgs::ColorRGBA>()) const;
+      const float alpha,
+      const std::vector<uint32_t>& objects_to_draw = {}) const;
+
+  // Pass an emtpy vector to draw all objects, ignores id 0
+  visualization_msgs::MarkerArray ExportContourOnlyForDisplayUniqueNs(
+      const float alpha,
+      const std::vector<uint32_t>& objects_to_draw = {}) const;
+
+  // Displays all objects, defaulting the color if none is given, ignores id 0
+  visualization_msgs::Marker ExportContourOnlyForDisplay(
+      std::map<uint32_t, std_msgs::ColorRGBA> color_map = {}) const;
+
+  // Displays all objects, defaulting the color if none is given, ignores id 0
+  visualization_msgs::MarkerArray ExportContourOnlyForDisplayUniqueNs(
+      std::map<uint32_t, std_msgs::ColorRGBA> color_map = {}) const;
 
   visualization_msgs::Marker ExportForDisplayOccupancyOnly(
       const std_msgs::ColorRGBA& collision_color,
@@ -947,7 +967,8 @@ public:
       const bool color_unknown_components) const;
 
   visualization_msgs::Marker ExportConvexSegmentForDisplay(
-      const uint32_t object_id, const uint32_t convex_segment) const;
+      const uint32_t object_id,
+      const uint32_t convex_segment) const;
 
   visualization_msgs::Marker ExportSurfaceForDisplay(
       const std::unordered_map<GRID_INDEX, uint8_t>& surface,

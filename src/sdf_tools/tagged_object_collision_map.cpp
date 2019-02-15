@@ -678,40 +678,41 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::DefaultMarker() const
 }
 
 visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
-    const float alpha, const std::vector<uint32_t>& objects_to_draw) const
+    const float alpha,
+    const std::vector<uint32_t>& objects_to_draw) const
 {
+  const bool draw_all = objects_to_draw.empty();
   std::map<uint32_t, uint32_t> objects_to_draw_map;
   for (size_t idx = 0; idx < objects_to_draw.size(); idx++)
   {
     objects_to_draw_map[objects_to_draw[idx]] = 1u;
   }
-  visualization_msgs::Marker display_rep = DefaultMarker();
+  auto display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_collision_map_display";
   // Add all the cells of the SDF to the message
-  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
   {
-    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
     {
-      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
-        // Convert grid indices into a real-world location
-        const Eigen::Vector4d location
-            = GridIndexToLocationGridFrame(x_index, y_index, z_index);
-        geometry_msgs::Point new_point;
-        new_point.x = location(0);
-        new_point.y = location(1);
-        new_point.z = location(2);
-        const TAGGED_OBJECT_COLLISION_CELL& current_cell
-            = GetImmutable(x_index, y_index, z_index).first;
-        const auto draw_found_itr
-            = objects_to_draw_map.find(current_cell.object_id);
-        if (draw_found_itr != objects_to_draw_map.end()
-            || objects_to_draw_map.size() == 0)
+        const auto& cell = GetImmutable(x_idx, y_idx, z_idx).first;
+        const auto draw_found_itr = objects_to_draw_map.find(cell.object_id);
+        if (draw_all || draw_found_itr != objects_to_draw_map.end())
         {
-          const std_msgs::ColorRGBA object_color
-              = GenerateComponentColor(current_cell.object_id, alpha);
+          const auto object_color
+              = GenerateComponentColor(cell.object_id, alpha);
+          // This check removes the background as GenerateComponentColor(0)
+          // returns an alpha value of 0
           if (object_color.a > 0.0)
           {
+            // Convert grid indices into a real-world location
+            const auto location
+                = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+            geometry_msgs::Point new_point;
+            new_point.x = location(0);
+            new_point.y = location(1);
+            new_point.z = location(2);
             display_rep.points.push_back(new_point);
             display_rep.colors.push_back(object_color);
           }
@@ -722,40 +723,112 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
-    const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map) const
+visualization_msgs::MarkerArray
+TaggedObjectCollisionMapGrid::ExportForDisplayUniqueNs(
+    const float alpha,
+    const std::vector<uint32_t>& objects_to_draw) const
 {
-  visualization_msgs::Marker display_rep = DefaultMarker();
+  static const std::string ns_base = "tagged_object_collision_map_display_";
+  const bool draw_all = objects_to_draw.empty();
+  // Track the position of each object in display_rep.markers
+  std::map<uint32_t, uint32_t> objects_to_draw_map;
+  visualization_msgs::MarkerArray display_rep;
+  for (size_t idx = 0; idx < objects_to_draw.size(); idx++)
+  {
+    const auto object_id = objects_to_draw[idx];
+    objects_to_draw_map[object_id] = (uint32_t)idx;
+    display_rep.markers.push_back(DefaultMarker());
+    display_rep.markers.back().ns = ns_base + std::to_string(object_id);
+  }
+  // Add all the cells of the SDF to the message
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
+  {
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
+    {
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
+      {
+        const auto& cell = GetImmutable(x_idx, y_idx, z_idx).first;
+        auto draw_found_itr = objects_to_draw_map.find(cell.object_id);
+        // If we should be drawing all objects, then generate a new marker
+        if (draw_all && cell.object_id != 0
+            && draw_found_itr == objects_to_draw_map.end())
+        {
+            const auto markers_idx = (uint32_t)objects_to_draw_map.size();
+            objects_to_draw_map[cell.object_id] = markers_idx;
+            draw_found_itr = objects_to_draw_map.find(cell.object_id);
+            display_rep.markers.push_back(DefaultMarker());
+            display_rep.markers.back().ns =
+                ns_base + std::to_string(cell.object_id);
+        }
+        // Add the current point to the appropriate marker
+        if (draw_found_itr != objects_to_draw_map.end())
+        {
+          const auto object_color
+              = GenerateComponentColor(cell.object_id, alpha);
+          // This check removes the background as GenerateComponentColor(0)
+          // returns an alpha value of 0
+          if (object_color.a > 0.0)
+          {
+            // Convert grid indices into a real-world location
+            const auto location
+                = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+            geometry_msgs::Point new_point;
+            new_point.x = location(0);
+            new_point.y = location(1);
+            new_point.z = location(2);
+            auto& marker = display_rep.markers.at(draw_found_itr->second);
+            marker.points.push_back(new_point);
+            marker.colors.push_back(object_color);
+          }
+        }
+      }
+    }
+  }
+  // Remove all markers with no points in them
+  visualization_msgs::MarkerArray display_rep_pruned;
+  for (const auto& marker : display_rep.markers)
+  {
+      if (!marker.points.empty())
+      {
+          display_rep_pruned.markers.push_back(marker);
+      }
+  }
+  return display_rep_pruned;
+}
+
+visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
+    std::map<uint32_t, std_msgs::ColorRGBA> color_map) const
+{
+  auto display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_collision_map_display";
   // Add all the cells of the SDF to the message
-  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
   {
-    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
     {
-      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
-        // Convert grid indices into a real-world location
-        const Eigen::Vector4d location
-            = GridIndexToLocationGridFrame(x_index, y_index, z_index);
-        geometry_msgs::Point new_point;
-        new_point.x = location(0);
-        new_point.y = location(1);
-        new_point.z = location(2);
         const TAGGED_OBJECT_COLLISION_CELL& current_cell
-            = GetImmutable(x_index, y_index, z_index).first;
+            = GetImmutable(x_idx, y_idx, z_idx).first;
         // Check if we've been given a color to work with
-        auto found_itr = object_color_map.find(current_cell.object_id);
-        std_msgs::ColorRGBA object_color;
-        if (found_itr != object_color_map.end())
+        auto found_itr = color_map.find(current_cell.object_id);
+        // If not, generate one
+        if (found_itr == color_map.end())
         {
-          object_color = found_itr->second;
+          color_map[current_cell.object_id] =
+              GenerateComponentColor(current_cell.object_id);
+          found_itr = color_map.find(current_cell.object_id);
         }
-        else
-        {
-          object_color = GenerateComponentColor(current_cell.object_id);
-        }
+        const std_msgs::ColorRGBA object_color = found_itr->second;
         if (object_color.a > 0.0)
         {
+          // Convert grid indices into a real-world location
+          const Eigen::Vector4d location
+              = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+          geometry_msgs::Point new_point;
+          new_point.x = location(0);
+          new_point.y = location(1);
+          new_point.z = location(2);
           display_rep.points.push_back(new_point);
           display_rep.colors.push_back(object_color);
         }
@@ -765,127 +838,127 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker
-TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
-    const float alpha, const std::vector<uint32_t>& objects_to_draw) const
+visualization_msgs::MarkerArray
+TaggedObjectCollisionMapGrid::ExportForDisplayUniqueNs(
+    std::map<uint32_t, std_msgs::ColorRGBA> color_map) const
 {
+  static const std::string ns_base = "tagged_object_collision_map_display_";
+  // Track the position of each object in display_rep.markers
   std::map<uint32_t, uint32_t> objects_to_draw_map;
-  for (size_t idx = 0; idx < objects_to_draw.size(); idx++)
+  visualization_msgs::MarkerArray display_rep;
+  for (const auto& kv_pair : color_map)
   {
-      objects_to_draw_map[objects_to_draw[idx]] = 1u;
+    const auto object_id = kv_pair.first;
+    objects_to_draw_map[object_id] = display_rep.markers.size();
+    display_rep.markers.push_back(DefaultMarker());
+    display_rep.markers.back().ns = ns_base + std::to_string(object_id);
   }
-  // Make SDF
-  const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs
-      = (objects_to_draw.size() > 0) ?
-          MakeObjectSDFs(objects_to_draw, true, true)
-        : MakeAllObjectSDFs(true, false);
-  visualization_msgs::Marker display_rep = DefaultMarker();
-  display_rep.ns = "tagged_object_collision_map_display";
   // Add all the cells of the SDF to the message
-  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
   {
-    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
     {
-      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
-        // Convert grid indices into a real-world location
-        const Eigen::Vector4d location
-            = GridIndexToLocationGridFrame(x_index, y_index, z_index);
-        geometry_msgs::Point new_point;
-        new_point.x = location(0);
-        new_point.y = location(1);
-        new_point.z = location(2);
-        const TAGGED_OBJECT_COLLISION_CELL& current_cell
-            = GetImmutable(x_index, y_index, z_index).first;
-        // Get the SDF for the current object
-        auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
-        if (sdf_found_itr != per_object_sdfs.end())
+        const auto& cell = GetImmutable(x_idx, y_idx, z_idx).first;
+        auto draw_found_itr = objects_to_draw_map.find(cell.object_id);
+        // If we have not added this marker yet, do so now
+        if (cell.object_id != 0
+            && draw_found_itr == objects_to_draw_map.end())
         {
-          const sdf_tools::SignedDistanceField& object_sdf
-              = sdf_found_itr->second;
-          const float distance
-              = object_sdf.GetImmutable(new_point.x,
-                                        new_point.y,
-                                        new_point.z).first;
-          // Check if we're on the surface of the object
-          if (distance < 0.0 && distance > -GetResolution())
+            const auto markers_idx = (uint32_t)objects_to_draw_map.size();
+            objects_to_draw_map[cell.object_id] = markers_idx;
+            draw_found_itr = objects_to_draw_map.find(cell.object_id);
+            display_rep.markers.push_back(DefaultMarker());
+            display_rep.markers.back().ns =
+                ns_base + std::to_string(cell.object_id);
+        }
+        // Add the current point to the appropriate marker
+        if (draw_found_itr != objects_to_draw_map.end())
+        {
+          // Check if we've been given a color to work with
+          auto color_found_itr = color_map.find(cell.object_id);
+          // If not, generate one
+          if (color_found_itr == color_map.end())
           {
-            const auto draw_found_itr
-                = objects_to_draw_map.find(current_cell.object_id);
-            if (draw_found_itr != objects_to_draw_map.end()
-                || objects_to_draw_map.size() == 0)
-            {
-              const std_msgs::ColorRGBA object_color
-                  = GenerateComponentColor(current_cell.object_id, alpha);
-              if (object_color.a > 0.0)
-              {
-                display_rep.points.push_back(new_point);
-                display_rep.colors.push_back(object_color);
-              }
-            }
+            color_map[cell.object_id] =
+                GenerateComponentColor(cell.object_id);
+            color_found_itr = color_map.find(cell.object_id);
+          }
+          const auto object_color = color_found_itr->second;
+          if (object_color.a > 0.0)
+          {
+            // Convert grid indices into a real-world location
+            const auto location
+                = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+            geometry_msgs::Point new_point;
+            new_point.x = location(0);
+            new_point.y = location(1);
+            new_point.z = location(2);
+            auto& marker = display_rep.markers.at(draw_found_itr->second);
+            marker.points.push_back(new_point);
+            marker.colors.push_back(object_color);
           }
         }
       }
     }
   }
-  return display_rep;
+  // Remove all markers with no points in them
+  visualization_msgs::MarkerArray display_rep_pruned;
+  for (const auto& marker : display_rep.markers)
+  {
+      if (!marker.points.empty())
+      {
+          display_rep_pruned.markers.push_back(marker);
+      }
+  }
+  return display_rep_pruned;
 }
 
-// Note that this function will use a default color for objects that a color
-// is not provided for (other than object ID 0, which is ignored by
-// MakeAllObjectSDFs)
 visualization_msgs::Marker
 TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
-    const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map) const
+    const float alpha,
+    const std::vector<uint32_t>& objects_to_draw) const
 {
-  // Make SDFs for the objects that we will be displaying
-  const std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs
-      = MakeAllObjectSDFs(true, false);
-  visualization_msgs::Marker display_rep = DefaultMarker();
+  const bool draw_all = objects_to_draw.empty();
+  // Make SDFs
+  const auto per_object_sdfs = draw_all ?
+          MakeAllObjectSDFs(true, false)
+        : MakeObjectSDFs(objects_to_draw, true, false);
+  auto display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_collision_map_display";
-  // Add all the cells of the SDF to the message
-  // 1.9 is to ensure that we get all corners, without also getting extra
-  // interior cells
+  // Add all the cells of the SDF to the message. 1.9 is to ensure that we
+  // get all corners, without also getting extra interior cells
   const float bdy_cell_min_dist = -1.9 * GetResolution();
-  for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+  // Add all the cells of the SDF to the message
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
   {
-    for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
     {
-      for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
-        // Convert grid indices into a real-world location
-        const Eigen::Vector4d location
-            = GridIndexToLocationGridFrame(x_index, y_index, z_index);
-        geometry_msgs::Point new_point;
-        new_point.x = location(0);
-        new_point.y = location(1);
-        new_point.z = location(2);
-        const TAGGED_OBJECT_COLLISION_CELL& current_cell
-            = GetImmutable(x_index, y_index, z_index).first;
+        const auto& cell = GetImmutable(x_idx, y_idx, z_idx).first;
         // Get the SDF for the current object
-        auto sdf_found_itr = per_object_sdfs.find(current_cell.object_id);
+        const auto sdf_found_itr = per_object_sdfs.find(cell.object_id);
         if (sdf_found_itr != per_object_sdfs.end())
         {
-          const sdf_tools::SignedDistanceField& object_sdf
-              = sdf_found_itr->second;
-          const float distance
-              = object_sdf.GetImmutable(x_index, y_index, z_index).first;
+          // Extract the distance in the sdf
+          const auto& object_sdf = sdf_found_itr->second;
+          const float dist = object_sdf.GetImmutable(x_idx, y_idx, z_idx).first;
           // Check if we're on the surface of the object
-          if (distance < 0.0 && distance > bdy_cell_min_dist)
+          if (dist < 0.0 && dist > bdy_cell_min_dist)
           {
-            // Check if we've been given a color to work with
-            auto found_itr = object_color_map.find(current_cell.object_id);
-            std_msgs::ColorRGBA object_color;
-            if (found_itr != object_color_map.end())
-            {
-              object_color = found_itr->second;
-            }
-            else
-            {
-              object_color = GenerateComponentColor(current_cell.object_id);
-            }
+            const auto object_color
+                = GenerateComponentColor(cell.object_id, alpha);
             if (object_color.a > 0.0)
             {
+              // Convert grid indices into a real-world location
+              const auto location
+                  = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+              geometry_msgs::Point new_point;
+              new_point.x = location(0);
+              new_point.y = location(1);
+              new_point.z = location(2);
               display_rep.points.push_back(new_point);
               display_rep.colors.push_back(object_color);
             }
@@ -896,6 +969,222 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
   }
   return display_rep;
 }
+
+visualization_msgs::MarkerArray
+TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplayUniqueNs(
+    const float alpha,
+    const std::vector<uint32_t>& objects_to_draw) const
+{
+  static const std::string ns_base = "tagged_object_collision_map_display_";
+  const bool draw_all = objects_to_draw.empty();
+  // Make SDFs
+  const auto per_object_sdfs = draw_all ?
+          MakeAllObjectSDFs(true, false)
+        : MakeObjectSDFs(objects_to_draw, true, false);
+  // Track the position of each object in display_rep.markers
+  visualization_msgs::MarkerArray display_rep;
+  std::map<uint32_t, uint32_t> objects_to_draw_map;
+  for (const auto& kv_pair : per_object_sdfs)
+  {
+    const auto object_id = kv_pair.first;
+    objects_to_draw_map[object_id] = display_rep.markers.size();
+    display_rep.markers.push_back(DefaultMarker());
+    display_rep.markers.back().ns = ns_base + std::to_string(object_id);
+  }
+  // Add all the cells of the SDF to the message. 1.9 is to ensure that we
+  // get all corners, without also getting extra interior cells
+  const float bdy_cell_min_dist = -1.9 * GetResolution();
+  // Add all the cells of the SDF to the message
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
+  {
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
+    {
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
+      {
+        const auto& cell = GetImmutable(x_idx, y_idx, z_idx).first;
+        // Get the SDF for the current object
+        const auto sdf_found_itr = per_object_sdfs.find(cell.object_id);
+        if (sdf_found_itr != per_object_sdfs.end())
+        {
+          // Extract the distance in the sdf
+          const auto& object_sdf = sdf_found_itr->second;
+          const float dist = object_sdf.GetImmutable(x_idx, y_idx, z_idx).first;
+          // Check if we're on the surface of the object
+          if (dist < 0.0 && dist > bdy_cell_min_dist)
+          {
+            const auto object_color
+                = GenerateComponentColor(cell.object_id, alpha);
+            if (object_color.a > 0.0)
+            {
+              // Convert grid indices into a real-world location
+              const auto location
+                  = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+              geometry_msgs::Point new_point;
+              new_point.x = location(0);
+              new_point.y = location(1);
+              new_point.z = location(2);
+              const auto marker_idx = objects_to_draw_map.at(cell.object_id);
+              auto& marker = display_rep.markers.at(marker_idx);
+              marker.points.push_back(new_point);
+              marker.colors.push_back(object_color);
+            }
+          }
+        }
+      }
+    }
+  }
+  // Remove all markers with no points in them
+  visualization_msgs::MarkerArray display_rep_pruned;
+  for (const auto& marker : display_rep.markers)
+  {
+      if (!marker.points.empty())
+      {
+          display_rep_pruned.markers.push_back(marker);
+      }
+  }
+  return display_rep_pruned;
+}
+
+// Note that this function will use a default color for objects that a color
+// is not provided for (other than object ID 0, which is ignored by
+// MakeAllObjectSDFs)
+visualization_msgs::Marker
+TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
+        std::map<uint32_t, std_msgs::ColorRGBA> color_map) const
+{
+  // Make SDFs for the objects that we will be displaying - filters out id 0
+  const auto per_object_sdfs = MakeAllObjectSDFs(true, false);
+  // Create a color if needed
+  for (const auto& kv_pair : per_object_sdfs)
+  {
+    const auto object_id = kv_pair.first;
+    const auto color_found_itr = color_map.find(object_id);
+    if (color_found_itr == color_map.end())
+    {
+        color_map[object_id] = GenerateComponentColor(object_id);
+    }
+  }
+  auto display_rep = DefaultMarker();
+  display_rep.ns = "tagged_object_collision_map_display";
+  // Add all the cells of the SDF to the message. 1.9 is to ensure that we
+  // get all corners, without also getting extra interior cells
+  const float bdy_cell_min_dist = -1.9 * GetResolution();
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
+  {
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
+    {
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
+      {
+        const auto& cell = GetImmutable(x_idx, y_idx, z_idx).first;
+        // Get the SDF for the current object
+        auto sdf_found_itr = per_object_sdfs.find(cell.object_id);
+        if (sdf_found_itr != per_object_sdfs.end())
+        {
+          const auto& object_sdf = sdf_found_itr->second;
+          const float dist = object_sdf.GetImmutable(x_idx, y_idx, z_idx).first;
+          // Check if we're on the surface of the object
+          if (dist < 0.0 && dist > bdy_cell_min_dist)
+          {
+            const auto object_color = color_map.at(cell.object_id);
+            if (object_color.a > 0.0)
+            {
+              // Convert grid indices into a real-world location
+              const auto location
+                  = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+              geometry_msgs::Point new_point;
+              new_point.x = location(0);
+              new_point.y = location(1);
+              new_point.z = location(2);
+              display_rep.points.push_back(new_point);
+              display_rep.colors.push_back(object_color);
+            }
+          }
+        }
+      }
+    }
+  }
+  return display_rep;
+}
+
+visualization_msgs::MarkerArray
+TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplayUniqueNs(
+    std::map<uint32_t, std_msgs::ColorRGBA> color_map) const
+{
+  static const std::string ns_base = "tagged_object_collision_map_display_";
+  // Make SDFs for the objects that we will be displaying - filters out id 0
+  const auto per_object_sdfs = MakeAllObjectSDFs(true, false);
+  // Track the position of each object in display_rep.markers
+  visualization_msgs::MarkerArray display_rep;
+  std::map<uint32_t, uint32_t> objects_to_draw_map;
+  for (const auto& kv_pair : per_object_sdfs)
+  {
+    const auto object_id = kv_pair.first;
+    objects_to_draw_map[object_id] = display_rep.markers.size();
+    display_rep.markers.push_back(DefaultMarker());
+    display_rep.markers.back().ns = ns_base + std::to_string(object_id);
+    // Create a color if needed
+    const auto color_found_itr = color_map.find(object_id);
+    if (color_found_itr == color_map.end())
+    {
+        color_map[object_id] = GenerateComponentColor(object_id);
+    }
+  }
+  // Add all the cells of the SDF to the message. 1.9 is to ensure that we
+  // get all corners, without also getting extra interior cells
+  const float bdy_cell_min_dist = -1.9 * GetResolution();
+  // Add all the cells of the SDF to the message
+  for (int64_t x_idx = 0; x_idx < GetNumXCells(); x_idx++)
+  {
+    for (int64_t y_idx = 0; y_idx < GetNumYCells(); y_idx++)
+    {
+      for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
+      {
+        const auto& cell = GetImmutable(x_idx, y_idx, z_idx).first;
+        // Get the SDF for the current object
+        const auto sdf_found_itr = per_object_sdfs.find(cell.object_id);
+        if (sdf_found_itr != per_object_sdfs.end())
+        {
+          // Extract the distance in the sdf
+          const auto& object_sdf = sdf_found_itr->second;
+          const float dist = object_sdf.GetImmutable(x_idx, y_idx, z_idx).first;
+          // Check if we're on the surface of the object
+          if (dist < 0.0 && dist > bdy_cell_min_dist)
+          {
+            const auto object_color = color_map.at(cell.object_id);
+            if (object_color.a > 0.0)
+            {
+              // Convert grid indices into a real-world location
+              const auto location
+                  = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+              geometry_msgs::Point new_point;
+              new_point.x = location(0);
+              new_point.y = location(1);
+              new_point.z = location(2);
+              const auto marker_idx = objects_to_draw_map.at(cell.object_id);
+              auto& marker = display_rep.markers.at(marker_idx);
+              marker.points.push_back(new_point);
+              marker.colors.push_back(object_color);
+            }
+          }
+        }
+      }
+    }
+  }
+  // Remove all markers with no points in them
+  visualization_msgs::MarkerArray display_rep_pruned;
+  for (const auto& marker : display_rep.markers)
+  {
+      if (!marker.points.empty())
+      {
+          display_rep_pruned.markers.push_back(marker);
+      }
+  }
+  return display_rep_pruned;
+}
+
+
+
+
 
 visualization_msgs::Marker
 TaggedObjectCollisionMapGrid::ExportForDisplayOccupancyOnly(
@@ -1004,7 +1293,8 @@ TaggedObjectCollisionMapGrid::ExportConnectedComponentsForDisplay(
 
 visualization_msgs::Marker
 TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(
-    const uint32_t object_id, const uint32_t convex_segment) const
+    const uint32_t object_id,
+    const uint32_t convex_segment) const
 {
   visualization_msgs::Marker display_rep = DefaultMarker();
   display_rep.ns = "tagged_object_"
