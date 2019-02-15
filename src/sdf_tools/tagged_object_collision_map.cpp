@@ -670,7 +670,7 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::DefaultMarker() const
     m.lifetime = ros::Duration(0.0);
     m.frame_locked = false;
     m.pose = EigenHelpersConversions::EigenIsometry3dToGeometryPose(
-                         GetOriginTransform());
+            GetOriginTransform());
     m.scale.x = GetResolution();
     m.scale.y = GetResolution();
     m.scale.z = GetResolution();
@@ -700,15 +700,15 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
         const auto draw_found_itr = objects_to_draw_map.find(cell.object_id);
         if (draw_all || draw_found_itr != objects_to_draw_map.end())
         {
-          const auto object_color
-              = GenerateComponentColor(cell.object_id, alpha);
+          const auto object_color =
+              GenerateComponentColor(cell.object_id, alpha);
           // This check removes the background as GenerateComponentColor(0)
           // returns an alpha value of 0
           if (object_color.a > 0.0)
           {
             // Convert grid indices into a real-world location
-            const auto location
-                = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+            const auto location =
+                GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
             geometry_msgs::Point new_point;
             new_point.x = location(0);
             new_point.y = location(1);
@@ -763,15 +763,15 @@ TaggedObjectCollisionMapGrid::ExportForDisplayUniqueNs(
         // Add the current point to the appropriate marker
         if (draw_found_itr != objects_to_draw_map.end())
         {
-          const auto object_color
-              = GenerateComponentColor(cell.object_id, alpha);
+          const auto object_color =
+              GenerateComponentColor(cell.object_id, alpha);
           // This check removes the background as GenerateComponentColor(0)
           // returns an alpha value of 0
           if (object_color.a > 0.0)
           {
             // Convert grid indices into a real-world location
-            const auto location
-                = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+            const auto location =
+                GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
             geometry_msgs::Point new_point;
             new_point.x = location(0);
             new_point.y = location(1);
@@ -808,8 +808,7 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
     {
       for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
-        const TAGGED_OBJECT_COLLISION_CELL& current_cell
-            = GetImmutable(x_idx, y_idx, z_idx).first;
+        const auto& current_cell = GetImmutable(x_idx, y_idx, z_idx).first;
         // Check if we've been given a color to work with
         auto found_itr = color_map.find(current_cell.object_id);
         // If not, generate one
@@ -823,8 +822,8 @@ visualization_msgs::Marker TaggedObjectCollisionMapGrid::ExportForDisplay(
         if (object_color.a > 0.0)
         {
           // Convert grid indices into a real-world location
-          const Eigen::Vector4d location
-              = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+          const auto location =
+              GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
           geometry_msgs::Point new_point;
           new_point.x = location(0);
           new_point.y = location(1);
@@ -889,8 +888,8 @@ TaggedObjectCollisionMapGrid::ExportForDisplayUniqueNs(
           if (object_color.a > 0.0)
           {
             // Convert grid indices into a real-world location
-            const auto location
-                = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+            const auto location =
+                GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
             geometry_msgs::Point new_point;
             new_point.x = location(0);
             new_point.y = location(1);
@@ -948,13 +947,13 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
           // Check if we're on the surface of the object
           if (dist < 0.0 && dist > bdy_cell_min_dist)
           {
-            const auto object_color
-                = GenerateComponentColor(cell.object_id, alpha);
+            const auto object_color =
+                GenerateComponentColor(cell.object_id, alpha);
             if (object_color.a > 0.0)
             {
               // Convert grid indices into a real-world location
-              const auto location
-                  = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+              const auto location =
+                  GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
               geometry_msgs::Point new_point;
               new_point.x = location(0);
               new_point.y = location(1);
@@ -1012,13 +1011,13 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplayUniqueNs(
           // Check if we're on the surface of the object
           if (dist < 0.0 && dist > bdy_cell_min_dist)
           {
-            const auto object_color
-                = GenerateComponentColor(cell.object_id, alpha);
+            const auto object_color =
+                GenerateComponentColor(cell.object_id, alpha);
             if (object_color.a > 0.0)
             {
               // Convert grid indices into a real-world location
-              const auto location
-                  = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+              const auto location =
+                  GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
               geometry_msgs::Point new_point;
               new_point.x = location(0);
               new_point.y = location(1);
@@ -1050,7 +1049,7 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplayUniqueNs(
 // MakeAllObjectSDFs)
 visualization_msgs::Marker
 TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
-        std::map<uint32_t, std_msgs::ColorRGBA> color_map) const
+    std::map<uint32_t, std_msgs::ColorRGBA> color_map) const
 {
   // Make SDFs for the objects that we will be displaying - filters out id 0
   const auto per_object_sdfs = MakeAllObjectSDFs(true, false);
@@ -1089,8 +1088,8 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplay(
             if (object_color.a > 0.0)
             {
               // Convert grid indices into a real-world location
-              const auto location
-                  = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+              const auto location =
+                  GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
               geometry_msgs::Point new_point;
               new_point.x = location(0);
               new_point.y = location(1);
@@ -1154,8 +1153,8 @@ TaggedObjectCollisionMapGrid::ExportContourOnlyForDisplayUniqueNs(
             if (object_color.a > 0.0)
             {
               // Convert grid indices into a real-world location
-              const auto location
-                  = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+              const auto location =
+                  GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
               geometry_msgs::Point new_point;
               new_point.x = location(0);
               new_point.y = location(1);
@@ -1201,36 +1200,31 @@ TaggedObjectCollisionMapGrid::ExportForDisplayOccupancyOnly(
     {
       for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
-        // Convert grid indices into a real-world location
-        const Eigen::Vector4d location
-            = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
-        geometry_msgs::Point new_point;
-        new_point.x = location(0);
-        new_point.y = location(1);
-        new_point.z = location(2);
-        if (GetImmutable(x_idx, y_idx, z_idx).first.occupancy > 0.5)
+        const auto& cell = GetImmutable(x_idx, y_idx, z_idx).first;
+        std_msgs::ColorRGBA color;
+        if (cell.occupancy > 0.5)
         {
-          if (collision_color.a > 0.0)
-          {
-            display_rep.points.push_back(new_point);
-            display_rep.colors.push_back(collision_color);
-          }
+          color = collision_color;
         }
-        else if (GetImmutable(x_idx, y_idx, z_idx).first.occupancy < 0.5)
+        else if (cell.occupancy < 0.5)
         {
-          if (free_color.a > 0.0)
-          {
-            display_rep.points.push_back(new_point);
-            display_rep.colors.push_back(free_color);
-          }
+          color = free_color;
         }
         else
         {
-          if (unknown_color.a > 0.0)
-          {
-            display_rep.points.push_back(new_point);
-            display_rep.colors.push_back(unknown_color);
-          }
+          color = unknown_color;
+        }
+        if (color.a > 0.0)
+        {
+          // Convert grid indices into a real-world location
+          const auto location =
+              GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+          geometry_msgs::Point new_point;
+          new_point.x = location(0);
+          new_point.y = location(1);
+          new_point.z = location(2);
+          display_rep.points.push_back(new_point);
+          display_rep.colors.push_back(color);
         }
       }
     }
@@ -1252,27 +1246,24 @@ TaggedObjectCollisionMapGrid::ExportConnectedComponentsForDisplay(
       for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
         // Convert grid indices into a real-world location
-        const Eigen::Vector4d location
-            = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+        const auto location =
+            GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
         geometry_msgs::Point new_point;
         new_point.x = location(0);
         new_point.y = location(1);
         new_point.z = location(2);
         display_rep.points.push_back(new_point);
-        const TAGGED_OBJECT_COLLISION_CELL& current_cell
-            = GetImmutable(x_idx, y_idx, z_idx).first;
-        if (current_cell.occupancy != 0.5)
+        const auto& cell = GetImmutable(x_idx, y_idx, z_idx).first;
+        if (cell.occupancy != 0.5)
         {
-          std_msgs::ColorRGBA color
-              = GenerateComponentColor(current_cell.component);
+          const auto color = GenerateComponentColor(cell.component);
           display_rep.colors.push_back(color);
         }
         else
         {
           if (color_unknown_components)
           {
-            std_msgs::ColorRGBA color
-                = GenerateComponentColor(current_cell.component);
+            const auto color = GenerateComponentColor(cell.component);
             display_rep.colors.push_back(color);
           }
           else
@@ -1309,13 +1300,12 @@ TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(
     {
       for (int64_t z_idx = 0; z_idx < GetNumZCells(); z_idx++)
       {
-        const TAGGED_OBJECT_COLLISION_CELL& current_cell
-            = GetImmutable(x_idx, y_idx, z_idx).first;
-        if ((current_cell.object_id == object_id)
-            && (current_cell.convex_segment == convex_segment))
+        const auto& cell = GetImmutable(x_idx, y_idx, z_idx).first;
+        if ((cell.object_id == object_id)
+            && (cell.convex_segment == convex_segment))
         {
           // Convert grid indices into a real-world location
-          const Eigen::Vector4d location
+          const auto location
               = GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
           geometry_msgs::Point new_point;
           new_point.x = location(0);
@@ -1325,14 +1315,13 @@ TaggedObjectCollisionMapGrid::ExportConvexSegmentForDisplay(
           // Generate a color
           if (number_of_convex_segments_ < 22)
           {
-            const std_msgs::ColorRGBA color
-                = GenerateComponentColor(convex_segment);
+            const auto color = GenerateComponentColor(convex_segment);
             display_rep.colors.push_back(color);
           }
           else
           {
-            const std_msgs::ColorRGBA color
-                = arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>
+            const auto color =
+                arc_helpers::RGBAColorBuilder<std_msgs::ColorRGBA>
                   ::InterpolateHotToCold(convex_segment, 1.0,
                                          (double)number_of_convex_segments_);
             display_rep.colors.push_back(color);
@@ -1362,7 +1351,7 @@ TaggedObjectCollisionMapGrid::ExportSurfaceForDisplay(
     if (validity == 1)
     {
       // Convert grid indices into a real-world location
-      const Eigen::Vector4d location = GridIndexToLocationGridFrame(index);
+      const auto location = GridIndexToLocationGridFrame(index);
       geometry_msgs::Point new_point;
       new_point.x = location(0);
       new_point.y = location(1);
