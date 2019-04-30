@@ -8,7 +8,6 @@
 #include <Eigen/Geometry>
 #include <unsupported/Eigen/AutoDiff>
 #include <visualization_msgs/Marker.h>
-#include <arc_utilities/eigen_helpers.hpp>
 #include <arc_utilities/serialization.hpp>
 #include <arc_utilities/voxel_grid.hpp>
 #include <arc_utilities/pretty_print.hpp>
