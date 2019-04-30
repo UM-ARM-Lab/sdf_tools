@@ -6,7 +6,6 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <arc_utilities/voxel_grid.hpp>
 #include <arc_utilities/arc_helpers.hpp>
-#include <arc_utilities/eigen_helpers.hpp>
 #include <arc_utilities/serialization.hpp>
 #include <sdf_tools/sdf.hpp>
 #include <sdf_tools/sdf_generation.hpp>
