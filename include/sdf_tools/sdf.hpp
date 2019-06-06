@@ -335,6 +335,30 @@ public:
   // Gradient functions
   /////////////////////////////////////////////////////////////////////////
 
+  using GradientFunction = std::function<std::vector<double>(int64_t,int64_t,int64_t,bool)>;
+
+  /** the return vector is a flat array, which will be reshape to be
+   * X/Y/Z/gradient when saved as numpy **/
+  inline VoxelGrid<std::vector<double>> GetFullGradient(const GradientFunction& gradient_function,
+                                                        const bool enable_edge_gradients = false) const
+  {
+    VoxelGrid<std::vector<double>> gradient_grid{origin_transform_, GetResolution(), GetNumXCells(), GetNumYCells(),
+                                                 GetNumZCells(), std::vector<double>(3, oob_value_)};
+    for (auto x_idx{0l}; x_idx < GetNumXCells(); ++x_idx)
+    {
+      for (auto y_idx{0l}; y_idx < GetNumYCells(); ++y_idx)
+      {
+        for (auto z_idx{0l}; z_idx < GetNumZCells(); ++z_idx)
+        {
+          auto const gradient = gradient_function(x_idx, y_idx, z_idx, enable_edge_gradients);
+          gradient_grid.SetValue(x_idx, y_idx, z_idx, gradient);
+        }
+      }
+    }
+    return gradient_grid;
+  }
+
+
   inline std::vector<double> GetGradient(
       const double x, const double y, const double z,
       const bool enable_edge_gradients = false) const
