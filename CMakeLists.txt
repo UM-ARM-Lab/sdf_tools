@@ -15,6 +15,9 @@ set(REQ_CATKIN_PACKAGES
 find_package(catkin REQUIRED COMPONENTS ${REQ_CATKIN_PACKAGES} message_generation)
 find_package(cmake_modules REQUIRED)
 find_package(Eigen3 REQUIRED)
+set(PYBIND11_CPP_STANDARD -std=c++11)
+set(PYBIND11_PYTHON_VERSION 2.7)
+find_package(pybind11 REQUIRED)
 set(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 find_package(OpenCV REQUIRED)
 # MoveIt! isn't a required dependency
@@ -22,10 +25,7 @@ find_package(moveit_msgs)
 find_package(moveit_core)
 find_package(moveit_ros_planning)
 
-## Uncomment this if the package has a setup.py. This macro ensures
-## modules and global scripts declared therein get installed
-## See http://ros.org/doc/groovy/api/catkin/html/user_guide/setup_dot_py.html
-#catkin_python_setup()
+catkin_python_setup()
 
 #######################################
 ## Declare ROS messages and services ##
@@ -178,6 +178,18 @@ target_link_libraries(image_2d_sdf_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_executable(sdf_tools_tutorial src/sdf_tools_tutorial.cpp)
 add_dependencies(sdf_tools_tutorial ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
 target_link_libraries(sdf_tools_tutorial ${catkin_LIBRARIES} ${PROJECT_NAME})
+
+
+#####################
+## Python Bindings ##
+#####################
+
+pybind11_add_module(pysdf_tools src/sdf_tools/bindings.cpp)
+target_link_libraries(pysdf_tools sdf_tools)
+# Suppress prefix "lib" because Python does not allow this prefix
+set_target_properties(pysdf_tools PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
+)
 
 #############
 ## Install ##
