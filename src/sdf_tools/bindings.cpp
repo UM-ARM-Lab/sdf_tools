@@ -5,6 +5,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "arc_utilities/zlib_helpers.hpp"
 #include "sdf_tools/collision_map.hpp"
 
 namespace py = pybind11;
@@ -22,7 +23,10 @@ PYBIND11_MODULE(pysdf_tools, m)
       .def_readwrite("occupancy", &COLLISION_CELL::occupancy)
       .def_readwrite("component", &COLLISION_CELL::component);
 
-  py::class_<Isometry3d>(m, "Isometry3d").def(py::init<Matrix4d>());
+  Isometry3d::ConstTranslationPart (Isometry3d::*const_translation)() const = &Isometry3d::translation;
+  py::class_<Isometry3d>(m, "Isometry3d")
+      .def(py::init<Matrix4d>())
+      .def("translation", const_translation);
 
   using VoxelGridVecd = VoxelGrid::VoxelGrid<std::vector<double>>;
   py::class_<VoxelGridVecd>(m, "VoxelGrid")
@@ -34,10 +38,19 @@ PYBIND11_MODULE(pysdf_tools, m)
   std::vector<double> (SignedDistanceField::*get_gradient_1)(int64_t, int64_t, int64_t, bool) const =
       &SignedDistanceField::GetGradient;
   py::class_<SignedDistanceField>(m, "SignedDistanceField")
+      .def(py::init<>())
       .def("GetRawData", &SignedDistanceField::GetImmutableRawData, "Please done mutate this")
       .def("GetFullGradient", &SignedDistanceField::GetFullGradient)
       .def("GetGradient", get_gradient_1, "get the gradient based on index", py::arg("x_index"), py::arg("y_index"),
            py::arg("z_index"), py::arg("enable_edge_gradients") = false)
+      .def("GetMessageRepresentation", &SignedDistanceField::GetMessageRepresentation)
+      .def("LoadFromMessageRepresentation", &SignedDistanceField::LoadFromMessageRepresentation)
+      .def("SaveToFile", &SignedDistanceField::SaveToFile)
+      .def("LoadFromFile", &SignedDistanceField::LoadFromFile)
+      .def("SerializeSelf", &SignedDistanceField::SerializeSelf)
+      .def("DeserializeSelf", &SignedDistanceField::DeserializeSelf, "deserialize", py::arg("buffer"),
+           py::arg("current"), py::arg("value_deserializer"))
+      .def("GetOriginTransform", &SignedDistanceField::GetOriginTransform)
       .def("GetNumXCells", &SignedDistanceField::GetNumXCells)
       .def("GetNumYCells", &SignedDistanceField::GetNumYCells)
       .def("GetNumZCells", &SignedDistanceField::GetNumZCells);
@@ -50,4 +63,7 @@ PYBIND11_MODULE(pysdf_tools, m)
       .def("GetNumYCells", &CollisionMapGrid::GetNumYCells)
       .def("GetNumZCells", &CollisionMapGrid::GetNumZCells)
       .def("ExtractSignedDistanceField", &CollisionMapGrid::ExtractSignedDistanceField);
+
+  m.def("DecompressBytes", ZlibHelpers::DecompressBytes);
+  m.def("DeserializeFixedSizePODFloat", arc_utilities::DeserializeFixedSizePOD<float>);
 }
