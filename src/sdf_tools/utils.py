@@ -3,7 +3,7 @@ import numpy as np
 import sdf_tools
 
 
-def compute_2d_sdf_and_gradient(grid_world, sdf_resolution, sdf_origin, frame='/world'):
+def compute_2d_sdf_and_gradient(grid_world, sdf_resolution, sdf_origin, frame='world'):
     """
     :param grid_world: a 2d numpy array of the world full of 0 and 1
     :param sdf_resolution: float in meters
@@ -14,10 +14,10 @@ def compute_2d_sdf_and_gradient(grid_world, sdf_resolution, sdf_origin, frame='/
     y_height = grid_world.shape[0] * sdf_resolution
     x_width = grid_world.shape[1] * sdf_resolution
     origin_transform = sdf_tools.Isometry3d([
-        [1, 0, 0, sdf_origin[0]],
-        [0, 1, 0, sdf_origin[1]],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1]
+        [1.0, 0.0, 0.0, sdf_origin[0]],
+        [0.0, 1.0, 0.0, sdf_origin[1]],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0]
     ])
 
     oob_value = sdf_tools.COLLISION_CELL(-10000)
@@ -76,6 +76,17 @@ def compute_gradient(sdf):
     np_gradient = np_gradient[:, :, 0:2]
 
     return np_sdf, np_gradient
+
+
+def to_np(sdf, gradient):
+    return sdf_to_np(sdf), gradient_to_np(gradient)
+
+
+def gradient_to_np(gradient):
+    np_gradient = np.array(gradient.GetRawData())
+    np_gradient = np_gradient.reshape(gradient.GetNumXCells(), gradient.GetNumYCells())
+
+    return np_gradient
 
 
 def sdf_to_np(sdf):

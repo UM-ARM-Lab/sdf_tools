@@ -21,25 +21,32 @@ PYBIND11_MODULE(pysdf_tools, m)
       .def(py::init<float>())
       .def(py::init<float, uint32_t>())
       .def_readwrite("occupancy", &COLLISION_CELL::occupancy)
-      .def_readwrite("component", &COLLISION_CELL::component);
+      .def_readwrite("component", &COLLISION_CELL::component)
+      ;
 
   Isometry3d::ConstTranslationPart (Isometry3d::*const_translation)() const = &Isometry3d::translation;
   py::class_<Isometry3d>(m, "Isometry3d")
       .def(py::init<Matrix4d>())
-      .def("translation", const_translation);
+      .def("translation", const_translation)
+      ;
 
   using VoxelGridVecd = VoxelGrid::VoxelGrid<std::vector<double>>;
   py::class_<VoxelGridVecd>(m, "VoxelGrid")
-      .def("GetRawData", &VoxelGridVecd::GetImmutableRawData, "Please done mutate this")
+      .def(py::init<>())
+      .def("GetRawData", &VoxelGridVecd::GetImmutableRawData, "Please don't mutate this")
       .def("GetNumXCells", &VoxelGridVecd::GetNumXCells)
       .def("GetNumYCells", &VoxelGridVecd::GetNumYCells)
-      .def("GetNumZCells", &VoxelGridVecd::GetNumZCells);
+      .def("GetNumZCells", &VoxelGridVecd::GetNumZCells)
+      .def("SerializeSelf", &VoxelGridVecd::SerializeSelf)
+      .def("DeserializeSelf", &VoxelGridVecd::DeserializeSelf, "deserialize", py::arg("buffer"),
+         py::arg("current"), py::arg("value_deserializer"))
+      ;
 
   std::vector<double> (SignedDistanceField::*get_gradient_1)(int64_t, int64_t, int64_t, bool) const =
       &SignedDistanceField::GetGradient;
   py::class_<SignedDistanceField>(m, "SignedDistanceField")
       .def(py::init<>())
-      .def("GetRawData", &SignedDistanceField::GetImmutableRawData, "Please done mutate this")
+      .def("GetRawData", &SignedDistanceField::GetImmutableRawData, "Please don't mutate this")
       .def("GetFullGradient", &SignedDistanceField::GetFullGradient)
       .def("GetGradient", get_gradient_1, "get the gradient based on index", py::arg("x_index"), py::arg("y_index"),
            py::arg("z_index"), py::arg("enable_edge_gradients") = false)
@@ -53,7 +60,8 @@ PYBIND11_MODULE(pysdf_tools, m)
       .def("GetOriginTransform", &SignedDistanceField::GetOriginTransform)
       .def("GetNumXCells", &SignedDistanceField::GetNumXCells)
       .def("GetNumYCells", &SignedDistanceField::GetNumYCells)
-      .def("GetNumZCells", &SignedDistanceField::GetNumZCells);
+      .def("GetNumZCells", &SignedDistanceField::GetNumZCells)
+      ;
 
   bool (CollisionMapGrid::*set_value_1)(int64_t, int64_t, int64_t, const COLLISION_CELL&) = &CollisionMapGrid::SetValue;
   py::class_<CollisionMapGrid>(m, "CollisionMapGrid")
@@ -62,8 +70,10 @@ PYBIND11_MODULE(pysdf_tools, m)
       .def("GetNumXCells", &CollisionMapGrid::GetNumXCells)
       .def("GetNumYCells", &CollisionMapGrid::GetNumYCells)
       .def("GetNumZCells", &CollisionMapGrid::GetNumZCells)
-      .def("ExtractSignedDistanceField", &CollisionMapGrid::ExtractSignedDistanceField);
+      .def("ExtractSignedDistanceField", &CollisionMapGrid::ExtractSignedDistanceField)
+      ;
 
   m.def("DecompressBytes", ZlibHelpers::DecompressBytes);
   m.def("DeserializeFixedSizePODFloat", arc_utilities::DeserializeFixedSizePOD<float>);
+  m.def("DeserializeFixedSizePODVecd", arc_utilities::DeserializeFixedSizePOD<std::vector<double>>);
 }
