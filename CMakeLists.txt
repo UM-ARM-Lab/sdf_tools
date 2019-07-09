@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(sdf_tools)
 
+option(SDF_TOOLS_PYTHON_BINDINGS OFF)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -184,12 +186,14 @@ target_link_libraries(sdf_tools_tutorial ${catkin_LIBRARIES} ${PROJECT_NAME})
 ## Python Bindings ##
 #####################
 
-pybind11_add_module(pysdf_tools src/sdf_tools/bindings.cpp)
-target_link_libraries(pysdf_tools sdf_tools)
-# Suppress prefix "lib" because Python does not allow this prefix
-set_target_properties(pysdf_tools PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
-)
+if (${SDF_TOOLS_PYTHON_BINDINGS})
+    pybind11_add_module(pysdf_tools src/sdf_tools/bindings.cpp)
+    target_link_libraries(pysdf_tools sdf_tools)
+    # Suppress prefix "lib" because Python does not allow this prefix
+    set_target_properties(pysdf_tools PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
+    )
+endif()
 
 #############
 ## Install ##
