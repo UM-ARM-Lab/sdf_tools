@@ -644,6 +644,8 @@ public:
 
   uint32_t UpdateConnectedComponents();
 
+  std::vector<std::vector<GRID_INDEX>> ExtractConnectedComponents();
+
   enum COMPONENT_TYPES : uint8_t { FILLED_COMPONENTS=0x01,
                                    EMPTY_COMPONENTS=0x02,
                                    UNKNOWN_COMPONENTS=0x04 };
