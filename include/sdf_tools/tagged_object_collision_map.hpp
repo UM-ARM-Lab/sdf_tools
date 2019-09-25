@@ -878,7 +878,7 @@ public:
       const bool add_virtual_border) const
   {
     std::map<uint32_t, sdf_tools::SignedDistanceField> per_object_sdfs;
-    const auto omp_threads = std::max(1ul, arc_helpers::GetNumOMPThreads() / 4);
+    const auto omp_threads = std::max(1, arc_helpers::GetNumOMPThreads() / 4);
     #pragma omp parallel for num_threads(omp_threads)
     for (size_t idx = 0; idx < object_ids.size(); idx++)
     {
