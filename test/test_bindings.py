@@ -22,7 +22,7 @@ def main():
     dt = time() - t0
     print('time: {}s'.format(dt))
 
-    plt.imshow(np.flipud(sdf.T))
+    plt.imshow(np.flipud(sdf))
     plt.show()
 
 
