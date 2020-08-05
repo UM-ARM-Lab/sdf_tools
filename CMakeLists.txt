@@ -17,15 +17,18 @@ set(REQ_CATKIN_PACKAGES
 find_package(catkin REQUIRED COMPONENTS ${REQ_CATKIN_PACKAGES} message_generation)
 find_package(cmake_modules REQUIRED)
 find_package(Eigen3 REQUIRED)
-set(PYBIND11_CPP_STANDARD -std=c++11)
-set(PYBIND11_PYTHON_VERSION 2.7)
-find_package(pybind11 REQUIRED)
 set(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 find_package(OpenCV REQUIRED)
 # MoveIt! isn't a required dependency
 find_package(moveit_msgs)
 find_package(moveit_core)
 find_package(moveit_ros_planning)
+
+if (${SDF_TOOLS_PYTHON_BINDINGS})
+  set(PYBIND11_CPP_STANDARD -std=c++11)
+  set(PYBIND11_PYTHON_VERSION 2.7)
+  find_package(pybind11 REQUIRED)
+endif()
 
 catkin_python_setup()
 
