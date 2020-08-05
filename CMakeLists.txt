@@ -161,28 +161,30 @@ else()
         include/${PROJECT_NAME}/sdf.hpp)
 endif()
 
-# Simple test nodes for voxel_grid
-add_executable(voxel_grid_test src/test_voxel_grid.cpp)
-add_dependencies(voxel_grid_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
-target_link_libraries(voxel_grid_test ${catkin_LIBRARIES} ${PROJECT_NAME})
+if (${CATKIN_ENABLE_TESTING})
+  # Simple test nodes for voxel_grid
+  add_executable(voxel_grid_test src/test_voxel_grid.cpp)
+  add_dependencies(voxel_grid_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+  target_link_libraries(voxel_grid_test ${catkin_LIBRARIES} ${PROJECT_NAME})
 
-add_executable(estimate_distance_test src/estimate_distance_test.cpp)
-add_dependencies(estimate_distance_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
-target_link_libraries(estimate_distance_test ${catkin_LIBRARIES} ${PROJECT_NAME})
+  add_executable(estimate_distance_test src/estimate_distance_test.cpp)
+  add_dependencies(estimate_distance_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+  target_link_libraries(estimate_distance_test ${catkin_LIBRARIES} ${PROJECT_NAME})
 
-add_executable(compute_convex_segments_test src/compute_convex_segments_test.cpp)
-add_dependencies(compute_convex_segments_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
-target_link_libraries(compute_convex_segments_test ${catkin_LIBRARIES} ${PROJECT_NAME})
+  add_executable(compute_convex_segments_test src/compute_convex_segments_test.cpp)
+  add_dependencies(compute_convex_segments_test ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+  target_link_libraries(compute_convex_segments_test ${catkin_LIBRARIES} ${PROJECT_NAME})
 
-# Image to SDF node
-add_executable(image_2d_sdf_node src/image_2d_sdf_node.cpp)
-add_dependencies(image_2d_sdf_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(image_2d_sdf_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+  # Image to SDF node
+  add_executable(image_2d_sdf_node src/image_2d_sdf_node.cpp)
+  add_dependencies(image_2d_sdf_node ${catkin_EXPORTED_TARGETS})
+  target_link_libraries(image_2d_sdf_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
-# Tutorial on how to use the components of the sdf_tools library
-add_executable(sdf_tools_tutorial src/sdf_tools_tutorial.cpp)
-add_dependencies(sdf_tools_tutorial ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
-target_link_libraries(sdf_tools_tutorial ${catkin_LIBRARIES} ${PROJECT_NAME})
+  # Tutorial on how to use the components of the sdf_tools library
+  add_executable(sdf_tools_tutorial src/sdf_tools_tutorial.cpp)
+  add_dependencies(sdf_tools_tutorial ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+  target_link_libraries(sdf_tools_tutorial ${catkin_LIBRARIES} ${PROJECT_NAME})
+endif()
 
 
 #####################
