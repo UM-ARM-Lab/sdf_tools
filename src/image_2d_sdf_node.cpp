@@ -3,7 +3,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <cv_bridge/cv_bridge.h>
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 #include <sensor_msgs/image_encodings.h>
 
 #define snap(x) ((x)>=0?(int)((x)+0.5):(int)((x)-0.5))
