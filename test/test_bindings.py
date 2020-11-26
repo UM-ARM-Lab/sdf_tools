@@ -1,30 +1,33 @@
 #! /usr/bin/env python
 
+import unittest
+
 import numpy as np
-from time import time
-import matplotlib.pyplot as plt
-import sdf_tools
+
+from sdf_tools import utils_2d
 
 
-def main():
-    res = 0.01
-    x_width = 100
-    y_height = 100
-    grid_world = np.zeros([y_height, x_width], dtype=np.uint8)
-    grid_world[0:10, 0:10] = 1
-    grid_world[90:100, 90:100] = 1
-    grid_world[20:30, 40:50] = 1
-    center_x = 0
-    center_y = 0
-    sdf_origin = [center_x - x_width / 2, center_y - y_height / 2]
-    t0 = time()
-    sdf, sdf_gradient = sdf_tools.compute_2d_sdf_and_gradient(grid_world, res, sdf_origin)
-    dt = time() - t0
-    print('time: {}s'.format(dt))
+class TestSDFTools(unittest.TestCase):
 
-    plt.imshow(np.flipud(sdf))
-    plt.show()
+    def test_sdf_tools(self):
+        res = 0.05
+        x_width = 100
+        y_height = 100
+        grid_world = np.zeros([y_height, x_width], dtype=np.uint8)
+        grid_world[1, 3] = 1
+        center_x = 0
+        center_y = 0
+        sdf_origin = [center_x - x_width / 2, center_y - y_height / 2]
+
+        sdf, sdf_gradient = utils_2d.compute_sdf_and_gradient(grid_world, res, sdf_origin)
+
+        self.assertAlmostEqual(sdf[1, 3], -res)
+        self.assertAlmostEqual(sdf[2, 3], res)
+        self.assertAlmostEqual(sdf[0, 3], res)
+        self.assertAlmostEqual(sdf[1, 2], res)
+        self.assertAlmostEqual(sdf[1, 4], res)
+        self.assertGreater(sdf[3, 6], 3*res)
 
 
 if __name__ == '__main__':
-    main()
+    unittest.main()

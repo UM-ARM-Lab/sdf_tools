@@ -1,9 +1,9 @@
 import numpy as np
 
-import sdf_tools
+from sdf_tools import pysdf_tools
 
 
-def compute_2d_sdf_and_gradient(grid_world, sdf_resolution, sdf_origin, frame='world'):
+def compute_sdf_and_gradient(grid_world, sdf_resolution, sdf_origin, frame='world'):
     """
     :param grid_world: a 2d numpy array of the world full of 0 and 1
     :param sdf_resolution: float in meters
@@ -13,20 +13,20 @@ def compute_2d_sdf_and_gradient(grid_world, sdf_resolution, sdf_origin, frame='w
     """
     y_height = grid_world.shape[0] * sdf_resolution
     x_width = grid_world.shape[1] * sdf_resolution
-    origin_transform = sdf_tools.Isometry3d([
+    origin_transform = pysdf_tools.Isometry3d([
         [1.0, 0.0, 0.0, sdf_origin[0]],
         [0.0, 1.0, 0.0, sdf_origin[1]],
         [0.0, 0.0, 1.0, 0.0],
         [0.0, 0.0, 0.0, 1.0]
     ])
 
-    oob_value = sdf_tools.COLLISION_CELL(-10000)
-    occupied_value = sdf_tools.COLLISION_CELL(1)
+    oob_value = pysdf_tools.COLLISION_CELL(-10000)
+    occupied_value = pysdf_tools.COLLISION_CELL(1)
 
     # 2d means this should be one cell in z
     z = sdf_resolution
 
-    grid = sdf_tools.CollisionMapGrid(origin_transform, frame, sdf_resolution, x_width, y_height, z, oob_value)
+    grid = pysdf_tools.CollisionMapGrid(origin_transform, frame, sdf_resolution, x_width, y_height, z, oob_value)
     for x_index in range(grid.GetNumXCells()):
         for y_index in range(grid.GetNumYCells()):
             occupied = (grid_world[y_index, x_index] == 1)
@@ -94,3 +94,16 @@ def sdf_to_np(sdf):
     np_sdf = np_sdf.reshape(sdf.GetNumXCells(), sdf.GetNumYCells())
 
     return np_sdf
+
+
+collision_cell_type = np.dtype([('component', np.float32), ('occupancy', np.uint32)])
+
+
+def grid_to_np(grid: pysdf_tools.CollisionMapGrid):
+    np_grid = np.ndarray([grid.GetNumXCells(), grid.GetNumYCells()], dtype=np.float32)
+    for i in range(grid.GetNumXCells()):
+        for j in range(grid.GetNumYCells()):
+            collision_cell, _ = grid.GetValueByIndex(i, j, 0)
+            np_grid[i, j] = collision_cell.occupancy
+
+    return np_grid
