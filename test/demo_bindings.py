@@ -22,9 +22,17 @@ def main():
     dt = time() - t0
     print('time: {}s'.format(dt))
 
+    plt.figure()
+    plt.title("SDF")
     plt.imshow(np.flipud(sdf))
-    plt.show()
 
+    plt.figure()
+    plt.title("Gradient")
+    xx, yy = np.meshgrid(range(x_width), range(y_height))
+    plt.quiver(xx, yy, sdf_gradient[:, :, 0], sdf_gradient[:, :, 1])
+    plt.axis("equal")
+
+    plt.show()
 
 if __name__ == '__main__':
     main()
