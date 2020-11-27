@@ -24,7 +24,7 @@ struct COLLISION_CELL
 
   COLLISION_CELL() : occupancy(0.0), component(0) {}
 
-  COLLISION_CELL(const float in_occupancy)
+  explicit COLLISION_CELL(const float in_occupancy)
     : occupancy(in_occupancy), component(0) {}
 
   COLLISION_CELL(const float in_occupancy, const uint32_t in_component)
