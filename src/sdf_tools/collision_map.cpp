@@ -752,3 +752,28 @@ CollisionMapGrid::ExtractComponentSurfaces(
                                                         get_component_fn,
                                                         is_surface_index_fn);
 }
+
+std::vector<std::vector<VoxelGrid::GRID_INDEX>>
+CollisionMapGrid::ExtractConnectedComponents()
+{
+  if (!components_valid_)
+  {
+    UpdateConnectedComponents();
+  }
+  std::vector<std::vector<GRID_INDEX>> components(number_of_components_);
+  for (int64_t x_idx = 0; x_idx < num_x_cells_; ++x_idx)
+  {
+    for (int64_t y_idx = 0; y_idx < num_y_cells_; ++y_idx)
+    {
+      for (int64_t z_idx = 0; z_idx < num_z_cells_; ++z_idx)
+      {
+        const GRID_INDEX index(x_idx, y_idx, z_idx);
+        const auto component = GetImmutable(index).first.component;
+        // Note that componnet 0 means "not marked at all"
+        components.at(component - 1).push_back(index);
+      }
+    }
+  }
+  return components;
+}
+

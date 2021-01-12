@@ -733,6 +733,9 @@ public:
 
   visualization_msgs::Marker ExportConnectedComponentsForDisplay(
       const bool color_unknown_components) const;
+
+  std::vector<std::vector<GRID_INDEX>> ExtractConnectedComponents();
+
 };
 }
 
