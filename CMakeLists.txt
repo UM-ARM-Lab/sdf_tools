@@ -184,26 +184,7 @@ target_link_libraries(sdf_tools_tutorial ${catkin_LIBRARIES} ${PROJECT_NAME})
 ## Python Bindings ##
 #####################
 
-if (${SDF_TOOLS_PYTHON_BINDINGS})
-    pybind11_add_module(pysdf_tools src/sdf_tools/bindings.cpp)
-    target_link_libraries(pysdf_tools sdf_tools)
-    # Suppress prefix "lib" because Python does not allow this prefix
-    set_target_properties(pysdf_tools PROPERTIES
-            LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION})
+if (SDF_TOOLS_PYTHON_BINDINGS)
+    pybind_add_module(pysdf_tools src/sdf_tools/bindings.cpp)
+    target_link_libraries(pysdf_tools PUBLIC sdf_tools)
 endif()
-
-#############
-## Install ##
-#############
-
-## Mark library for installation
-install(TARGETS ${PROJECT_NAME}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-## Mark cpp header files for installation
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  PATTERN ".svn" EXCLUDE
-)

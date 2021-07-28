@@ -1,6 +1,6 @@
 import numpy as np
 
-from sdf_tools import pysdf_tools
+import pysdf_tools
 
 
 def compute_sdf_and_gradient(grid_world, sdf_resolution, sdf_origin, frame='world'):
