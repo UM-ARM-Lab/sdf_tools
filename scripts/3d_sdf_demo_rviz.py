@@ -7,6 +7,8 @@ import rospy
 import numpy as np
 
 from geometry_msgs.msg import Point
+from rviz_voxelgrid_visuals.conversions import vox_to_voxelgrid_stamped
+from rviz_voxelgrid_visuals_msgs.msg import VoxelgridStamped
 from sdf_tools.utils_3d import compute_sdf_and_gradient
 from sensor_msgs.msg import PointCloud2
 from visualization_msgs.msg import MarkerArray, Marker
@@ -14,18 +16,15 @@ from visualization_msgs.msg import MarkerArray, Marker
 
 def create_point_cloud():
     rng = np.random.RandomState(0)
-    box1_points = rng.uniform([0.5, 0.5, 0], [0.7, 0.6, 0.5], [100, 3])
-    box2_points = rng.uniform([0.5, 0.2, 0.25], [0.75, 0.4, 0.5], [100, 3])
-    return np.concatenate([box1_points, box2_points], axis=0)
+    return rng.uniform([0.0, 0.5, 0], [0.7, 0.6, 0.5], [10000, 3])
 
 
 def point_cloud_to_voxel_grid(pc: np.ndarray, shape, res, origin_point):
     vg = np.zeros(shape, dtype=np.float32)
     indices = ((pc - origin_point) / res).astype(np.int64)
-    rows = indices[:, 0]
-    cols = indices[:, 1]
-    channels = indices[:, 2]
-    vg[rows, cols, channels] = 1.0
+    for i in indices:
+        if 0 <= i[0] < shape[0] and 0 <= i[1] < shape[1] and 0 <= i[2] < shape[2]:
+            vg[i[0], i[1], i[2]] = 1.0
     return vg
 
 
@@ -93,31 +92,40 @@ def plot_arrows_rviz(pub, positions, directions):
     pub.publish(msg)
 
 
+def visualize_voxelgrid(pub, vg, res, origin_point):
+    msg = vox_to_voxelgrid_stamped(vg, scale=res, frame_id='world', origin=origin_point)
+    pub.publish(msg)
+
+
 def main():
     rospy.init_node("sdf_demo_rviz")
 
     pc_pub = rospy.Publisher("points", PointCloud2, queue_size=10)
     sdf_pub = rospy.Publisher("sdf", PointCloud2, queue_size=10)
     sdf_grad_pub = rospy.Publisher("sdf_grad", MarkerArray, queue_size=10)
+    vg_pub = rospy.Publisher("vg", VoxelgridStamped, queue_size=10)
 
     rospy.sleep(0.1)
 
     pc = create_point_cloud()
 
     res = 0.04
-    shape = [25, 20, 15]
+    shape = [25, 20, 1]
     origin_point = np.array([0, 0, 0], dtype=np.float32)
     vg = point_cloud_to_voxel_grid(pc, shape, res, origin_point)
     sdf, sdf_grad = compute_sdf_and_gradient(vg, res, origin_point)
 
     grid_points = get_grid_points(origin_point, res, shape)
-    subsample = 8
+    subsample = 1
     grad_scale = 0.02
 
     for i in range(5):
         visualize_point_cloud(pc_pub, pc)
+        visualize_voxelgrid(vg_pub, vg, res, origin_point)
         visualize_sdf(sdf_pub, sdf, shape, res, origin_point)
-        plot_arrows_rviz(sdf_grad_pub, grid_points.reshape([-1, 3])[::subsample], sdf_grad.reshape([-1, 3])[::subsample] * grad_scale)
+        arrow_start_points = grid_points.reshape([-1, 3])[::subsample]
+        arrow_directions = sdf_grad.reshape([-1, 3])[::subsample] * grad_scale
+        plot_arrows_rviz(sdf_grad_pub, arrow_start_points, arrow_directions)
         rospy.sleep(0.1)
 
 

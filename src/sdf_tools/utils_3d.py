@@ -23,17 +23,15 @@ def compute_sdf_and_gradient(env, res, origin_point):
 
     oob_value = pysdf_tools.COLLISION_CELL(-10000)
     occupied_value = pysdf_tools.COLLISION_CELL(1)
-    # TODO: precompute this SDF and store it in the env dict pkl file we load
 
-    # Yes, it goes y,x,z
-    y_shape = env.shape[0]
-    x_shape = env.shape[1]
+    x_shape = env.shape[0]
+    y_shape = env.shape[1]
     z_shape = env.shape[2]
     grid = pysdf_tools.CollisionMapGrid(origin_transform, 'world', res, x_shape, y_shape, z_shape, oob_value)
     for x_index in range(grid.GetNumXCells()):
         for y_index in range(grid.GetNumYCells()):
             for z_index in range(grid.GetNumZCells()):
-                occupied = (env[y_index, x_index, z_index] == 1)
+                occupied = (env[x_index, y_index, z_index] == 1)
                 if occupied:
                     grid.SetValue(x_index, y_index, z_index, occupied_value)
     sdf_result = grid.ExtractSignedDistanceField(oob_value.occupancy, False, False)
@@ -42,7 +40,7 @@ def compute_sdf_and_gradient(env, res, origin_point):
     # NOTE: when the data is flattened in C++, it is done so in column-major order. In 3d it's z,y,x order meaning that
     #  in memory [x=0,y=0,z=0] is followed by [0,0,1] and [0,0,2].
     #  However, the numpy reshape method assumes row major. Therefore we must transpose.
-    np_sdf = np_sdf.reshape(sdf_voxelgrid.GetNumXCells(), sdf_voxelgrid.GetNumYCells(), sdf_voxelgrid.GetNumZCells())
+    np_sdf = np_sdf.reshape([sdf_voxelgrid.GetNumXCells(), sdf_voxelgrid.GetNumYCells(), sdf_voxelgrid.GetNumZCells()])
     np_sdf = np.transpose(np_sdf, [1, 0, 2]).astype(np.float32)
 
     def gradient_function(x_index, y_index, z_index, enable_edge_gradients=False):
@@ -59,10 +57,5 @@ def compute_sdf_and_gradient(env, res, origin_point):
     np_gradient = np_gradient.reshape(grad_shape)
     np_gradient = np.transpose(np_gradient, [1, 0, 2, 3]).astype(np.float32)
     np_gradient = np_gradient.astype(np.float32)
-
-    # # DEBUGGING
-    # import matplotlib.pyplot as plt
-    # plt.figure()
-    # plt.imshow(np.flipud(np_sdf[:, :, 10]))
 
     return np_sdf, np_gradient

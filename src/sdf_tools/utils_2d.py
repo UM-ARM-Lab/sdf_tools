@@ -29,7 +29,7 @@ def compute_sdf_and_gradient(grid_world, sdf_resolution, sdf_origin, frame='worl
     grid = pysdf_tools.CollisionMapGrid(origin_transform, frame, sdf_resolution, x_width, y_height, z, oob_value)
     for x_index in range(grid.GetNumXCells()):
         for y_index in range(grid.GetNumYCells()):
-            occupied = (grid_world[y_index, x_index] == 1)
+            occupied = (grid_world[x_index, y_index] == 1)
             if occupied:
                 grid.SetValue(x_index, y_index, 0, occupied_value)
     sdf_result = grid.ExtractSignedDistanceField(oob_value.occupancy, False, False)
