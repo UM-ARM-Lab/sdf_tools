@@ -1,6 +1,5 @@
 import numpy as np
 import pysdf_tools
-import tensorflow as tf
 
 
 def compute_sdf_and_gradient(env, res, origin_point):
@@ -10,10 +9,7 @@ def compute_sdf_and_gradient(env, res, origin_point):
     :param origin_point: [3], [x,y,z]
     :return: a tuple (sdf, sdf_gradient) as numpy arrays
     """
-    if isinstance(res, tf.Tensor):
-        res = res.numpy()
-    if isinstance(origin_point, tf.Tensor):
-        origin_point = origin_point.numpy()
+
     origin_transform = pysdf_tools.Isometry3d([
         [1.0, 0.0, 0.0, origin_point[0]],
         [0.0, 1.0, 0.0, origin_point[1]],
@@ -23,7 +19,6 @@ def compute_sdf_and_gradient(env, res, origin_point):
 
     oob_value = pysdf_tools.COLLISION_CELL(-10000)
     occupied_value = pysdf_tools.COLLISION_CELL(1)
-    # TODO: precompute this SDF and store it in the env dict pkl file we load
 
     # Yes, it goes y,x,z
     y_shape = env.shape[0]
