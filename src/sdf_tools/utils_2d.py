@@ -11,8 +11,8 @@ def compute_sdf_and_gradient(grid_world, sdf_resolution, sdf_origin, frame='worl
     :param frame: unused
     :return: a tuple (sdf, sdf_gradient) as numpy arrays
     """
-    y_height = grid_world.shape[0] * sdf_resolution
-    x_width = grid_world.shape[1] * sdf_resolution
+    y_height = grid_world.shape[0]
+    x_width = grid_world.shape[1]
     origin_transform = pysdf_tools.Isometry3d([
         [1.0, 0.0, 0.0, sdf_origin[0]],
         [0.0, 1.0, 0.0, sdf_origin[1]],
@@ -24,7 +24,7 @@ def compute_sdf_and_gradient(grid_world, sdf_resolution, sdf_origin, frame='worl
     occupied_value = pysdf_tools.COLLISION_CELL(1)
 
     # 2d means this should be one cell in z
-    z = sdf_resolution
+    z = 1
 
     grid = pysdf_tools.CollisionMapGrid(origin_transform, frame, sdf_resolution, x_width, y_height, z, oob_value)
     for x_index in range(grid.GetNumXCells()):
