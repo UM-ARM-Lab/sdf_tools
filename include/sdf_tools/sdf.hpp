@@ -335,6 +335,7 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   using GradientFunction = std::function<std::vector<double>(int64_t,int64_t,int64_t,bool)>;
+  using HessianFunction = std::function<std::vector<std::vector<double>>(int64_t,int64_t,int64_t,bool)>;
 
   /** the return vector is a flat array, which will be reshape to be
    * X/Y/Z/gradient when saved as numpy **/
@@ -356,7 +357,26 @@ public:
     }
     return gradient_grid;
   }
+  inline VoxelGrid<std::vector<std::vector<double>>> GetFullHessian(const HessianFunction& hessian_function,
+                                                                    const bool enable_edge_gradients = false) const 
+  {
+      std::vector<double> init_val(3, oob_value_);
+      VoxelGrid<std::vector<std::vector<double>>> hessian_grid{origin_transform_, GetResolution(), GetNumXCells(), GetNumYCells(),
+                                                               GetNumZCells(), std::vector<std::vector<double>>(3, init_val)};
 
+      for (auto x_idx{0l}; x_idx < GetNumXCells(); ++x_idx)
+      {
+        for (auto y_idx{0l}; y_idx < GetNumYCells(); ++y_idx)
+        {
+          for (auto z_idx{0l}; z_idx < GetNumZCells(); ++z_idx)
+          {
+            auto const hessian = hessian_function(x_idx, y_idx, z_idx, enable_edge_gradients);
+            hessian_grid.SetValue(x_idx, y_idx, z_idx, hessian);
+          }
+        }
+      }
+      return hessian_grid;
+  }
 
   inline std::vector<double> GetGradient(
       const double x, const double y, const double z,
@@ -400,6 +420,182 @@ public:
       const bool enable_edge_gradients = false) const
   {
     return GetGradient(index.x, index.y, index.z, enable_edge_gradients);
+  }
+
+  inline std::vector<std::vector<double>> GetHessian(
+    const GRID_INDEX& index,
+    const bool enable_edge_gradients = false) const
+  {
+    return GetHessian(index.x, index.y, index.z, enable_edge_gradients);
+  }
+
+  inline std::vector<std::vector<double>> GetHessian(
+    const int64_t x_index, const int64_t y_index, const int64_t z_index,
+    const bool enable_edge_gradients = false) const 
+  {
+    const std::vector <std::vector<double>> grid_aligned_hessian
+      = GetGridAlignedHessian(x_index, y_index, z_index,
+                            enable_edge_gradients);
+
+    std::vector<std::vector<double>> hessian;
+
+    for (const auto grid_aligned_hessian_row: grid_aligned_hessian) {
+      if (grid_aligned_hessian_row.size() == 3) {
+        const Eigen::Quaterniond grid_rotation(origin_transform_.rotation());
+        // Derived from EigenHelpers::RotateVector, but without extra copies
+        const Eigen::Quaterniond temp(0.0,
+                                      grid_aligned_hessian_row[0],
+                                      grid_aligned_hessian_row[1],
+                                      grid_aligned_hessian_row[2]);
+        const Eigen::Quaterniond result = grid_rotation * (temp * grid_rotation.inverse());
+
+        std::vector<double> tmp{result.x(), result.y(), result.z()};
+        hessian.push_back(tmp);
+      } else {
+        return std::vector<std::vector<double>>();
+      }
+    }
+    return hessian;
+  }
+
+  inline std::vector<std::vector<double>> GetGridAlignedHessian(
+    const int64_t x_index, const int64_t y_index, const int64_t z_index,
+    const bool enable_edge_gradients = false) const
+  {
+    // Make sure the index is inside bounds
+    if (IndexInBounds(x_index, y_index, z_index))
+    {
+      // See if the index we're trying to query is one cell in from the edge
+      if ((x_index > 0) && (y_index > 0) && (z_index > 0)
+          && (x_index < (GetNumXCells() - 1))
+          && (y_index < (GetNumYCells() - 1))
+          && (z_index < (GetNumZCells() - 1)))
+      {
+        const double inv_resolution = 1.0 / GetResolution();
+
+        const double hxx = (-2 * GetImmutable(x_index, y_index, z_index).first
+                           + GetImmutable(x_index + 1, y_index, z_index).first
+                           + GetImmutable(x_index - 1, y_index, z_index).first)
+                           * inv_resolution * inv_resolution;
+        const double hyy = (-2 * GetImmutable(x_index, y_index, z_index).first
+                           + GetImmutable(x_index, y_index+1, z_index).first
+                           + GetImmutable(x_index, y_index-1, z_index).first)
+                           * inv_resolution * inv_resolution;
+        const double hzz = (-2 * GetImmutable(x_index, y_index, z_index).first
+                           + GetImmutable(x_index, y_index, z_index+1).first
+                           + GetImmutable(x_index, y_index, z_index-1).first)
+                           * inv_resolution * inv_resolution;
+
+        const double hxy = (GetImmutable(x_index + 1, y_index + 1, z_index).first
+                            - GetImmutable(x_index + 1, y_index - 1, z_index).first
+                            - GetImmutable(x_index - 1, y_index + 1, z_index).first
+                            + GetImmutable(x_index - 1, y_index - 1, z_index).first)
+                            * 0.25 * inv_resolution * inv_resolution;
+        const double hxz = (GetImmutable(x_index + 1, y_index, z_index+1).first
+                            - GetImmutable(x_index + 1, y_index, z_index - 1).first
+                            - GetImmutable(x_index - 1, y_index, z_index + 1).first
+                            + GetImmutable(x_index - 1, y_index, z_index - 1).first)
+                            * 0.25 * inv_resolution * inv_resolution;
+        const double hyz = (GetImmutable(x_index, y_index + 1, z_index + 1).first
+                            - GetImmutable(x_index, y_index + 1, z_index - 1).first
+                            - GetImmutable(x_index, y_index - 1, z_index + 1).first
+                            + GetImmutable(x_index, y_index - 1, z_index - 1).first)
+                            * 0.25 * inv_resolution * inv_resolution;
+
+        std::vector<double> h1{hxx, hxy, hxz};
+        std::vector<double> h2{hxy, hyy, hyz};
+        std::vector<double> h3{hxz, hyz, hzz};
+        return std::vector<std::vector<double>>{h1, h2, h3};
+      }
+        // If we're on the edge, handle it specially
+        // since if the SDF is build with a virtual border, these cells will
+        // get zero gradient from this approach!
+      else if (enable_edge_gradients)
+      {
+        // Get the "best" indices we can use
+        const int64_t low_x_index = std::max((int64_t)0, x_index - 1);
+        const int64_t high_x_index = std::min(GetNumXCells() - 1, x_index + 1);
+        const int64_t low_y_index = std::max((int64_t)0, y_index - 1);
+        const int64_t high_y_index = std::min(GetNumYCells() - 1, y_index + 1);
+        const int64_t low_z_index = std::max((int64_t)0, z_index - 1);
+        const int64_t high_z_index = std::min(GetNumZCells() - 1, z_index + 1);
+        // Compute the axis increments
+        const double x_increment
+          = (high_x_index - low_x_index);
+        const double y_increment
+          = (high_y_index - low_y_index);
+        const double z_increment
+          = (high_z_index - low_z_index);
+        const double inv_resolution = 1.0 / GetResolution();
+
+        // Compute the hessians elements by default these are zero
+        double hxx = 0.0;
+        double hyy = 0.0;
+        double hzz = 0.0;
+        double hxy = 0.0;
+        double hxz = 0.0;
+        double hyz = 0.0;
+
+        // Only if (x+1, x, x-1) are all within the bounds do we compute the hessian
+        if (x_increment > 1)
+        {
+          hxx = (-2 * GetImmutable(x_index, y_index, z_index).first
+                + GetImmutable(x_index + 1, y_index, z_index).first
+                + GetImmutable(x_index - 1, y_index, z_index).first)
+                  * inv_resolution * inv_resolution;
+          if (y_increment > 1){
+            hxy = (GetImmutable(x_index + 1, y_index + 1, z_index).first
+                   - GetImmutable(x_index + 1, y_index - 1, z_index).first
+                   - GetImmutable(x_index - 1, y_index + 1, z_index).first
+                   + GetImmutable(x_index - 1, y_index - 1, z_index).first)
+                   * 0.25 * inv_resolution * inv_resolution;
+          }
+          if (z_increment > 1){
+            hxz = (GetImmutable(x_index + 1, y_index, z_index+1).first
+                   - GetImmutable(x_index + 1, y_index, z_index - 1).first
+                   - GetImmutable(x_index - 1, y_index, z_index + 1).first
+                   + GetImmutable(x_index - 1, y_index, z_index - 1).first)
+                  * 0.25 * inv_resolution * inv_resolution;
+          }
+        }
+        if (y_increment > 1)
+        {
+          hyy = (-2 * GetImmutable(x_index, y_index, z_index).first
+                 + GetImmutable(x_index, y_index+1, z_index).first
+                 + GetImmutable(x_index, y_index-1, z_index).first)
+                * inv_resolution * inv_resolution;
+          if (z_increment > 1){
+            hyz = (GetImmutable(x_index, y_index + 1, z_index + 1).first
+                   - GetImmutable(x_index, y_index + 1, z_index - 1).first
+                   - GetImmutable(x_index, y_index - 1, z_index + 1).first
+                   + GetImmutable(x_index, y_index - 1, z_index - 1).first)
+                  * 0.25 * inv_resolution * inv_resolution;
+          }
+        }
+        if (z_increment > 1)
+        {
+          hzz = (-2 * GetImmutable(x_index, y_index, z_index).first
+                 + GetImmutable(x_index, y_index, z_index+1).first
+                 + GetImmutable(x_index, y_index, z_index-1).first)
+                 * inv_resolution * inv_resolution;
+        }
+        // Assemble and return the computed hessian
+        std::vector<double> h1{hxx, hxy, hxz};
+        std::vector<double> h2{hxy, hyy, hyz};
+        std::vector<double> h3{hxz, hyz, hzz};
+        return std::vector<std::vector<double>>{h1, h2, h3}; // h1, h2, h3 are rows
+      }
+        // Edge gradient disabled, return no hessian
+      else
+      {
+        return std::vector<std::vector<double>>();
+      }
+    }
+    // If we're out of bounds, return no hessian
+    else
+    {
+      return std::vector<std::vector<double>>();
+    }
   }
 
   inline std::vector<double> GetGradient(

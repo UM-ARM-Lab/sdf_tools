@@ -31,6 +31,10 @@ PYBIND11_MODULE(pysdf_tools, m) {
     std::vector<double>(SignedDistanceField::*
     get_gradient_1)(int64_t, int64_t, int64_t, bool) const =
     &SignedDistanceField::GetGradient;
+    std::vector<std::vector<double>>(SignedDistanceField::*
+    get_hessian)(int64_t, int64_t, int64_t, bool) const =
+      &SignedDistanceField::GetHessian;
+
     std::pair<float const &, bool>(SignedDistanceField::*
     sdf_get_value_by_coordinates)(double, double, double) const = &SignedDistanceField::GetImmutable;
 
@@ -40,7 +44,11 @@ PYBIND11_MODULE(pysdf_tools, m) {
             .def(py::init<>())
             .def("GetRawData", &SignedDistanceField::GetImmutableRawData, "Please don't mutate this")
             .def("GetFullGradient", &SignedDistanceField::GetFullGradient)
+            .def("GetFullHessian", &SignedDistanceField::GetFullHessian)
             .def("GetGradient", get_gradient_1, "get the gradient based on index", py::arg("x_index"),
+                 py::arg("y_index"),
+                 py::arg("z_index"), py::arg("enable_edge_gradients") = false)
+            .def("GetHessian", get_hessian, "get the hessian based on index", py::arg("x_index"),
                  py::arg("y_index"),
                  py::arg("z_index"), py::arg("enable_edge_gradients") = false)
             .def("GetMessageRepresentation", &SignedDistanceField::GetMessageRepresentation)
@@ -110,5 +118,29 @@ PYBIND11_MODULE(pysdf_tools, m) {
             .def("SerializeSelf", &VoxelGridVecd::SerializeSelf)
             .def("DeserializeSelf", &VoxelGridVecd::DeserializeSelf, "deserialize", py::arg("buffer"),
                  py::arg("current"), py::arg("value_deserializer"));
+
+
+    using VoxelGridMatd = VoxelGrid::VoxelGrid<std::vector<std::vector<double>>>;
+    std::pair<std::vector<std::vector<double>> const &, bool>(VoxelGridMatd::*
+      grad_get_value_by_coordinates_mat)(double, double, double) const = &VoxelGridMatd::GetImmutable;
+
+    std::pair<std::vector<std::vector<double>> const &, bool>(VoxelGridMatd::*
+      grad_get_value_by_index_mat)(int64_t, int64_t, int64_t) const = &VoxelGridMatd::GetImmutable;
+
+    py::class_<VoxelGridMatd>(m, "VoxelGridMat")
+            .def(py::init<>())
+            .def("GetRawData", &VoxelGridMatd::GetImmutableRawData, "Please don't mutate this")
+            .def("GetNumXCells", &VoxelGridMatd::GetNumXCells)
+            .def("GetNumYCells", &VoxelGridMatd::GetNumYCells)
+            .def("GetNumZCells", &VoxelGridMatd::GetNumZCells)
+            .def("GetValueByCoordinates", grad_get_value_by_coordinates_mat, "Please don't mutate this", py::arg("x"),
+            py::arg("y"),
+            py::arg("z"))
+            .def("GetValueByIndex", grad_get_value_by_index_mat, "Please don't mutate this", py::arg("x_index"),
+            py::arg("y_index"),
+            py::arg("z_index"))
+            .def("SerializeSelf", &VoxelGridMatd::SerializeSelf)
+            .def("DeserializeSelf", &VoxelGridMatd::DeserializeSelf, "deserialize", py::arg("buffer"),
+            py::arg("current"), py::arg("value_deserializer"));
 
 }

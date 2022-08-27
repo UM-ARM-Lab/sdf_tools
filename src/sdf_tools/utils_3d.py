@@ -2,12 +2,14 @@ import numpy as np
 import pysdf_tools
 
 
-def compute_sdf_and_gradient(env, res, origin_point):
+def compute_sdf_and_gradient(env, res, origin_point, compute_hessian=False):
     """
     :param env: [w,h,c]
     :param res: float in meters
     :param origin_point: [3], [x,y,z]
-    :return: a tuple (sdf, sdf_gradient) as numpy arrays
+    :param compute_hessian: bool
+    :return: a tuple (sdf, sdf_gradient) as numpy arrays if compute_hessian is False,
+             else (sdf, sdf_gradient, sdf_hessian)
     """
 
     origin_transform = pysdf_tools.Isometry3d([
@@ -44,6 +46,8 @@ def compute_sdf_and_gradient(env, res, origin_point):
         return sdf_voxelgrid.GetGradient(x_index, y_index, z_index, enable_edge_gradients)
 
     gradient_voxelgrid = sdf_voxelgrid.GetFullGradient(gradient_function, True)
+
+    # reshape the gradient
     gradient = gradient_voxelgrid.GetRawData()
     np_gradient = np.array(gradient)
     d = np_gradient.shape[1]
@@ -53,8 +57,34 @@ def compute_sdf_and_gradient(env, res, origin_point):
                   d]
     np_gradient = np_gradient.reshape(grad_shape)
     np_gradient = np.transpose(np_gradient, [1, 0, 2, 3]).astype(np.float32)
+    # For same reason as column major vs row major, we need to swap the components of the gradients themselves
+    np_gradient[:, :, :, [0, 1]] = np_gradient[:, :, :, [1, 0]]
     np_gradient = np_gradient.astype(np.float32)
 
+    if compute_hessian:
+        print('computing hessian')
+        def hessian_function(x_index, y_index, z_index, enable_edge_gradients=False):
+            return sdf_voxelgrid.GetHessian(x_index, y_index, z_index, enable_edge_gradients)
+
+        hessian_voxelgrid = sdf_voxelgrid.GetFullHessian(hessian_function, True)
+        hessian = hessian_voxelgrid.GetRawData()
+        np_hessian = np.array(hessian)
+        hessian_shape = [gradient_voxelgrid.GetNumXCells(),
+                         gradient_voxelgrid.GetNumYCells(),
+                         gradient_voxelgrid.GetNumZCells(),
+                         d, d]
+        # reshape hessian
+        np_hessian = np_hessian.reshape(hessian_shape)
+        # as above, because of column major / row major issue need to swap elements of hessian
+        i, j, k = np.random.randint(low=0, high=32, size=(3,))
+        print(np_hessian[i, j, k])
+        np_hessian[:, :, :, :, [0, 1]] = np_hessian[:, :, :, :, [1, 0]]
+        np_hessian[:, :, :, [0, 1]] = np_hessian[:, :, :, [1, 0]]
+        print(np_hessian[i, j, k])
+
+        np_hessian.astype(np.float32)
+
+        return np_sdf, np_gradient, np_hessian
     # # DEBUGGING
     # import matplotlib.pyplot as plt
     # plt.figure()
