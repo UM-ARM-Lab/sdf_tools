@@ -28,18 +28,15 @@ PYBIND11_MODULE(pysdf_tools, m) {
             .def(py::init<Matrix4d>())
             .def("translation", const_translation);
 
-    std::vector<double>(SignedDistanceField::*
-    get_gradient_1)(int64_t, int64_t, int64_t, bool) const =
-    &SignedDistanceField::GetGradient;
-    std::pair<float const &, bool>(SignedDistanceField::*
-    sdf_get_value_by_coordinates)(double, double, double) const = &SignedDistanceField::GetImmutable;
+    std::vector<double>(SignedDistanceField::*get_gradient_1)(int64_t, int64_t, int64_t, bool) const = &SignedDistanceField::GetGradient;
+    std::pair<float const &, bool>(SignedDistanceField::*sdf_get_value_by_coordinates)(double, double, double) const = &SignedDistanceField::GetImmutable;
 
-    std::pair<float const &, bool>(SignedDistanceField::*
-    sdf_get_value_by_index)(int64_t, int64_t, int64_t) const = &SignedDistanceField::GetImmutable;
+    std::pair<float const &, bool>(SignedDistanceField::*sdf_get_value_by_index)(int64_t, int64_t, int64_t) const = &SignedDistanceField::GetImmutable;
     py::class_<SignedDistanceField>(m, "SignedDistanceField")
             .def(py::init<>())
             .def("GetRawData", &SignedDistanceField::GetImmutableRawData, "Please don't mutate this")
             .def("GetFullGradient", &SignedDistanceField::GetFullGradient)
+            .def("GetResolution", &SignedDistanceField::GetResolution)
             .def("GetGradient", get_gradient_1, "get the gradient based on index", py::arg("x_index"),
                  py::arg("y_index"),
                  py::arg("z_index"), py::arg("enable_edge_gradients") = false)
@@ -62,11 +59,9 @@ PYBIND11_MODULE(pysdf_tools, m) {
     bool
     (CollisionMapGrid::*set_value_1)(int64_t, int64_t, int64_t, const COLLISION_CELL &) = &CollisionMapGrid::SetValue;
 
-    std::pair<COLLISION_CELL const &, bool>(CollisionMapGrid::*
-    get_value_by_coordinates)(double, double, double) const = &CollisionMapGrid::GetImmutable;
+    std::pair<COLLISION_CELL const &, bool>(CollisionMapGrid::*get_value_by_coordinates)(double, double, double) const = &CollisionMapGrid::GetImmutable;
 
-    std::pair<COLLISION_CELL const &, bool>(CollisionMapGrid::*
-    get_value_by_index)(int64_t, int64_t, int64_t) const = &CollisionMapGrid::GetImmutable;
+    std::pair<COLLISION_CELL const &, bool>(CollisionMapGrid::*get_value_by_index)(int64_t, int64_t, int64_t) const = &CollisionMapGrid::GetImmutable;
 
     py::class_<CollisionMapGrid>(m, "CollisionMapGrid")
 //            .def(py::init<Isometry3d, std::string, double, double, double, double, COLLISION_CELL>())
@@ -89,11 +84,9 @@ PYBIND11_MODULE(pysdf_tools, m) {
     m.def("DeserializeFixedSizePODd", arc_utilities::DeserializeFixedSizePOD<std::vector<double>>);
 
     using VoxelGridVecd = VoxelGrid::VoxelGrid<std::vector<double>>;
-    std::pair<std::vector<double> const &, bool>(VoxelGridVecd::*
-    grad_get_value_by_coordinates)(double, double, double) const = &VoxelGridVecd::GetImmutable;
+    std::pair<std::vector<double> const &, bool>(VoxelGridVecd::*grad_get_value_by_coordinates)(double, double, double) const = &VoxelGridVecd::GetImmutable;
 
-    std::pair<std::vector<double> const &, bool>(VoxelGridVecd::*
-    grad_get_value_by_index)(int64_t, int64_t, int64_t) const = &VoxelGridVecd::GetImmutable;
+    std::pair<std::vector<double> const &, bool>(VoxelGridVecd::*grad_get_value_by_index)(int64_t, int64_t, int64_t) const = &VoxelGridVecd::GetImmutable;
 
     py::class_<VoxelGridVecd>(m, "VoxelGrid")
             .def(py::init<>())

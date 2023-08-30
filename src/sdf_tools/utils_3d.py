@@ -2,6 +2,40 @@ import numpy as np
 import pysdf_tools
 
 
+def compute_sdf(env, res, origin_point):
+    """
+    :param env: [w,h,c]
+    :param res: float in meters
+    :param origin_point: [3], [x,y,z]
+    :return: SDF object
+    """
+    origin_transform = pysdf_tools.Isometry3d([
+        [1.0, 0.0, 0.0, origin_point[0]],
+        [0.0, 1.0, 0.0, origin_point[1]],
+        [0.0, 0.0, 1.0, origin_point[2]],
+        [0.0, 0.0, 0.0, 1.0]
+    ])
+
+    oob_value = pysdf_tools.COLLISION_CELL(-10000)
+    occupied_value = pysdf_tools.COLLISION_CELL(1)
+
+    # Yes, it goes y,x,z
+    y_shape = env.shape[0]
+    x_shape = env.shape[1]
+    z_shape = env.shape[2]
+    grid = pysdf_tools.CollisionMapGrid(origin_transform, 'world', res, x_shape, y_shape, z_shape, oob_value)
+    for x_index in range(grid.GetNumXCells()):
+        for y_index in range(grid.GetNumYCells()):
+            for z_index in range(grid.GetNumZCells()):
+                occupied = (env[y_index, x_index, z_index] == 1)
+                if occupied:
+                    grid.SetValue(x_index, y_index, z_index, occupied_value)
+    sdf_result = grid.ExtractSignedDistanceField(oob_value.occupancy, False, False)
+    sdf = sdf_result[0]
+
+    return sdf
+
+
 def compute_sdf_and_gradient(env, res, origin_point):
     """
     :param env: [w,h,c]
@@ -61,3 +95,14 @@ def compute_sdf_and_gradient(env, res, origin_point):
     # plt.imshow(np.flipud(np_sdf[:, :, 10]))
 
     return np_sdf, np_gradient
+
+
+def get_gradient(sdf: pysdf_tools.SignedDistanceField, dtype=np.float64):
+    def gradient_function(x_index, y_index, z_index, enable_edge_gradients=False):
+        return sdf.GetGradient(x_index, y_index, z_index, enable_edge_gradients)
+
+    grad = sdf.GetFullGradient(gradient_function, True)
+    grad_np = np.array(grad.GetRawData(), dtype=dtype)
+    grad_np = grad_np.reshape([grad.GetNumXCells(), grad.GetNumYCells(), grad.GetNumZCells(), grad_np.shape[1]])
+
+    return grad_np
