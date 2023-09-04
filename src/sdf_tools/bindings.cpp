@@ -56,8 +56,8 @@ PYBIND11_MODULE(pysdf_tools, m) {
             .def("GetNumYCells", &SignedDistanceField::GetNumYCells)
             .def("GetNumZCells", &SignedDistanceField::GetNumZCells);
 
-    bool
-    (CollisionMapGrid::*set_value_1)(int64_t, int64_t, int64_t, const COLLISION_CELL &) = &CollisionMapGrid::SetValue;
+    bool (CollisionMapGrid::*set_value_1)(int64_t, int64_t, int64_t, const COLLISION_CELL &) = &CollisionMapGrid::SetValue;
+    bool (CollisionMapGrid::*set_value_2)(double, double, double, const COLLISION_CELL &) = &CollisionMapGrid::SetValue;
 
     std::pair<COLLISION_CELL const &, bool>(CollisionMapGrid::*get_value_by_coordinates)(double, double, double) const = &CollisionMapGrid::GetImmutable;
 
@@ -67,6 +67,7 @@ PYBIND11_MODULE(pysdf_tools, m) {
 //            .def(py::init<Isometry3d, std::string, double, double, double, double, COLLISION_CELL>())
             .def(py::init<Isometry3d const &, std::string, double, int64_t, int64_t, int64_t, COLLISION_CELL const &>())
             .def("SetValue", set_value_1)
+            .def("SetValueByCoordinates", set_value_2)
             .def("GetRawData", &CollisionMapGrid::GetImmutableRawData, "Please don't mutate this")
             .def("GetValueByCoordinates", get_value_by_coordinates, "Please don't mutate this", py::arg("x"),
                  py::arg("y"),
